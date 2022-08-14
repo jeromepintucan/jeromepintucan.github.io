@@ -19,21 +19,21 @@
 
 				<!-- Header -->
 					<header id="header">
-						<a href="index.html" class="logo">Portfolio</a>
+						<a href="index.html" class="logo">Home</a>
 					</header>
 
 				<!-- Nav -->
 					<nav id="nav">
 						<ul class="links">
-							<li><a href="index.html">Portfolio</a></li>
+							<li><a href="index.html">Jerome's Portfolio</a></li>
 							<!-- <li><a href="generic.html">Generic Page</a></li>
 							<li class="active"><a href="elements.html">Elements Reference</a></li> -->
 						</ul>
 						<ul class="icons">
-							<li><a href="#" class="icon brands fa-twitter"><span class="label">Twitter</span></a></li>
-							<li><a href="#" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
-							<li><a href="#" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
-							<li><a href="#" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+							<li><a href="https://chatwith.io/s/jerome-pintucan" target="_blank" rel="noopener noreferrer" class="icon brands fa-whatsapp"><span class="label">Whatsapp</span></a></li>
+							<li><a href="https://web.facebook.com/pintucanjerome21/" target="_blank" rel="noopener noreferrer" class="icon brands fa-facebook-f"><span class="label">Facebook</span></a></li>
+							<li><a href="https://mail.google.com/mail/u/0/#all?compose=CllgCKCGmKTdkvQkBMNvfFPJvdtWfqSHJmdRrjfNGQqqmQqFqbKlgbrkVCcJjRQlLkbZtSwpdfg" target="_blank" rel="noopener noreferrer" class="icon brands fa-google"><span class="label">Gmail</span></a></li>
+							<li><a href="https://github.com/jeromepintucan" target="_blank" rel="noopener noreferrer" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
 						</ul>
 					</nav>
 
@@ -47,9 +47,9 @@
 									Data Analysis</h1>
 								</header>
 
-								<span class="image fit"><img src="images/pic02.jpg" alt="" /></span>
+								<span class="image fit"><img src="images/AMAZONSALES_TABLEAU.jpg" alt="" /></span>
 
-								<!-- Text stuff -->
+								<!-- Text stuff
 									<h2>Text</h2>
 									<p>This is <b>bold</b> and this is <strong>strong</strong>. This is <i>italic</i> and this is <em>emphasized</em>.
 									This is <sup>superscript</sup> text and this is <sub>subscript</sub> text.
@@ -69,7 +69,342 @@
 									<p>Nunc lacinia ante nunc ac lobortis. Interdum adipiscing gravida odio porttitor sem non mi integer non faucibus ornare mi ut ante amet placerat aliquet. Volutpat eu sed ante lacinia sapien lorem accumsan varius montes viverra nibh in adipiscing blandit tempus accumsan.</p>
 									<header>
 										<h3>Heading with a Subtitle</h3>
-										<p>Lorem ipsum dolor sit amet nullam id egestas urna aliquam</p>
+										<p>Lorem ipsum dolor sit amet nullam id egestas urna aliquam</p> -->
+
+										<h2>Importing necessary library</h2>
+										<pre><code>
+import numpy as np
+import pandas as pd
+	</code></pre>
+	
+	<h2>Load Dataset</h2>
+
+	<pre><code>
+amazonsales = pd.read_csv('all_data.csv')
+	</code></pre>
+
+
+	<pre>
+		<code>
+amazonsales.head()
+			<span class="image fit"><img src="images/code/code_01.jpg" alt="amazonsales head" /></span>
+		</code>
+	</pre>
+
+	<h2>Inspecting Dataset</h2>
+
+	<pre>
+		<code>
+amazonsales.shape()
+
+(2802750, 6)
+		</code>
+	</pre>
+
+	<pre>
+		<code>
+amazonsales.describe()
+
+<span class="image fit"><img src="images/code/code_02.jpg" alt="amazonsales describe" /></span>
+
+		</code>
+	</pre>
+
+<h2>Check how many null values in the Dataset and Dropping them</h2>
+
+	<pre>
+		<code>
+amazonsales.isnull().sum()
+
+Order ID            8175
+Product             8175
+Quantity Ordered    8175
+Price Each          8175
+Order Date          8175
+Purchase Address    8175
+dtype: int64
+		</code>
+	</pre>
+
+	<pre>
+		<code>
+amazonsales = amazonsales.dropna(how='all')
+		</code>
+	</pre>
+
+<h2>Check if we remove all the null values</h2>
+
+	<pre>
+		<code>
+amazonsales.isnull().sum()
+
+Order ID            0
+Product             0
+Quantity Ordered    0
+Price Each          0
+Order Date          0
+Purchase Address    0
+dtype: int64
+		</code>
+	</pre>
+
+<h2>Converting value with their correct data types</h2>
+
+<pre>
+	<code>
+amazonsales.dtypes
+
+Order ID            object
+Product             object
+Quantity Ordered    object
+Price Each          object
+Order Date          object
+Purchase Address    object
+dtype: object
+	</code>
+</pre>
+
+<pre>
+	<code>
+amazonsales['Order Date'] = pd.to_datetime(amazonsales['Order Date'])
+
+amazonsales['Year'] = amazonsales['Order Date'].dt.year
+amazonsales['Month']  = amazonsales['Order Date'].dt.month
+amazonsales['Hour'] = amazonsales['Order Date'].dt.hour
+
+amazonsales['Price Each'] = pd.to_numeric(amazonsales['Price Each'])
+amazonsales['Quantity Ordered'] = pd.to_numeric(amazonsales['Quantity Ordered'])
+	</code>
+</pre>
+
+
+<h2>Starts to analyze the data and making simple calculation</h2>
+<pre>
+	<code>
+amazonsales['Sales'] = amazonsales['Price Each'] * amazonsales['Quantity Ordered']
+	</code>
+</pre>
+
+<h2>Question 1: What was the best month for sales? How much was earned that month</h2>
+
+<pre>
+	<code>
+amazonsales.head()
+
+<span class="image fit"><img src="images/code/code_03.jpg" alt="Question 1 head" /></span>
+	</code>
+</pre>
+
+<pre>
+	<code>
+monthly_sales = amazonsales.groupby(['Month']).agg({'Sales': 'sum'})
+monthly_sales.sort_values(by='Sales', ascending=False)
+
+<span><img src="images/code/code_04.jpg" alt="Question 1 answer" width="250px"/></span>
+
+<p><i>
+<strong>
+Based on the data that we analyzed the month with the highest sales is
+December, October, and April
+</strong>
+</i></p>
+	</code>
+</pre>
+
+<h2>Time to visualize the results</h2>
+
+<pre>
+	<code>
+import matplotlib.pyplot as plt
+import seaborn as sns
+		
+%matplotlib inline
+	</code>
+</pre>
+
+<pre>
+	<code>
+sns.set()
+fig = plt.figure(figsize=(16,8))
+		
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+		
+ax = sns.barplot(x=monthly_sales.index, y=monthly_sales['Sales'], data=monthly_sales, palette='pastel')
+ax.set_xticklabels(months)
+plt.title("Amazon Monthly Sales")
+plt.xlabel("Months")
+plt.ylabel("Monthly Sales")
+				
+		
+plt.show()
+
+<span class="image fit"><img src="images/code/q1_graph.png" alt="Question 1 Graph" /></span>
+	</code>
+</pre>
+
+<h2>Question 2: What City had the highest number of sales?</h2>
+
+<pre>
+	<code>
+amazonsales.head()
+
+<span class="image fit"><img src="images/code/question2_head.jpg" alt="Question 2 Head" /></span>
+	</code>
+</pre>
+
+<h2>Extract the City and State in the Purchase Address Column</h2>
+
+<pre>
+	<code>
+def get_city(address):
+	return address.split(',')[1]
+	
+def get_state(address):
+	return address.split(',')[2].split(' ')[1]
+
+	</code>
+</pre>
+
+<pre>
+	<code>
+amazonsales['Purchase Address'].apply(lambda x: get_state(x))		
+amazonsales['Purchase Address'].apply(lambda x: get_city(x))
+	</code>
+</pre>
+
+
+<h2>Joining the two result into one column</h2>
+<pre>
+	<code>
+amazonsales['City'] = amazonsales['Purchase Address'].apply(lambda x: get_city(x) + " " + get_state(x))
+	</code>
+</pre>
+
+<pre>
+	<code>
+amazonsales.head()
+
+<span class="image fit"><img src="images/code/question2_head_01.jpg" alt="Question 2 Head 02" /></span>
+	</code>
+</pre>
+
+
+<pre>
+	<code>
+city_sales = amazonsales.groupby(['City']).agg({'Sales': 'sum'})
+city_sales
+
+<span><img src="images/code/city_sales_01.jpg" alt="Question 1 answer" width="250px"/></span>
+	</code>
+</pre>
+
+<pre>
+	<code>
+city_sales['Sales'] = city_sales['Sales'].apply(lambda x: '%.5d' % x)
+
+city_sales['Sales'] = city_sales['Sales'].astype('int64')
+
+city_sales.sort_values(by='Sales', ascending=False)
+
+<span><img src="images/code/city_sales_02.jpg" alt="Question 1 answer" width="250px"/></span>
+
+<p><i>
+	<strong>
+The City with the highest sales are San Francisco CA, Lost Angeles CA,
+and New York City NY
+	</strong>
+	</i></p>
+	</code>
+</pre>
+
+<h2>visualize the results</h2>
+
+<pre>
+	<code>
+fig = plt.figure(figsize=(16,8))
+
+ax = sns.barplot(x=city_sales.index, y=city_sales['Sales'], data=city_sales)
+ax.set_xticklabels(city_sales.index, rotation=30)
+		
+for i in range(len(city_sales.index)):
+	plt.text(i, city_sales['Sales'][i], str(city_sales['Sales'][i]), ha='center', va='bottom')
+		
+plt.show
+
+<span class="image fit"><img src="images/code/q2_graph.png" alt="Question 2 Graph" /></span>
+	</code>
+</pre>
+
+<h2>Question 3: What time should we display advertisement to maximize
+	likelihood of customer's buying Product
+</h2>
+
+<pre>
+	<code>
+amazonsales.head()
+
+<span class="image fit"><img src="images/code/q3_head.jpg" alt="Question 3 Head" /></span>
+	</code>
+</pre>
+
+<pre>
+	<code>
+sns.set()
+
+fig = plt.figure(figsize=(16,8))
+		
+hours = [hour for hour, dataframe in amazonsales.groupby('Hour')]
+		
+plt.plot(hours, amazonsales.groupby(['Hour']).count())
+plt.xticks(hours)
+plt.xlabel('Hours', size=12)
+plt.ylabel('Number of Orders', size=12)
+		
+plt.show()
+
+<span class="image fit"><img src="images/code/q3_graph.png" alt="Question 3 Graph" /></span>
+
+<p><i>
+	<strong>
+The line graph shows that the best time to advertise is around 11am and 7pm
+	</strong>
+	</i></p>
+	</code>
+</pre>
+
+<h2>Question 4: What products are most often sold together?</h2>
+
+<pre>
+	<code>
+amazonsales.head()
+
+<span class="image fit"><img src="images/code/q4_head.jpg" alt="Question 4 Head" /></span>
+	</code>
+</pre>
+
+<pre>
+	<code>
+amazonsales.reset_index(drop=True)
+
+<span class="image fit"><img src="images/code/q4_head_01.jpg" alt="Question 4 Head 01" /></span>
+	</code>
+</pre>
+
+<pre>
+	<code>
+sold_together = amazonsales[amazonsales.duplicated(subset='Order ID')]
+
+sold_together['Grouped'] = sold_together.groupby('Order ID')['Product'].transform(lambda x: ','.join(x))
+sold_together = sold_together[['Order ID', 'Grouped']].drop_duplicates()
+		
+sold_together.head()
+
+<span class="image fit"><img src="images/code/q4_answer.jpg" alt="Question 4 Answer" /></span>
+		
+	</code>
+</pre>
+							</section>
+
 
 
 				<!-- Footer -->
