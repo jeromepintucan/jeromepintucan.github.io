@@ -92,6 +92,17 @@
 			<script src="assets/js/breakpoints.min.js"></script>
 			<script src="assets/js/util.js"></script>
 			<script src="assets/js/main.js"></script>
+			<script>
+				// Disable right-click
+				document.addEventListener('contextmenu', event => event.preventDefault());
+			  
+				// Disable viewing the source code
+				document.addEventListener('keydown', function (event) {
+				  if (event.ctrlKey && (event.keyCode === 85 || event.keyCode === 83)) {
+					event.preventDefault();
+				  }
+				});
+			  </script>
 
 	</body>
 </html>

@@ -88,13 +88,13 @@
 								</article>
 								<article>
 									<header>
-										<h2><a href="#">Ante mattis<br />
-										interdum dolor</a></h2>
+										<h2><a href="#">Power BI Dashboard<br />
+										SysDev</a></h2>
 									</header>
 									<a href="#" class="image fit"><img src="images/pic04.jpg" alt="" /></a>
 									<p>Donec eget ex magna. Interdum et malesuada fames ac ante ipsum primis in faucibus. Pellentesque venenatis dolor imperdiet dolor mattis sagittis magna etiam.</p>
 									<ul class="actions special">
-										<li><a href="#" class="button">Full Story</a></li>
+										<li><a href="PowerBI.html" class="button">Full Story</a></li>
 									</ul>
 								</article>
 								<article>
@@ -152,30 +152,31 @@
 				<!-- Footer -->
 					<footer id="footer">
 						<section>
-							<form method="post" action="mailto:jeromepintucan.work@gmail.com" target="_blank" rel="noopener noreferrer">
-								<div class="fields">
-									<div class="field">
-										<label for="name">Name</label>
-										<input type="text" name="name" id="name" />
-									</div>
-									<div class="field">
-										<label for="email">Email</label>
-										<input type="text" name="email" id="email" />
-									</div>
-									<div class="field">
-										<label for="message">Message</label>
-										<textarea name="message" id="message" rows="3"></textarea>
-									</div>
+							<form method="post" action="send-email.php" target="_blank" rel="noopener noreferrer">
+							  <div class="fields">
+								<div class="field">
+								  <label for="name">Name</label>
+								  <input type="text" name="name" id="name" required />
 								</div>
-								<ul class="actions">
-									<li><input type="submit" value="Send Message" /></li>
-								</ul>
+								<div class="field">
+								  <label for="email">Email</label>
+								  <input type="email" name="email" id="email" required />
+								</div>
+								<div class="field">
+								  <label for="message">Message</label>
+								  <textarea name="message" id="message" rows="3" required></textarea>
+								</div>
+							  </div>
+							  <ul class="actions">
+								<li><input type="submit" value="Send Message" /></li>
+							  </ul>
 							</form>
 						</section>
+						  
 						<section class="split contact">
 							<section class="alt">
 								<h3>Address</h3>
-								<p>Poblacion, Muntinlupa City<br />
+								<p>Muntinlupa City<br />
 								Metro Manila, Philippines</p>
 							</section>
 							<section>
@@ -213,6 +214,17 @@
 			<script src="assets/js/breakpoints.min.js"></script>
 			<script src="assets/js/util.js"></script>
 			<script src="assets/js/main.js"></script>
+			<script>
+				// Disable right-click
+				document.addEventListener('contextmenu', event => event.preventDefault());
+			  
+				// Disable viewing the source code
+				document.addEventListener('keydown', function (event) {
+				  if (event.ctrlKey && (event.keyCode === 85 || event.keyCode === 83)) {
+					event.preventDefault();
+				  }
+				});
+			  </script>
 
 	</body>
 </html>
