@@ -186,6 +186,17 @@
 				  }
 				});
 			  </script>
+	<script>
+		// Detect if the developer tools are open
+		window.addEventListener('keydown', event => {
+			if (event.keyCode === 123) {
+				event.preventDefault();
+				alert('Developer tools are not allowed on this page!');
+				// You could also redirect the user to another page
+				// window.location.href = 'https://example.com';
+			}
+		});
+	</script>
 
 	</body>
 </html>
