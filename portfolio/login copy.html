@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Login Page</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<script>
+		// Add the code to disable right-click
+		document.addEventListener('contextmenu', event => event.preventDefault());
+	  </script>
+	  
+	<style>
+		body {
+			background-color: #f8f8f8;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		}
+		h2 {
+			text-align: center;
+			margin-top: 50px;
+			color: #555;
+		}
+		form {
+			background-color: #f8f8f8;
+			max-width: 60%;
+			margin: auto;
+			padding: 20px;
+			border-radius: 10px;
+			box-shadow: 0px 0px 20px #888888;
+			margin-top: 50px;
+		}
+		input[type=text], input[type=password] {
+			width: 100%;
+			padding: 12px 20px;
+			margin: 8px 0;
+			display: inline-block;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			box-sizing: border-box;
+			font-size: 16px;
+			color: #555;
+			background-color: #f8f8f8;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+		}
+		button {
+			background-color: #4CAF50;
+			color: white;
+			padding: 14px 20px;
+			margin: 8px 0;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			width: 100%;
+			font-size: 16px;
+			font-weight: bold;
+			letter-spacing: 1px;
+			text-transform: uppercase;
+			transition: all 0.3s ease;
+		}
+		button:hover {
+			background-color: #45a049;
+		}
+		label {
+			font-size: 16px;
+			color: #555;
+			font-weight: bold;
+			margin-bottom: 10px;
+			display: block;
+			text-align: left;
+			width: 100%;
+			text-transform: uppercase;
+			letter-spacing: 1px;
+		}
+		.container {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			flex-direction: column;
+			height: 100vh;
+		}
+		.back-btn {
+			background-color: #555;
+			color: #fff;
+			padding: 10px 20px;
+			border: none;
+			border-radius: 4px;
+			cursor: pointer;
+			font-size: 16px;
+			font-weight: bold;
+			letter-spacing: 1px;
+			text-transform: uppercase;
+			transition: all 0.3s ease;
+			margin-top: 20px;
+		}
+		.back-btn:hover {
+			background-color: #333;
+		}
+	</style>
+</head>
+<body oncontextmenu="return false;">
+	<button onclick="window.history.back()">Back</button>
+	<h2>Login to Jerome's Professional Works</h2>
+	<form>
+		<label for="username">Username</label>
+		<input type="text" id="username" name="username" placeholder="Enter username">
+
+		<label for="password">Password</label>
+		<input type="password" id="password" name="password" placeholder="Enter password">
+
+		<button type="button" onclick="authenticate()">Login</button>
+	</form>
+	
+
+	<script>
+		function authenticate() {
+			var username = document.getElementById("username").value;
+			var password = document.getElementById("password").value;
+
+			if (username === "admin" && password === "adminpassword") {
+				window.location.href = "OtherWorks.html";
+			} else {
+				alert("Unauthorized access! You can contact Jerome Pintucan for assistance");
+			}
+		}
+	</script>
+	<!-- Prevent using Inspect Element -->
+	<script>
+		// Detect if the developer tools are open
+		window.addEventListener('keydown', event => {
+			if (event.keyCode === 123) {
+				event.preventDefault();
+				alert('Developer tools are not allowed on this page!');
+				// You could also redirect the user to another page
+				// window.location.href = 'https://example.com';
+			}
+		});
+	</script>
+
+	<script>
+		document.onkeydown = function(e) {
+if(event.keyCode == 123) {
+return false;
+}
+if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)){
+return false;
+}
+if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)){
+return false;
+}
+if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)){
+return false;
+}
+}
+	</script>
+
+</body>
+</html>

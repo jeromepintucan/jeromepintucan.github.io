@@ -12,13 +12,13 @@
   <div class='head'>
     <h1 class='company'>Professional Works</h1>
   </div>
-  <p class='msg'>Welcome back, Jerome</p>
+  <p class='msg'>Welcome back</p>
   <div class='form'>
     <form onsubmit="checkLogin(event)">
       <input type="text" placeholder='Username' class='text' id='username' name="username" required><br>
       <input type="password" placeholder='••••••••••••••' class='password' name="password"><br>
       <button type="submit" class='btn-login' id='do-login'>Login</button>
-      <a href="index.html" class='forgot'>Back</a>
+      <a href="./portfolio/index.html" class='forgot'>Back</a>
     </form>
   </div>
 </section>
@@ -34,7 +34,7 @@
     var password = document.getElementsByName('password')[0].value;
 
     if (username === 'admin' && password === 'adminpassword') {
-      window.location.href = 'OtherWorks.html';
+      window.location.href = './portfolio/OtherWorks.html';
     } else {
       alert('Invalid username or password. Please try again.');
     }
