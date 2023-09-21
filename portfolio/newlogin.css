@@ -1,5 +1,5 @@
 body {
-    background: #A9a9a9;
+    background: #1e252d;
     /* background-image: url("../../images/overlay.png"), linear-gradient(0deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)), url("../../images/bg.jpg"); */
     font-family: Assistant, sans-serif;
     display: flex;
@@ -86,7 +86,7 @@ body {
     display: inline;
   }
   footer a {
-    color: green;
+    color: white;
     text-decoration: none;
   }
   footer a:hover {
