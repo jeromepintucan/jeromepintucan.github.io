@@ -55,10 +55,9 @@ const swiperWrapper = document.getElementById('project-swiper-wrapper');
 const closeModal = document.querySelector('.close-modal');
 
 const projectImages = {
-    insurance: ['images/insurancetransactiondashboard/Slide1.png', 'images/insurancetransactiondashboard/Slide2.png', 'images/insurancetransactiondashboard/Slide3.png', 'images/insurancetransactiondashboard/Slide4.png', 'images/insurancetransactiondashboard/Slide5.png', 'images/insurancetransactiondashboard/Slide6.png', 'images/insurancetransactiondashboard/Slide7.png',
-    ],
-    project2: ['images/ai_pipeline.png'],
-    project3: ['images/ai_pipeline.png'],
+    insurance: ['images/insurancetransactiondashboard/Slide1.png', 'images/insurancetransactiondashboard/Slide2.png', 'images/insurancetransactiondashboard/Slide3.png', 'images/insurancetransactiondashboard/Slide4.png', 'images/insurancetransactiondashboard/Slide5.png', 'images/insurancetransactiondashboard/Slide6.png', 'images/insurancetransactiondashboard/Slide7.png',],
+    blinkit: ['images/blinkit/blinkit.png'],
+    PerformanceAnalysis: ['images/performanceanalysis/PerformanceAnalysisCover.png', 'images/performanceanalysis/PerformanceAnalysis1.png'],
     project4: ['images/ai_pipeline.png'],
     project5: ['images/ai_pipeline.png'],
     project6: ['images/ai_pipeline.png'],
