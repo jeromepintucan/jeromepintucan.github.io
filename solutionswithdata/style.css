@@ -265,8 +265,9 @@ header {
 
 .menu-section .menu-list {
     display: flex;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     flex-wrap: wrap;
-    gap: 110px;
+    gap: 40px; /* from 120px to 40px */
     align-items: center;
     justify-content: space-between;
 }
@@ -277,12 +278,15 @@ header {
     text-align: center;
     flex-direction: column;
     justify-items: space-between;
-    width: calc(100% / 3 - 110px);
+    /* width: calc(100% / 3 - 110px); below code are additional*/
+    width: 300px;
+    min-height: 460px;
+    padding: 20px;
 }
 
 .menu-section .menu-list .menu-item .menu-image {
-    width: 83%;
-    aspect-ratio: 1;
+    width: 100%; /* from 83% to 100% */
+    aspect-ratio: 16/9; /* from 1 to 16/9 */
     margin-bottom: 15px;
     object-fit: contain;
 }
@@ -295,6 +299,10 @@ header {
 
 .menu-section .menu-list .menu-item .text {
     font-size: var(--font-size-m);
+    /* below code are additional */
+    flex-grow: 1;
+    display: flex;
+    align-items: flex-start;
 }
 
 /* Project Modal Style */
