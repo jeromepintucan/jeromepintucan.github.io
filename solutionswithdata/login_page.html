@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login - Solutions With Data</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: #3f1922;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    a {
+      color: white;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.25rem 3rem;
+      background-color: #3f1922;
+    }
+    header .logo {
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: 0.1em;
+      user-select: none;
+    }
+    nav a {
+      margin-left: 2rem;
+      font-weight: 500;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+    nav a:hover {
+      color: #E27A1F;
+    }
+
+    /* Main content grid */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr; /* 50/50 split */
+      align-items: center;
+      padding: 2rem 3rem;
+      gap: 3rem;
+    }
+    .login-container,
+    .illustration-container {
+      width: 100%;
+    }
+
+    .login-container {
+      background-color: #4b2630;
+      border-radius: 12px;
+      padding: 3rem 2.5rem;
+      max-width: 100%;
+      box-shadow: 0 0 20px rgba(226, 122, 31, 0.3);
+    }
+
+    .login-container h2 {
+      color: #E27A1F;
+      font-weight: 700;
+      font-size: 1.8rem;
+      margin-bottom: 1.2rem;
+      user-select: none;
+    }
+    .login-container p {
+      color: #ddd;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+
+    /* Form */
+    form {
+      display: flex;
+      flex-direction: column;
+    }
+    label {
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #f0f0f0;
+    }
+    input[type="email"],
+    input[type="password"] {
+      padding: 0.6rem 1rem;
+      margin-bottom: 1.2rem;
+      border-radius: 6px;
+      border: none;
+      font-size: 1rem;
+      outline: none;
+      transition: box-shadow 0.3s ease;
+    }
+    input[type="email"]:focus,
+    input[type="password"]:focus {
+      box-shadow: 0 0 5px #E27A1F;
+    }
+    button {
+      background-color: #E27A1F;
+      border: none;
+      padding: 0.9rem 1rem;
+      border-radius: 25px;
+      font-weight: 600;
+      color: #3f1922;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #ca6e1b;
+    }
+
+    /* Extra links */
+    .extra-links {
+      margin-top: 1rem;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+    }
+    .extra-links a {
+      color: #bbb;
+    }
+    .extra-links a:hover {
+      color: #E27A1F;
+    }
+
+    /* Right side - illustration container */
+    .illustration-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .illustration-container img {
+      max-width: 100%;
+      border-radius: 10px;
+      box-shadow: 0 0 25px rgba(226, 122, 31, 0.3);
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      main {
+        grid-template-columns: 1fr;
+        padding: 2rem 1.5rem;
+      }
+      .illustration-container {
+        margin-top: 3rem;
+      }
+      .login-container {
+        max-width: 100%;
+        padding: 2rem 1.5rem;
+      }
+    }
+    @media (max-width: 900px) {
+      header {
+        padding: 1rem 1rem;
+      }
+      nav a {
+        margin-left: 1rem;
+        font-size: 0.9rem;
+      }
+    }
+    @media (max-width: 768px) {
+      .login-container {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo" aria-label="SWD logo">SWD</div>
+    <nav>
+      <a href="index.html" tabindex="0">Home</a>
+    </nav>
+  </header>
+  <main>
+    <section class="login-container" aria-label="Login form section">
+      <h2>Log In to SWD</h2>
+      <p>Access your dashboard and analytics by logging in with your credentials.</p>
+      <form id="loginForm" novalidate>
+        <label for="email">Email address</label>
+        <input 
+          type="email" 
+          id="email" 
+          name="email" 
+          placeholder="example@domain.com" 
+          required
+          autocomplete="username"
+          aria-describedby="email-error"
+        />
+        <span id="email-error" style="color: #e27a1f; font-size: 0.8rem; display:none;">Please enter a valid email.</span>
+
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          placeholder="Your password" 
+          required 
+          minlength="6"
+          autocomplete="current-password"
+          aria-describedby="password-error"
+        />
+        <span id="password-error" style="color: #e27a1f; font-size: 0.8rem; display:none;">Password must be 6 characters or more.</span>
+
+        <button type="submit" aria-label="Log in to your account">Log In</button>
+      </form>
+      <div class="extra-links">
+        <a href="#" tabindex="0">Forgot password?</a>
+      </div>
+    </section>
+    <section class="illustration-container" aria-hidden="true">
+      <img src="./images/ai_pipeline.png" alt="Data analysis illustration" />
+    </section>
+  </main>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const emailInput = form.email;
+    const passwordInput = form.password;
+    const emailError = document.getElementById('email-error');
+    const passwordError = document.getElementById('password-error');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      let valid = true;
+
+      const emailValue = emailInput.value.trim();
+      const passwordValue = passwordInput.value;
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailValue)) {
+        emailError.style.display = 'block';
+        valid = false;
+      } else {
+        emailError.style.display = 'none';
+      }
+
+      if (passwordValue.length < 6) {
+        passwordError.style.display = 'block';
+        valid = false;
+      } else {
+        passwordError.style.display = 'none';
+      }
+
+      if (!valid) return;
+
+      try {
+        const response = await fetch('users.json');
+        const users = await response.json();
+
+        const match = users.find(
+          u => u.email === emailValue && u.password === passwordValue
+        );
+
+        if (match) {
+          sessionStorage.setItem('loggedInUser', match.name);
+          window.location.href = 'dashboard.html';
+        } else {
+          alert('Invalid email or password.');
+        }
+      } catch (err) {
+        console.error('Error loading users.json:', err);
+        alert('Something went wrong. Please try again later.');
+      }
+    });
+  </script>
+</body>
+</html>
+
+

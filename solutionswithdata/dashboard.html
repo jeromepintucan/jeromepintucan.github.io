@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --dark-bg: #3a1e23;
+      --dark-bg-alt: #2f181c;
+      --orange-accent: #e48918;
+      --text-light: #fff1db;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      background-color: var(--dark-bg);
+      color: var(--text-light);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: var(--dark-bg-alt);
+      padding: 0.75rem 1.5rem;
+      border-bottom: 2px solid var(--orange-accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 1.125rem;
+      user-select: none;
+    }
+
+    header .left {
+      flex-grow: 1;
+      color: var(--text-light);
+    }
+
+    header .right {
+      color: var(--orange-accent);
+      font-weight: 600;
+      font-size: 0.875rem;
+      letter-spacing: 0.02em;
+    }
+
+    main#dashboard-container {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    #dashboard-embed {
+      background: var(--dark-bg-alt);
+      width: 80%;
+      height: 80%;
+      max-width: 1200px;
+      border-radius: 1rem;
+      box-shadow:
+        0 0 6px 2px rgba(228, 137, 24, 0.8),
+        inset 0 0 15px 5px rgba(228, 137, 24, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1.25rem;
+      animation: glowPulse 3s ease-in-out infinite;
+    }
+
+    #dashboard-embed iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 1rem;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% {
+        box-shadow:
+          0 0 6px 2px rgba(228, 137, 24, 0.8),
+          inset 0 0 15px 5px rgba(228, 137, 24, 0.5);
+      }
+      50% {
+        box-shadow:
+          0 0 10px 4px rgba(228, 137, 24, 1),
+          inset 0 0 20px 7px rgba(228, 137, 24, 0.7);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="left">Solutions With Data</div>
+    <div class="right" id="greeting">Welcome!</div>
+  </header>
+
+  <main id="dashboard-container" role="main">
+    <section id="dashboard-embed" aria-label="Embedded Power BI Dashboard">
+      <iframe 
+        title="Procurement Dashboard"
+        src="https://app.powerbi.com/view?r=eyJrIjoiNDBhNGQyZjYtZmY5MC00NjhjLWI5MTktYzQyMGM0MDY2NzBjIiwidCI6IjBhYjVhZTc0LTc5MTMtNGJjOC1iZTg1LWRlYmRmZDY0MWViYyIsImMiOjEwfQ%3D%3D&embedImagePlaceholder=true"
+        allowfullscreen="true">
+      </iframe>
+    </section>
+  </main>
+
+  <script>
+    function getGreetingMessage(name) {
+      const hour = new Date().getHours();
+      let greeting = "Hello";
+      if (hour < 12) greeting = "Good morning";
+      else if (hour < 18) greeting = "Good afternoon";
+      else greeting = "Good evening";
+      return `${greeting}, ${name || 'Guest'}!`;
+    }
+
+    function updateGreeting() {
+      const name = sessionStorage.getItem('loggedInUser') || "Guest";
+      document.getElementById('greeting').textContent = getGreetingMessage(name);
+      document.getElementById('dashboard-container').setAttribute("aria-label", `SWD - Greetings ${name}`);
+    }
+
+    updateGreeting();
+  </script>
+</body>
+</html>
