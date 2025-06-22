@@ -27,7 +27,6 @@
       text-decoration: underline;
     }
 
-    /* Header */
     header {
       display: flex;
       justify-content: space-between;
@@ -52,11 +51,10 @@
       color: #E27A1F;
     }
 
-    /* Main content grid */
     main {
       flex: 1;
       display: grid;
-      grid-template-columns: 1fr 1fr; /* 50/50 split */
+      grid-template-columns: 1fr 1fr;
       align-items: center;
       padding: 2rem 3rem;
       gap: 3rem;
@@ -87,7 +85,6 @@
       font-size: 0.95rem;
     }
 
-    /* Form */
     form {
       display: flex;
       flex-direction: column;
@@ -127,7 +124,6 @@
       background-color: #ca6e1b;
     }
 
-    /* Extra links */
     .extra-links {
       margin-top: 1rem;
       display: flex;
@@ -141,7 +137,6 @@
       color: #E27A1F;
     }
 
-    /* Right side - illustration container */
     .illustration-container {
       display: flex;
       justify-content: center;
@@ -153,7 +148,6 @@
       box-shadow: 0 0 25px rgba(226, 122, 31, 0.3);
     }
 
-    /* Responsive */
     @media (max-width: 1024px) {
       main {
         grid-template-columns: 1fr;
@@ -190,6 +184,7 @@
       <a href="index.html" tabindex="0">Home</a>
     </nav>
   </header>
+
   <main>
     <section class="login-container" aria-label="Login form section">
       <h2>Log In to SWD</h2>
@@ -202,8 +197,6 @@
           name="email" 
           placeholder="example@domain.com" 
           required
-          autocomplete="username"
-          aria-describedby="email-error"
         />
         <span id="email-error" style="color: #e27a1f; font-size: 0.8rem; display:none;">Please enter a valid email.</span>
 
@@ -215,17 +208,16 @@
           placeholder="Your password" 
           required 
           minlength="6"
-          autocomplete="current-password"
-          aria-describedby="password-error"
         />
         <span id="password-error" style="color: #e27a1f; font-size: 0.8rem; display:none;">Password must be 6 characters or more.</span>
 
         <button type="submit" aria-label="Log in to your account">Log In</button>
       </form>
       <div class="extra-links">
-        <a href="#" tabindex="0">Forgot password?</a>
+        <a href="#">Forgot password?</a>
       </div>
     </section>
+
     <section class="illustration-container" aria-hidden="true">
       <img src="./images/ai_pipeline.png" alt="Data analysis illustration" />
     </section>
@@ -272,7 +264,15 @@
 
         if (match) {
           sessionStorage.setItem('loggedInUser', match.name);
-          window.location.href = 'dashboard.html';
+
+          // Redirect to correct dashboard
+          if (match.email === "jerome@gmail.com" && match.password === "password123") {
+            window.location.href = "dashboard.html";
+          } else if (match.email === "test@demo.com" && match.password === "password123") {
+            window.location.href = "dashboard1.html";
+          } else {
+            alert("User matched, but dashboard not assigned.");
+          }
         } else {
           alert('Invalid email or password.');
         }
@@ -284,5 +284,3 @@
   </script>
 </body>
 </html>
-
-
