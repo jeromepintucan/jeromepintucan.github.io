@@ -244,9 +244,8 @@
       <button class="close-btn" id="closeModal">&times;</button>
       <h3>Forgot Password?</h3>
       <p>Please contact SWD Support:<br>
-      <strong>Email:</strong> jeromepintucan.work@gmail.com <br>
-      <strong>Mobile:</strong>(+63)977-787-8153</p>
-      
+        <strong>Email:</strong> jeromepintucan.work@gmail.com <br>
+        <strong>Mobile:</strong> (+63) 977-787-8153</p>
     </div>
   </div>
 
@@ -294,13 +293,10 @@
 
         if (match) {
           sessionStorage.setItem('loggedInUser', match.name);
-
-          if (match.email === "jerome@gmail.com" && match.password === "password123") {
-            window.location.href = "dashboard.html";
-          } else if (match.email === "test@demo.com" && match.password === "password123") {
-            window.location.href = "dashboard1.html";
+          if (match.redirect) {
+            window.location.href = match.redirect;
           } else {
-            alert("User matched, but dashboard not assigned.");
+            alert("User matched but no redirect page assigned.");
           }
         } else {
           alert("Invalid email or password.");
