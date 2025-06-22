@@ -55,14 +55,15 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 1rem;
+      padding: 2.5vh 2.5vw; /* Even padding: top/bottom and left/right */
     }
 
     #dashboard-embed {
       background: var(--dark-bg-alt);
-      width: 80%;
-      height: 80%;
-      max-width: 1200px;
+      width: 95vw;
+      height: 85vh; /* Slightly reduced to allow top/bottom spacing */
+      max-width: 1600px;
+      max-height: 100%;
       border-radius: 1rem;
       box-shadow:
         0 0 6px 2px rgba(228, 137, 24, 0.8),
@@ -70,7 +71,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 1.25rem;
+      padding: 1rem;
       animation: glowPulse 3s ease-in-out infinite;
     }
 
