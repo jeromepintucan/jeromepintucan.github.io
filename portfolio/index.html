@@ -112,6 +112,132 @@ button,a{font:inherit;color:inherit}.app{height:100dvh;display:block}
 .skills-ratio-wrap path{cursor:pointer;transition:opacity .15s ease,transform .15s ease;transform-box:fill-box;transform-origin:center}.skills-ratio-wrap path:hover{opacity:.84}.skills-ratio-wrap path.selected-slice{transform:scale(1.035);filter:drop-shadow(0 2px 2px rgba(0,0,0,.22))}.skills-ratio-wrap path.dimmed-slice{opacity:.16}.ratio-item{cursor:pointer;border-radius:2px;padding:3px 5px}.ratio-item:hover{background:#f3f2f1}.ratio-item.selected-role{background:#e8f7f5;font-weight:700}
 .mrow[data-tech]{cursor:pointer}.mrow[data-tech]:hover{background:#f0f8f7!important}
 @media(max-width:760px){.visual.focus-mode{inset:10px!important}}
+
+/* Experience: spacious alternating S timeline */
+#page-experience{grid-template-rows:24px minmax(0,1fr);gap:10px}
+#page-experience .timeline{position:relative!important;display:grid!important;grid-template-columns:minmax(0,1fr) 70px minmax(0,1fr)!important;grid-template-rows:repeat(5,minmax(102px,1fr))!important;gap:8px 0!important;min-height:0!important;overflow:hidden!important;padding:12px 4% 16px!important}
+#page-experience .timeline:before{content:""!important;position:absolute!important;top:26px!important;bottom:28px!important;left:50%!important;width:6px!important;height:auto!important;transform:translateX(-50%)!important;border-radius:999px!important;background:linear-gradient(180deg,#01b8aa 0%,#8ad4eb 26%,#a66999 52%,#fe9666 76%,#5f6b6d 100%)!important;box-shadow:0 0 0 5px rgba(1,184,170,.07)!important}
+#page-experience .career-step{position:relative!important;width:auto!important;height:auto!important;min-height:102px!important;margin:0!important;transform:none!important;overflow:visible!important;border-top:5px solid var(--step-color);cursor:pointer}
+#page-experience .career-step:nth-child(1){grid-column:1;grid-row:1}#page-experience .career-step:nth-child(2){grid-column:3;grid-row:2}#page-experience .career-step:nth-child(3){grid-column:1;grid-row:3}#page-experience .career-step:nth-child(4){grid-column:3;grid-row:4}#page-experience .career-step:nth-child(5){grid-column:1;grid-row:5}
+#page-experience .career-step:before{content:""!important;display:block!important;position:absolute!important;top:50%!important;width:35px!important;height:3px!important;border:0!important;background:var(--step-color)!important;transform:translateY(-50%)!important}#page-experience .career-step:nth-child(odd):before{left:100%!important}#page-experience .career-step:nth-child(even):before{right:100%!important}
+.career-node{position:absolute;display:grid;place-items:center;top:50%!important;width:30px!important;height:30px!important;border:4px solid var(--step-color);background:#eef1f4;border-radius:50%;transform:translateY(-50%)!important;box-shadow:0 0 0 5px #eef1f4!important;z-index:3}.career-step:nth-child(odd) .career-node{left:calc(100% + 20px)!important}.career-step:nth-child(even) .career-node{right:calc(100% + 20px)!important}.career-node span{font:700 8px var(--mono);color:var(--step-color)}
+#page-experience .career-step .visual-body{height:100%!important;padding:10px 14px 9px!important}.career-meta{display:flex;justify-content:space-between;gap:10px;margin-bottom:4px}.career-period{font:8px var(--mono);color:var(--dim);white-space:nowrap}.career-company{font-size:10px;font-weight:700;color:var(--step-color)}#page-experience .career-step h2{font-size:15px;line-height:1.15;margin:2px 0 5px}.career-preview{font-size:9px!important;line-height:1.35!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim)}.career-card-footer{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:8px}.career-skills{display:flex;gap:3px;flex-wrap:wrap;max-height:25px;overflow:hidden}.career-skill{font:6.7px var(--mono);padding:1px 4px;border:1px solid #ccece8;border-radius:12px;background:#f5fbfa;color:#40595c;white-space:nowrap}.career-open{font-size:8px;font-weight:700;color:var(--step-color);white-space:nowrap}
+.experience-backdrop{position:fixed;inset:0;background:rgba(18,28,32,.72);z-index:1100;display:none}.experience-backdrop.active{display:block}.experience-modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);width:min(780px,calc(100vw - 48px));max-height:calc(100dvh - 70px);z-index:1101;display:flex;flex-direction:column;background:#fff;border:1px solid var(--border);border-top:6px solid var(--teal);border-radius:4px;box-shadow:0 22px 70px rgba(0,0,0,.36);opacity:0;visibility:hidden;transition:.16s}.experience-modal.active{opacity:1;visibility:visible;transform:translate(-50%,-50%) scale(1)}.experience-modal-head{display:flex;justify-content:space-between;gap:18px;padding:21px 24px 17px;border-bottom:1px solid var(--border)}.experience-modal-company{font-size:13px;font-weight:700;color:var(--teal);margin-top:8px}.experience-modal h2{font-size:24px;margin:4px 0 5px}.experience-modal-period{font:10px var(--mono);color:var(--dim)}.experience-close{width:32px;height:32px;border:1px solid var(--border);background:#fff;font-size:22px;cursor:pointer}.experience-modal-body{overflow:auto;padding:19px 24px 23px}.achievement-title{font-size:9px;text-transform:uppercase;color:var(--dim);font-weight:700;margin-bottom:6px}.achievement-list{display:grid;gap:11px;padding-left:19px;color:var(--dim)}.achievement-list li{font-size:12px;line-height:1.55}.experience-modal .career-skills{margin-top:20px;padding-top:15px;border-top:1px solid var(--border);max-height:none}
+/* Resume: embedded ATS PDF and quick facts */
+#page-resume .resume-grid{grid-template-columns:minmax(0,1.45fr) minmax(280px,.55fr);gap:10px}.resume-main .visual-body{padding:0!important;display:grid!important;grid-template-rows:minmax(0,1fr) auto!important}.cv-preview{width:100%;height:100%;min-height:0;border:0;background:#f3f2f1}.cv-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-top:1px solid var(--border);background:#fff}.cv-actions strong{display:block;font-size:12px}.cv-actions span{display:block;margin-top:2px;font-size:9px;color:var(--dim)}.facts dl{overflow:auto}
+@media(max-width:760px){#page-experience .timeline{display:flex!important;flex-direction:column!important;overflow:visible!important;padding:18px 10px 28px 42px!important;gap:12px!important}#page-experience .career-step{min-height:205px!important}.career-preview{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}.career-card-footer{display:block}.career-skills{max-height:43px;margin-bottom:7px}#page-resume .resume-grid{grid-template-columns:1fr}.cv-preview{min-height:70vh}.cv-actions{align-items:flex-start;flex-direction:column}.cv-actions .btn{width:100%;text-align:center}}
+
+
+/* Resume V2: full-width PDF preview with download-only footer */
+#page-resume .resume-main{min-height:0!important}
+#page-resume .resume-main .visual-body{
+  min-height:0!important;
+  height:100%!important;
+  padding:0!important;
+  display:grid!important;
+  grid-template-rows:minmax(0,1fr) 42px!important;
+  overflow:hidden!important;
+}
+#page-resume .cv-preview{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  min-width:100%!important;
+  min-height:0!important;
+  border:0!important;
+  margin:0!important;
+  padding:0!important;
+  background:#fff!important;
+}
+#page-resume .cv-actions{
+  height:42px!important;
+  min-height:42px!important;
+  padding:6px 10px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  border-top:1px solid var(--border)!important;
+  background:#fff!important;
+}
+#page-resume .cv-download-only{
+  min-width:170px;
+  text-align:center;
+}
+@media(max-width:760px){
+ #page-resume .resume-main .visual-body{grid-template-rows:minmax(70vh,1fr) 46px!important}
+ #page-resume .cv-actions{align-items:center!important;flex-direction:row!important}
+ #page-resume .cv-download-only{width:100%!important}
+}
+
+
+/* Resume V3: one PDF file, rendered to full-width canvases with PDF.js */
+#page-resume .resume-main .visual-body{grid-template-rows:minmax(0,1fr) 42px!important}
+#page-resume .cv-preview{
+  width:100%!important;
+  height:100%!important;
+  min-width:0!important;
+  min-height:0!important;
+  overflow:auto!important;
+  display:block!important;
+  padding:0!important;
+  margin:0!important;
+  border:0!important;
+  background:#d8d6d4!important;
+}
+#page-resume .cv-page{width:100%!important;background:#fff!important;margin:0!important;padding:0!important}
+#page-resume .cv-page + .cv-page{border-top:6px solid #d8d6d4!important}
+#page-resume .cv-page canvas{display:block!important;width:100%!important;height:auto!important;margin:0!important;padding:0!important;background:#fff!important}
+#page-resume .cv-loading,#page-resume .cv-error{min-height:100%;display:grid;place-items:center;padding:20px;text-align:center;color:var(--dim);background:#fff}
+#page-resume .cv-actions{justify-content:center!important}
+#page-resume .cv-download-only{min-width:190px!important}
+
+
+/* Resume V4: fix inherited centering that collapsed the PDF viewer grid track */
+#page-resume .resume-main .visual-body{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr) 42px!important;
+  justify-content:stretch!important;
+  justify-items:stretch!important;
+  align-content:stretch!important;
+  align-items:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  height:100%!important;
+  min-height:0!important;
+  padding:0!important;
+  overflow:hidden!important;
+}
+#page-resume .cv-preview{
+  justify-self:stretch!important;
+  align-self:stretch!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+  height:100%!important;
+  min-height:0!important;
+  overflow:auto!important;
+}
+#page-resume .cv-page{
+  width:100%!important;
+  min-width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+}
+#page-resume .cv-page canvas{
+  display:block!important;
+  width:100%!important;
+  height:auto!important;
+  max-width:none!important;
+  margin:0!important;
+}
+#page-resume .cv-actions{
+  width:100%!important;
+  min-width:0!important;
+  justify-self:stretch!important;
+  justify-content:center!important;
+}
+
 </style>
 </head>
 <body>
@@ -147,13 +273,14 @@ button,a{font:inherit;color:inherit}.app{height:100dvh;display:block}
       </section>
       <section class="page" id="page-projects"><div class="page-head"><h1>Projects</h1><span class="page-label">Selected delivery work</span></div><div class="project-grid" id="projects"></div></section>
       <section class="page" id="page-experience"><div class="page-head"><h1>Experience</h1><span class="page-label">Capabilities and experience</span></div><div class="timeline" id="experience"></div></section>
-      <section class="page" id="page-resume"><div class="page-head"><h1>Resume</h1><span class="page-label">Profile and credentials</span></div><div class="resume-grid"><article class="visual resume-main"><div class="visual-head"><span id="cvName"></span></div><div class="visual-body"><h2>Full CV</h2><p id="cvDescription"></p><a class="btn primary" id="cvLink" download>Download CV (PDF)</a></div></article><article class="visual facts"><div class="visual-head"><span>Quick facts</span></div><dl id="facts"></dl></article></div></section>
+      <section class="page" id="page-resume"><div class="page-head"><h1>Resume</h1><span class="page-label">Profile and credentials</span></div><div class="resume-grid"><article class="visual resume-main"><div class="visual-head"><span id="cvName"></span></div><div class="visual-body"><div class="cv-preview" id="cvPreview" role="region" aria-label="Jerome Pintucan ATS CV preview"><div class="cv-loading" id="cvLoading">Loading CV...</div></div><div class="cv-actions"><a class="btn primary cv-download-only" id="cvLink" download>Download CV (PDF)</a></div></div></article><article class="visual facts"><div class="visual-head"><span>Quick facts</span></div><dl id="facts"></dl></article></div></section>
       <section class="page" id="page-detail"><button class="back" data-nav="projects">← Back to Projects</button><article class="visual"><div class="visual-head"><span>Case study | Drillthrough</span></div><div class="detail-body"><div><div class="tag" id="detailTag"></div><h1 id="detailTitle"></h1><div class="chips" id="detailChips"></div><h4>Overview</h4><p id="detailOverview"></p><h4>Approach</h4><p id="detailApproach"></p></div><div><h4>Impact</h4><div class="stats" id="detailStats"></div></div></div></article></section>
     </main>
   </div>
   </div>
 </div>
-<div class="focus-backdrop" id="focusBackdrop" aria-hidden="true"></div>
+<div class="focus-backdrop" id="focusBackdrop" aria-hidden="true"></div><div class="experience-backdrop" id="experienceBackdrop" aria-hidden="true"></div><section class="experience-modal" id="experienceModal" role="dialog" aria-modal="true" aria-labelledby="experienceModalTitle" aria-hidden="true"><div class="experience-modal-head"><div><div class="stage" id="experienceModalStage"></div><div class="experience-modal-company" id="experienceModalCompany"></div><h2 id="experienceModalTitle"></h2><div class="experience-modal-period" id="experienceModalPeriod"></div></div><button class="experience-close" id="experienceClose" type="button" aria-label="Close experience details">×</button></div><div class="experience-modal-body"><div class="achievement-title">Key achievements</div><ul class="achievement-list" id="experienceModalAchievements"></ul><div class="career-skills" id="experienceModalSkills"></div></div></section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
 const SITE_DATA={
  name:"Jerome Pintucan",role:"Data Engineering · BI Engineering / Development",eyebrow:"BI_ENGINEER.workspace",
@@ -208,12 +335,14 @@ const SITE_DATA={
   {id:"project-tracker",tag:"Data Engineering",title:"Fabric Project Tracker 2.0",summary:"SharePoint-to-Fabric integration that standardizes project data while preserving domain-specific fields for dedicated reporting.",stack:["SharePoint","Microsoft Fabric","Spark","Databricks","Azure"],featured:false,overview:"Integrates Financial Resilience tracking data into a shared Fabric-based project tracker.",approach:"Ingest raw list data, standardize shared fields, retain FWB-specific attributes, and integrate the result into downstream models and dashboards.",stats:[{value:"Bronze→Gold",label:"data path"},{value:"Unified",label:"reporting schema"}]}
  ],
  experience:[
-  {stage:"FOUNDATION",title:"Data Analyst",org:"Reporting and business analysis",desc:"Built the analytical foundation through data preparation, recurring reporting, dashboard development, validation, and translating stakeholder questions into measurable insights.",skills:["Reporting","SQL","Power BI"],color:"#8ad4eb"},
-  {stage:"GROWTH",title:"Data Analytics Engineer",org:"Data pipelines and semantic models",desc:"Expanded from report development into ingestion, transformation, dimensional modeling, reusable datasets, automation, and reliable source-to-report data flows.",skills:["ETL / ELT","Fabric","Python","Data Modeling"],color:"#01b8aa"},
-  {stage:"CURRENT",title:"BI Engineer / Developer",org:"End-to-end analytics delivery",desc:"Owns production-ready BI solutions across pipelines, semantic models, DAX, performance optimization, governed AI narratives, validation, and stakeholder-facing Power BI delivery.",skills:["DAX","Optimization","Governed AI","Power BI"],color:"#374649"}
+  {stage:"CURRENT",company:"Willis Towers Watson",title:"BI Engineer / Developer III",period:"December 2025 - Present",achievements:["Led the team's transition from traditional BI tools to Microsoft Fabric, establishing practical standards for adoption, governance, and scalable analytics delivery.","Strengthened the deployment process by introducing structured Git version control and Azure DevOps practices for traceable changes, controlled releases, and safer collaboration.","Facilitated the adoption of a medallion architecture across the organization, improving data quality, consistency, and analytics readiness from ingestion through reporting.","Helped prepare the team for responsible AI adoption by promoting grounded data, reusable evidence layers, validation controls, source traceability, and safe fallbacks when evidence is incomplete."],skills:["Power BI","Microsoft Fabric","Azure","Python","PySpark","SQL","AI","ETL / ELT"],color:"#01b8aa"},
+  {stage:"PREVIOUS",company:"Pru Life UK",title:"Data Analytics Engineer",period:"July 2024 - December 2025",achievements:["Presented real-time dashboards and actionable insights directly to the CEO, CTO, and Data and AI Lead, enabling data-driven decision-making across departments.","Created the company's central enterprise dashboard, which served as a trusted data source for data analysts, data scientists, and teams across multiple departments.","Spearheaded multiple end-to-end analytics projects, from data ingestion and transformation through dashboard development and stakeholder presentation.","Supported the migration of dashboards from legacy tools to Power BI and collaborated across teams to embed Power BI into Pru Life UK's internal site, allowing authorized users to access reporting through their employee ID without requiring an individual Power BI account."],skills:["Databricks","Azure","Microsoft Fabric","Power BI","Python","SQL","Kafka","Data Modeling","Embedded Analytics","PySpark","ETL / ELT"],color:"#8ad4eb"},
+  {stage:"PREVIOUS",company:"EasyCall Philippines Inc.",title:"Data Analyst",period:"November 2022 - July 2024",achievements:["Expanded the company's service offering by introducing machine learning and predictive analytics, helping internal teams and clients forecast outcomes using historical data.","Designed and maintained scalable data pipelines to Lakehouse environments, integrating data from multiple systems, strengthening data quality and consistency, and supporting both self-service analytics and enterprise reporting.","Created and presented dynamic Power BI dashboards with Row-Level Security, ensuring secure, role-based access so stakeholders could view only the data relevant to their responsibilities.","Contributed to an estimated 20% increase in company revenue by helping the team develop and introduce predictive analytics as an additional client service."],skills:["Power BI","Python","Machine Learning","Predictive Analytics","SQL","Lakehouse","Data Pipelines","Data Modeling","RLS","ETL / ELT"],color:"#a66999"},
+  {stage:"FREELANCE",company:"Freelance",title:"Data Analyst",period:"January 2021 - November 2022",achievements:["Worked with clients to translate business questions into clear reporting requirements, practical analyses, and decision-ready dashboards.","Cleaned, combined, and validated data from spreadsheets and other client-provided sources, improving the reliability and usability of recurring reports.","Built reusable dashboards and reporting templates that reduced manual preparation and gave clients a clearer view of performance trends and operational results."],skills:["Power BI","Excel","SQL","Python","Data Cleaning","Dashboarding","Data Visualization","Reporting"],color:"#fe9666"},
+  {stage:"INTERNSHIP",company:"MBC",title:"Junior Front-end Web Developer",period:"October 2020 - January 2021",achievements:["Converted approved layouts and design specifications into responsive web pages using HTML, CSS, and JavaScript under the guidance of senior developers.","Supported routine website maintenance by fixing visual defects, adjusting page components, and improving consistency across common screen sizes and browsers.","Collaborated with designers and developers during reviews, applied feedback to assigned features, and documented changes to make future updates easier to maintain."],skills:["HTML","CSS","JavaScript","Responsive Design","UI Implementation","Web Maintenance","Git"],color:"#5f6b6d"}
  ],
- facts:[{label:"Location",value:"Philippines"},{label:"Role",value:"BI Engineer"},{label:"Focus",value:"Power BI · Fabric · Databricks"},{label:"Working style",value:"Evidence-based · Iterative · Production-focused"}],
- cv:{filename:"jerome_pintucan_cv.pdf",description:"Download the complete CV for detailed experience, education, tools, and project history.",file:"assets/jerome_pintucan_cv.pdf"}
+ facts:[{label:"Location",value:"Metro Manila, Philippines"},{label:"Role",value:"BI Engineer / Developer III"},{label:"Focus",value:"Power BI · Microsoft Fabric · Databricks"},{label:"Working style",value:"Evidence-based · Iterative · Production-focused"},{label:"2024 qualification",value:"Passed AFPSAT"}],
+ cv:{filename:"JeromePintucan-CV.pdf",description:"ATS-friendly CV with professional experience, education, technical skills, training, and achievements.",file:"assets/JeromePintucan-CV.pdf"}
 };
 const COLORS={Automation:"#01b8aa","AI Tooling":"#a66999",Optimization:"#f2c80f","Data Engineering":"#fd625e"};
 const PALETTE=["#01b8aa","#f2c80f","#fd625e","#a66999","#fe9666"];
@@ -263,14 +392,15 @@ function wireFocusMode(){
    btn.onclick=e=>{e.stopPropagation();const opening=!visual.classList.contains("focus-mode");closeFocusMode();if(opening){visual.classList.add("focus-mode");$("#focusBackdrop")?.classList.add("active");document.body.style.overflow="hidden"}};
  });
  $("#focusBackdrop").onclick=closeFocusMode;
- document.addEventListener("keydown",e=>{if(e.key==="Escape")closeFocusMode()});
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeFocusMode();closeExperience()}});
 }
 function renderStatic(){
  $("#eyebrow").textContent=SITE_DATA.eyebrow;$("#name").textContent=SITE_DATA.name;$("#role").textContent=SITE_DATA.role;$("#summary").textContent=SITE_DATA.heroSummary;
  $("#kpis").innerHTML=SITE_DATA.kpis.map(k=>`<article class="visual kpi"><div class="visual-head"><span>${k.label}</span></div><div class="visual-body"><div class="kpi-value">${k.value}</div><div class="kpi-label">${k.label}</div></div></article>`).join("");
  $("#matrix").innerHTML=SITE_DATA.skillGroups.map(g=>`<div class="matrix-col"><div class="mhead"><span>${g.title}</span><span>Type</span></div>${g.rows.map(r=>`<div class="mrow" data-tech="${skillToTechnology(r.name)}"><span>${r.name}</span><span class="pill">${r.type}</span></div>`).join("")}</div>`).join("");
- $("#experience").innerHTML=SITE_DATA.experience.map((e,i)=>`<article class="visual career-step" style="--step-color:${e.color}"><div class="visual-body"><div class="stage">${e.stage}</div><h2>${e.title}</h2><div class="org">${e.org}</div><p>${e.desc}</p><div class="career-skills">${e.skills.map(x=>`<span class="career-skill">${x}</span>`).join("")}</div>${i<SITE_DATA.experience.length-1?`<span class="progress-label">Career progression</span>`:""}</div></article>`).join("");
- $("#facts").innerHTML=SITE_DATA.facts.map(f=>`<dt>${f.label}</dt><dd>${f.value}</dd>`).join("");$("#cvName").textContent=SITE_DATA.cv.filename;$("#cvDescription").textContent=SITE_DATA.cv.description;$("#cvLink").href=SITE_DATA.cv.file;
+ $("#experience").innerHTML=SITE_DATA.experience.map((e,i)=>`<article class="visual career-step ${i===0?"is-current":""}" style="--step-color:${e.color}" data-experience-index="${i}" role="button" tabindex="0" aria-label="Open details for ${e.title} at ${e.company}"><div class="career-node" aria-hidden="true"><span>${String(i+1).padStart(2,"0")}</span></div><div class="visual-body"><div class="career-meta"><span class="stage">${e.stage}</span><span class="career-period">${e.period}</span></div><div class="career-company">${e.company}</div><h2>${e.title}</h2><p class="career-preview">${e.achievements[0]}</p><div class="career-card-footer"><div class="career-skills">${e.skills.map(x=>`<span class="career-skill">${x}</span>`).join("")}</div><span class="career-open">View achievements →</span></div></div></article>`).join("");
+ wireExperienceCards();
+ $("#facts").innerHTML=SITE_DATA.facts.map(f=>`<dt>${f.label}</dt><dd>${f.value}</dd>`).join("");$("#cvName").textContent=SITE_DATA.cv.filename;$("#cvLink").href=SITE_DATA.cv.file;
 }
 function renderCharts(){
  const host=$("#focusChart").parentElement;
@@ -408,12 +538,60 @@ function applyFilter(){
  }
  wireVisualInteractions();
 }
+function openExperience(index){const e=SITE_DATA.experience[index];if(!e)return;$("#experienceModalStage").textContent=e.stage;$("#experienceModalCompany").textContent=e.company;$("#experienceModalTitle").textContent=e.title;$("#experienceModalPeriod").textContent=e.period;$("#experienceModalAchievements").innerHTML=e.achievements.map(x=>`<li>${x}</li>`).join("");$("#experienceModalSkills").innerHTML=e.skills.map(x=>`<span class="career-skill">${x}</span>`).join("");$("#experienceModal").classList.add("active");$("#experienceBackdrop").classList.add("active");$("#experienceModal").setAttribute("aria-hidden","false");document.body.style.overflow="hidden";$("#experienceClose").focus()}
+function closeExperience(){$("#experienceModal")?.classList.remove("active");$("#experienceBackdrop")?.classList.remove("active");$("#experienceModal")?.setAttribute("aria-hidden","true");document.body.style.overflow=""}
+function wireExperienceCards(){$$('[data-experience-index]').forEach(card=>{const open=()=>openExperience(Number(card.dataset.experienceIndex));card.onclick=open;card.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open()}}});$("#experienceClose").onclick=closeExperience;$("#experienceBackdrop").onclick=closeExperience}
+let cvRenderVersion=0;
+async function renderCVPreview(){
+ const host=$("#cvPreview");
+ if(!host||!window.pdfjsLib)return;
+ const version=++cvRenderVersion;
+ if(host.clientWidth<100)return;
+ host.innerHTML='<div class="cv-loading">Loading CV...</div>';
+ pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+ try{
+  const pdf=await pdfjsLib.getDocument(SITE_DATA.cv.file).promise;
+  if(version!==cvRenderVersion)return;
+  host.innerHTML="";
+  const availableWidth=host.clientWidth;
+  const outputScale=Math.min(window.devicePixelRatio||1,2);
+  for(let pageNumber=1;pageNumber<=pdf.numPages;pageNumber++){
+   const page=await pdf.getPage(pageNumber);
+   if(version!==cvRenderVersion)return;
+   const baseViewport=page.getViewport({scale:1});
+   const cssScale=availableWidth/baseViewport.width;
+   const viewport=page.getViewport({scale:cssScale});
+   const pageWrap=document.createElement("div");
+   pageWrap.className="cv-page";
+   const canvas=document.createElement("canvas");
+   canvas.setAttribute("aria-label",`CV page ${pageNumber}`);
+   canvas.width=Math.floor(viewport.width*outputScale);
+   canvas.height=Math.floor(viewport.height*outputScale);
+   canvas.style.width=`${Math.floor(viewport.width)}px`;
+   canvas.style.height=`${Math.floor(viewport.height)}px`;
+   pageWrap.appendChild(canvas);
+   host.appendChild(pageWrap);
+   await page.render({canvasContext:canvas.getContext("2d"),viewport,transform:outputScale!==1?[outputScale,0,0,outputScale,0,0]:null}).promise;
+  }
+ }catch(error){
+  host.innerHTML='<div class="cv-error">CV preview could not be loaded. Use Download CV (PDF) below.</div>';
+  console.error("CV preview error",error);
+ }
+}
+function wireCVPreview(){
+ let resizeTimer;
+ window.addEventListener("resize",()=>{
+  if(!$("#page-resume")?.classList.contains("active"))return;
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(renderCVPreview,200);
+ });
+}
 function openProject(id){const p=SITE_DATA.projects.find(x=>x.id===id),c=COLORS[p.tag];$("#detailTag").innerHTML=`<i class="dot" style="background:${c}"></i>${p.tag}`;$("#detailTitle").textContent=p.title;$("#detailChips").innerHTML=p.stack.map(x=>`<span class="chip">${x}</span>`).join("");$("#detailOverview").textContent=p.overview;$("#detailApproach").textContent=p.approach;$("#detailStats").innerHTML=p.stats.map(s=>`<div class="stat"><b>${s.value}</b><span>${s.label}</span></div>`).join("");goTo("detail")}
 const PAGES=[{id:"overview",label:"Overview"},{id:"projects",label:"Projects"},{id:"experience",label:"Experience"},{id:"resume",label:"Resume"}];
 function renderTabs(){$("#tabs").innerHTML=PAGES.map(p=>`<button class="tab" data-nav="${p.id}">${p.label}</button>`).join("");wireNav()}
 function wireNav(){$$("[data-nav]").forEach(x=>x.onclick=e=>{e.preventDefault();goTo(x.dataset.nav)})}
-function goTo(name){if(![...PAGES.map(p=>p.id),"detail"].includes(name))name="overview";$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.tab').forEach(t=>t.classList.toggle('active',t.dataset.nav===name));history.replaceState(null,"",`#${name}`)}
-renderStatic();renderCharts();renderSlicer();renderProjects();renderTabs();wireNav();wireVisualInteractions();wireFocusMode();goTo(location.hash.slice(1)||"overview");
+function goTo(name){if(![...PAGES.map(p=>p.id),"detail"].includes(name))name="overview";$$('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${name}`));$$('.tab').forEach(t=>t.classList.toggle('active',t.dataset.nav===name));history.replaceState(null,"",`#${name}`);if(name==="resume")requestAnimationFrame(()=>requestAnimationFrame(renderCVPreview))}
+renderStatic();renderCharts();renderSlicer();renderProjects();renderTabs();wireNav();wireVisualInteractions();wireFocusMode();wireCVPreview();goTo(location.hash.slice(1)||"overview");
 </script>
 </body>
 </html>
