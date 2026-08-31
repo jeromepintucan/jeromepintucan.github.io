@@ -238,6 +238,63 @@ button,a{font:inherit;color:inherit}.app{height:100dvh;display:block}
   justify-content:center!important;
 }
 
+
+/* V15: taller Experience cards so technology tags and actions are never clipped */
+#page-experience .timeline{
+  grid-template-rows:repeat(5,minmax(124px,1fr))!important;
+  gap:10px 0!important;
+  padding-top:10px!important;
+  padding-bottom:12px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+#page-experience .career-step,
+#page-experience .career-step:nth-child(odd),
+#page-experience .career-step:nth-child(even),
+#page-experience .career-step:only-child{
+  min-height:124px!important;
+}
+#page-experience .career-step .visual-body{
+  padding:11px 14px 12px!important;
+  overflow:visible!important;
+}
+#page-experience .career-preview{
+  -webkit-line-clamp:2!important;
+  display:-webkit-box!important;
+  -webkit-box-orient:vertical!important;
+  overflow:hidden!important;
+}
+#page-experience .career-card-footer{
+  min-height:28px!important;
+  padding-top:5px!important;
+}
+#page-experience .career-skills{
+  max-height:31px!important;
+  min-height:16px!important;
+  overflow:hidden!important;
+}
+#page-experience .career-open{
+  align-self:flex-end!important;
+  padding-bottom:2px!important;
+}
+@media(max-height:800px) and (min-width:761px){
+ #page-experience .timeline{
+   grid-template-rows:repeat(5,118px)!important;
+   align-content:start!important;
+   overflow-y:auto!important;
+ }
+ #page-experience .career-step,
+ #page-experience .career-step:nth-child(odd),
+ #page-experience .career-step:nth-child(even){min-height:118px!important}
+ #page-experience .career-preview{display:-webkit-box!important;-webkit-line-clamp:1!important}
+}
+@media(max-width:760px){
+ #page-experience .career-step,
+ #page-experience .career-step:nth-child(odd),
+ #page-experience .career-step:nth-child(even){min-height:225px!important}
+ #page-experience .career-step .visual-body{overflow:visible!important}
+}
+
 </style>
 </head>
 <body>
