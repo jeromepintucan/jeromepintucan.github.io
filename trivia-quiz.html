@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Night</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1B1F3B;
+    --navy-deep: #12152C;
+    --cream: #F2EFE9;
+    --gold: #E8A33D;
+    --teal: #4A7C82;
+    --wrong: #C1554A;
+    --correct: #6FA96B;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    min-height: 100vh;
+    background: radial-gradient(circle at 20% 15%, #242952 0%, var(--navy) 45%, var(--navy-deep) 100%);
+    font-family: 'Inter', sans-serif;
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 28px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 1.9rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  .tally {
+    font-size: 0.95rem;
+    color: var(--gold);
+    font-weight: 500;
+  }
+
+  .track {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 32px;
+  }
+
+  .dot {
+    height: 4px;
+    flex: 1;
+    background: rgba(242,239,233,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .dot span {
+    display: block;
+    height: 100%;
+    width: 0%;
+    background: var(--gold);
+    transition: width 0.3s ease;
+  }
+
+  .dot.done span { width: 100%; background: var(--correct); }
+  .dot.missed span { width: 100%; background: var(--wrong); }
+  .dot.current span { width: 100%; background: var(--gold); }
+
+  .card {
+    background: rgba(242,239,233,0.04);
+    border: 1px solid rgba(242,239,233,0.1);
+    border-radius: 18px;
+    padding: 36px 32px;
+  }
+
+  .category {
+    color: var(--teal);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .question {
+    font-family: 'Fraunces', serif;
+    font-size: 1.5rem;
+    line-height: 1.35;
+    margin-bottom: 22px;
+    min-height: 4.2rem;
+  }
+
+  /* Timer */
+  .timer-wrap {
+    margin-bottom: 26px;
+  }
+
+  .timer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .timer-label {
+    font-size: 0.8rem;
+    color: rgba(242,239,233,0.55);
+  }
+
+  .timer-count {
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem;
+    color: var(--gold);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .timer-count.urgent { color: var(--wrong); }
+
+  .timer-bar {
+    height: 6px;
+    width: 100%;
+    background: rgba(242,239,233,0.12);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .timer-fill {
+    height: 100%;
+    width: 100%;
+    background: var(--gold);
+    border-radius: 3px;
+    transition: width 1s linear, background 0.3s ease;
+  }
+
+  .timer-fill.urgent { background: var(--wrong); }
+
+  .options {
+    display: grid;
+    gap: 12px;
+  }
+
+  .option {
+    text-align: left;
+    background: rgba(242,239,233,0.05);
+    border: 1px solid rgba(242,239,233,0.15);
+    color: var(--cream);
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem;
+    padding: 14px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .option:hover:not(:disabled) {
+    border-color: var(--gold);
+    background: rgba(232,163,61,0.08);
+  }
+
+  .option:disabled { cursor: default; }
+
+  .option.correct {
+    border-color: var(--correct);
+    background: rgba(111,169,107,0.18);
+  }
+
+  .option.wrong {
+    border-color: var(--wrong);
+    background: rgba(193,85,74,0.18);
+  }
+
+  /* Host mode: plain (non-button) option list, lettered */
+  .option-static {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(242,239,233,0.05);
+    border: 1px solid rgba(242,239,233,0.15);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 1rem;
+  }
+
+  .option-static .letter {
+    font-family: 'Fraunces', serif;
+    color: var(--teal);
+    font-weight: 600;
+    min-width: 1.1rem;
+  }
+
+  .option-static.correct {
+    border-color: var(--correct);
+    background: rgba(111,169,107,0.18);
+  }
+
+  .option-static.correct .letter { color: var(--correct); }
+
+  .foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 26px;
+    min-height: 44px;
+  }
+
+  .explain {
+    font-size: 0.9rem;
+    color: rgba(242,239,233,0.65);
+    max-width: 70%;
+  }
+
+  button.next {
+    background: var(--gold);
+    color: var(--navy-deep);
+    border: none;
+    font-weight: 600;
+    font-size: 0.95rem;
+    padding: 12px 22px;
+    border-radius: 10px;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  button.next.show { opacity: 1; pointer-events: auto; }
+
+  .final {
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .final .score {
+    font-family: 'Fraunces', serif;
+    font-size: 3.2rem;
+    color: var(--gold);
+    margin: 18px 0 6px;
+  }
+
+  .final .line {
+    color: rgba(242,239,233,0.7);
+    margin-bottom: 28px;
+  }
+
+  .final button, .mode-btn, .final-actions button, .back-link {
+    background: transparent;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-weight: 600;
+    padding: 12px 24px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+
+  .final button:hover, .mode-btn:hover, .final-actions button:hover, .back-link:hover {
+    background: rgba(232,163,61,0.1);
+  }
+
+  /* Start / scope screens */
+  .start {
+    text-align: center;
+    padding: 12px 0 4px;
+  }
+
+  .start .lede {
+    color: rgba(242,239,233,0.65);
+    font-size: 0.95rem;
+    margin: 10px 0 30px;
+    line-height: 1.5;
+  }
+
+  .mode-grid {
+    display: grid;
+    gap: 14px;
+  }
+
+  .mode-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 18px 20px;
+    border-radius: 12px;
+  }
+
+  .mode-btn .mode-title {
+    font-family: 'Fraunces', serif;
+    font-size: 1.1rem;
+    color: var(--cream);
+    margin-bottom: 4px;
+  }
+
+  .mode-btn .mode-sub {
+    font-size: 0.85rem;
+    color: rgba(242,239,233,0.6);
+    font-weight: 400;
+  }
+
+  .mode-btn .mode-count {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 0.75rem;
+    color: var(--teal);
+    font-weight: 600;
+  }
+
+  .final-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+
+  .back-row {
+    margin-top: 22px;
+    text-align: center;
+  }
+
+  .back-row button {
+    background: none;
+    border: none;
+    color: rgba(242,239,233,0.5);
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot span, .option, button.next, .timer-fill { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <header>
+    <h1>Quiz Night</h1>
+    <div class="tally" id="tally" style="display:none;">0 correct</div>
+  </header>
+
+  <div class="track" id="track" style="display:none;"></div>
+
+  <div class="card" id="card"></div>
+</div>
+
+<script>
+const GENERAL_QUESTIONS = [
+  {
+    category: "Geography",
+    q: "Which country has the most natural lakes in the world?",
+    options: ["Russia", "Canada", "Finland", "United States"],
+    answer: 1,
+    note: "Canada holds an estimated 60% of the world's lakes, largely thanks to glacial activity during the last ice age."
+  },
+  {
+    category: "Science",
+    q: "What is the only metal that is liquid at room temperature?",
+    options: ["Gallium", "Mercury", "Cesium", "Bromine"],
+    answer: 1,
+    note: "Mercury melts at about -39°C. Gallium and cesium melt just above room temperature, and bromine is a liquid but not a metal."
+  },
+  {
+    category: "Math",
+    q: "What is the value of pi rounded to two decimal places?",
+    options: ["3.12", "3.14", "3.16", "3.18"],
+    answer: 1,
+    note: "Pi is approximately 3.14159, which rounds to 3.14."
+  },
+  {
+    category: "History",
+    q: "The Great Fire of London took place in which year?",
+    options: ["1605", "1666", "1712", "1834"],
+    answer: 1,
+    note: "The fire broke out in a bakery on Pudding Lane in September 1666 and destroyed most of the medieval city."
+  },
+  {
+    category: "Movies",
+    q: "Which film was the first to win the Academy Award for Best Picture?",
+    options: ["Sunrise", "Wings", "The Jazz Singer", "Metropolis"],
+    answer: 1,
+    note: "\"Wings\" (1927), a silent World War I aviation film, won the first Best Picture award in 1929."
+  },
+  {
+    category: "Sports",
+    q: "How many players are on the field for one soccer team during a match?",
+    options: ["9", "10", "11", "12"],
+    answer: 2,
+    note: "Each team fields 11 players, including the goalkeeper."
+  },
+  {
+    category: "Math",
+    q: "What do you call a polygon with eight sides?",
+    options: ["Hexagon", "Heptagon", "Octagon", "Nonagon"],
+    answer: 2,
+    note: "An octagon has eight sides and eight angles. A stop sign is the classic real-world example."
+  },
+  {
+    category: "Science",
+    q: "Which planet in our solar system has the most moons?",
+    options: ["Jupiter", "Saturn", "Uranus", "Neptune"],
+    answer: 1,
+    note: "As of recent counts, Saturn has the most confirmed moons of any planet, edging out Jupiter."
+  },
+  {
+    category: "Geography",
+    q: "Which is the longest river in the world?",
+    options: ["Amazon River", "Yangtze River", "Nile River", "Mississippi River"],
+    answer: 2,
+    note: "The Nile, flowing through northeastern Africa, is generally considered the longest river at about 6,650 km."
+  },
+  {
+    category: "Technology",
+    q: "What does 'HTTP' stand for?",
+    options: ["HyperText Transfer Protocol", "High Transfer Text Protocol", "HyperText Technical Process", "Host Transfer Text Program"],
+    answer: 0,
+    note: "HTTP is the protocol used for transmitting web pages across the internet."
+  }
+];
+
+const SHOWBIZ_QUESTIONS = [
+  {
+    category: "Chika",
+    q: "Anong taon nag-break ang KathNiel (Kathryn Bernardo at Daniel Padilla)?",
+    options: ["2021", "2022", "2023", "2024"],
+    answer: 2,
+    note: "Kinumpirma ni Kathryn Bernardo sa Instagram noong November 30, 2023 na naghiwalay na sila ni Daniel Padilla pagkatapos ng 11 taon."
+  },
+  {
+    category: "Balita",
+    q: "Alin sa mga lalawigan ang may pinakamaraming flood control projects mula 2022 hanggang 2025?",
+    options: ["Cebu", "Bulacan", "Isabela", "Pangasinan"],
+    answer: 1,
+    note: "Ayon sa review ng Malacañang, Bulacan ang may pinakamaraming flood control projects (668) sa nasabing panahon, kahit hindi ito kasama sa mga probinsyang itinuturing na pinaka-flood-prone."
+  },
+  {
+    category: "Chika",
+    q: "Sino ang na-crown na Miss Universe Philippines 2025?",
+    options: ["Chelsea Manalo", "Winwyn Marquez", "Ahtisa Manalo", "Michelle Dee"],
+    answer: 2,
+    note: "Si Ahtisa Manalo ng Quezon Province ang nakoronahang Miss Universe Philippines 2025 noong Mayo 2, 2025."
+  },
+  {
+    category: "Chika",
+    q: "Ano ang naging final placement ni Ahtisa Manalo sa Miss Universe 2025?",
+    options: ["Winner", "1st Runner-Up", "3rd Runner-Up", "Top 10"],
+    answer: 2,
+    note: "Natapos si Ahtisa Manalo bilang 3rd runner-up noong November 21, 2025 sa Thailand — ang pinakamataas na placement ng Pilipinas sa loob ng tatlong taon."
+  },
+  {
+    category: "Balita",
+    q: "Ano ang tawag sa website na inilunsad ni Pangulong Marcos para mag-report ang publiko ng mga kahina-hinalang flood control projects?",
+    options: ["Bantay Baha", "Sumbong sa Pangulo", "Alerto DPWH", "Ayos na Ilog"],
+    answer: 1,
+    note: "Inilunsad ang \"Sumbong sa Pangulo\" noong Agosto 11, 2025, may kasamang interactive map ng halos 9,855 flood control projects para sa public scrutiny."
+  }
+];
+
+const TIME_LIMIT = 10;
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+let ACTIVE_QUESTIONS = [];
+let current = 0;
+let score = 0;
+let locked = false;
+let mode = null; // 'self' or 'host'
+let scope = 'all'; // 'all' | 'general' | 'chika'
+let timerInterval = null;
+let timeLeft = TIME_LIMIT;
+
+const track = document.getElementById('track');
+const card = document.getElementById('card');
+const tally = document.getElementById('tally');
+
+function buildTrack() {
+  track.innerHTML = '';
+  ACTIVE_QUESTIONS.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot';
+    d.id = 'dot-' + i;
+    d.innerHTML = '<span></span>';
+    track.appendChild(d);
+  });
+}
+
+function markDot(i, status) {
+  const d = document.getElementById('dot-' + i);
+  d.classList.remove('current');
+  d.classList.add(status);
+}
+
+function renderStart() {
+  track.style.display = 'none';
+  tally.style.display = 'none';
+  card.innerHTML = `
+    <div class="start">
+      <div class="category">Before we start</div>
+      <div class="question" style="min-height:auto;">Who's answering the questions?</div>
+      <div class="lede">Pick "I'm playing" for a normal round with scoring. Pick "Others are answering" if you're hosting for a group &mdash; each question gets a 10 second countdown before the answer reveals.</div>
+      <div class="mode-grid">
+        <button class="mode-btn" id="modeSelf">
+          <div class="mode-title">I'm playing</div>
+          <div class="mode-sub">Answer each question yourself, timed, with a running score</div>
+        </button>
+        <button class="mode-btn" id="modeHost">
+          <div class="mode-title">Others are answering</div>
+          <div class="mode-sub">Read the question aloud, let the group guess, reveal after the timer</div>
+        </button>
+      </div>
+    </div>
+  `;
+  document.getElementById('modeSelf').addEventListener('click', () => { mode = 'self'; startQuiz(); });
+  document.getElementById('modeHost').addEventListener('click', () => { mode = 'host'; startQuiz(); });
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function buildActiveQuestions() {
+  return shuffle(GENERAL_QUESTIONS).concat(shuffle(SHOWBIZ_QUESTIONS));
+}
+
+function startQuiz() {
+  ACTIVE_QUESTIONS = buildActiveQuestions();
+  current = 0;
+  score = 0;
+  buildTrack();
+  track.style.display = 'flex';
+  tally.style.display = mode === 'self' ? 'block' : 'none';
+  tally.textContent = '0 correct';
+  renderQuestion();
+}
+
+function clearTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function renderQuestion() {
+  locked = false;
+  clearTimer();
+  timeLeft = TIME_LIMIT;
+  const item = ACTIVE_QUESTIONS[current];
+  document.getElementById('dot-' + current).classList.add('current');
+
+  const optionsHtml = mode === 'self' ? '' : buildStaticOptions(item, -1);
+
+  card.innerHTML = `
+    <div class="category">${item.category}</div>
+    <div class="question">${item.q}</div>
+    <div class="timer-wrap">
+      <div class="timer-row">
+        <span class="timer-label">${mode === 'self' ? 'Time to answer' : 'Time for the group to guess'}</span>
+        <span class="timer-count" id="timerCount">${TIME_LIMIT}s</span>
+      </div>
+      <div class="timer-bar"><div class="timer-fill" id="timerFill"></div></div>
+    </div>
+    <div class="options" id="options">${optionsHtml}</div>
+    <div class="foot">
+      <div class="explain" id="explain"></div>
+      <button class="next" id="nextBtn">${current === ACTIVE_QUESTIONS.length - 1 ? 'See results' : 'Next'}</button>
+    </div>
+  `;
+
+  if (mode === 'self') {
+    const optionsWrap = document.getElementById('options');
+    item.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'option';
+      btn.textContent = opt;
+      btn.addEventListener('click', () => selectOption(i));
+      optionsWrap.appendChild(btn);
+    });
+  }
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    current++;
+    if (current < ACTIVE_QUESTIONS.length) {
+      renderQuestion();
+    } else {
+      renderFinal();
+    }
+  });
+
+  startTimer();
+}
+
+function buildStaticOptions(item, revealIndex) {
+  return item.options.map((opt, i) => {
+    const isCorrect = revealIndex >= 0 && i === item.answer;
+    return `<div class="option-static ${isCorrect ? 'correct' : ''}">
+      <span class="letter">${LETTERS[i]}</span><span>${opt}</span>
+    </div>`;
+  }).join('');
+}
+
+function startTimer() {
+  const countEl = document.getElementById('timerCount');
+  const fillEl = document.getElementById('timerFill');
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    const pct = Math.max(0, (timeLeft / TIME_LIMIT) * 100);
+    fillEl.style.width = pct + '%';
+    countEl.textContent = timeLeft + 's';
+
+    if (timeLeft <= 3) {
+      countEl.classList.add('urgent');
+      fillEl.classList.add('urgent');
+    }
+
+    if (timeLeft <= 0) {
+      clearTimer();
+      if (mode === 'self') {
+        if (!locked) timeUp();
+      } else {
+        revealHost();
+      }
+    }
+  }, 1000);
+}
+
+function timeUp() {
+  locked = true;
+  const item = ACTIVE_QUESTIONS[current];
+  const opts = document.querySelectorAll('.option');
+  opts.forEach((btn, idx) => {
+    btn.disabled = true;
+    if (idx === item.answer) btn.classList.add('correct');
+  });
+  markDot(current, 'missed');
+  document.getElementById('explain').textContent = "Time's up. " + item.note;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+function selectOption(i) {
+  if (locked) return;
+  locked = true;
+  clearTimer();
+  const item = ACTIVE_QUESTIONS[current];
+  const opts = document.querySelectorAll('.option');
+
+  opts.forEach((btn, idx) => {
+    btn.disabled = true;
+    if (idx === item.answer) btn.classList.add('correct');
+    if (idx === i && i !== item.answer) btn.classList.add('wrong');
+  });
+
+  if (i === item.answer) {
+    score++;
+    markDot(current, 'done');
+  } else {
+    markDot(current, 'missed');
+  }
+
+  tally.textContent = score + ' correct';
+  document.getElementById('explain').textContent = item.note;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+function revealHost() {
+  const item = ACTIVE_QUESTIONS[current];
+  document.getElementById('options').innerHTML = buildStaticOptions(item, item.answer);
+  markDot(current, 'done');
+  document.getElementById('explain').textContent = item.note;
+  document.getElementById('nextBtn').classList.add('show');
+}
+
+function renderFinal() {
+  clearTimer();
+  if (mode === 'host') {
+    card.innerHTML = `
+      <div class="final">
+        <div class="category">Round Complete</div>
+        <div class="question" style="min-height:auto;">That's all ${ACTIVE_QUESTIONS.length} questions.</div>
+        <div class="line" style="margin-top:14px;">Tally up the group's answers on your own scoresheet.</div>
+        <div class="final-actions">
+          <button id="restartBtn">Run again</button>
+          <button id="changeBtn">Change mode</button>
+        </div>
+      </div>
+    `;
+  } else {
+    const pct = Math.round((score / ACTIVE_QUESTIONS.length) * 100);
+    let line = "Solid effort.";
+    if (pct === 100) line = "Perfect round.";
+    else if (pct >= 70) line = "Well played.";
+    else if (pct <= 30) line = "Tough round — go again?";
+
+    card.innerHTML = `
+      <div class="final">
+        <div class="category">Final Score</div>
+        <div class="score">${score} / ${ACTIVE_QUESTIONS.length}</div>
+        <div class="line">${line}</div>
+        <div class="final-actions">
+          <button id="restartBtn">Play again</button>
+          <button id="changeBtn">Change mode</button>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('restartBtn').addEventListener('click', startQuiz);
+  document.getElementById('changeBtn').addEventListener('click', renderStart);
+}
+
+renderStart();
+</script>
+
+</body>
+</html>
