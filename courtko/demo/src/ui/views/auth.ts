@@ -17,7 +17,7 @@ export function landingFor(): string {
   const me = app.me();
   if (!me) return '#/';
   if (me.user.platformRole) return '#/admin';
-  if (me.memberships.length && me.user.persona && ['owner', 'manager', 'receptionist', 'applicant'].includes(me.user.persona)) return '#/biz';
+  if (me.memberships.length && me.user.persona && ['owner', 'owner2', 'manager', 'receptionist', 'applicant'].includes(me.user.persona)) return '#/biz';
   return '#/app';
 }
 

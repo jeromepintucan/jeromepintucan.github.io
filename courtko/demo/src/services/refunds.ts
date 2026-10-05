@@ -13,6 +13,8 @@ import { newId } from '../domain/ids.ts';
 import { postJournal } from './ledgerSvc.ts';
 import type { Id, Payment, Refund } from './model.ts';
 import * as provider from './provider.ts';
+import { callProvider } from './gateway.ts';
+import { refundFailure } from '../domain/paymentFailures.ts';
 import { audit, notify, notifyBusiness, requireBusiness, requirePlatform, requireUser, settings, type Svc } from './svc.ts';
 import { returnStock } from './inventory.ts';
 
@@ -97,7 +99,7 @@ export function submitRefund(s: Svc, refundId: Id): void {
   const payment = s.db.must('payments', refund.paymentId);
   if (!payment.providerPaymentId) fail('CONFLICT', 'Payment has no provider reference.');
   try {
-    const r = provider.createRefund(s, { providerPaymentId: payment.providerPaymentId, amount: refund.amount, externalId: refund.id, idempotencyKey: `refund:${refund.id}:${refund.history.filter((h) => h.to === 'processing').length}` });
+    const r = callProvider(s, 'create_refund', { method: payment.method, businessId: payment.businessId }, () => provider.createRefund(s, { providerPaymentId: payment.providerPaymentId!, amount: refund.amount, externalId: refund.id, idempotencyKey: `refund:${refund.id}:${refund.history.filter((h) => h.to === 'processing').length}` }));
     s.db.update('refunds', refund.id, (x) => {
       x.providerRefundId = r.id;
       x.failureReason = null;
@@ -119,7 +121,8 @@ export function onRefundSettled(s: Svc, refundId: Id, ok: boolean, failureCode: 
       x.failureReason = failureCode ?? 'Refund failed at provider';
       transition(REFUND_TRANSITIONS, x, 'failed', s.now, 'provider', x.failureReason, 'refund');
     });
-    notifyBusiness(s, refund.businessId, 'refunds.approve', { title: 'Refund failed', body: `${formatPHP(refund.amount)} could not be returned (${failureCode}). Retry or contact support.`, link: '#/biz/payments' }, 'payment_updates');
+    const info = refundFailure(failureCode);
+    notifyBusiness(s, refund.businessId, 'refunds.approve', { title: `Refund failed · ${info.title}`, body: `${formatPHP(refund.amount)} could not be returned (${failureCode}). ${info.staffNote}`, link: '#/biz/payments' }, 'payment_updates');
     notify(s, refund.userId, 'payment_updates', { title: 'Your refund is delayed', body: `We couldn't complete your ${formatPHP(refund.amount)} refund yet. We'll retry and keep you posted.`, link: '#/app/payments' });
     return;
   }
@@ -237,15 +240,39 @@ export function retryRefund(s: Svc, input: { businessId?: Id; refundId: Id }): R
   return s.db.must('refunds', refund.id);
 }
 
-/** Job: resubmit approved refunds that could not reach the provider. */
+/** Job: resubmit approved refunds that could not reach the provider, and balance-related failures after 30 min. */
 export function retryStuckRefunds(s: Svc): number {
   let n = 0;
-  for (const r of s.db.filter('refunds', (x) => x.status === 'approved' && !!x.failureReason)) {
-    if (settings(s.db).demo.providerOutage) break;
+  const demo = settings(s.db).demo;
+  if (demo.providerOutage || demo.providerFault === 'down') return 0;
+  for (const r of s.db.filter('refunds', (x) => (x.status === 'approved' && !!x.failureReason) || (x.status === 'failed' && x.failureReason === 'INSUFFICIENT_BALANCE' && s.now - (x.history.at(-1)?.at ?? 0) > 30 * 60_000))) {
     submitRefund(s, r.id);
     n++;
   }
   return n;
+}
+
+/**
+ * Alternate route for refunds the channel can't take through the API (e.g. QR Ph transfers): staff send the money
+ * by bank transfer, then record the transfer reference here. Needs refund approval rights; audited; the player is
+ * notified. The ledger records the refund exactly like an API refund.
+ */
+export function recordManualRefund(s: Svc, input: { businessId?: Id; refundId: Id; reference: string; note?: string }): Refund {
+  const refund = s.db.must('refunds', input.refundId, 'refund');
+  if (input.businessId) {
+    if (refund.businessId !== input.businessId) fail('NOT_FOUND', 'Refund not found.');
+    requireBusiness(s, input.businessId, 'refunds.approve', { write: true });
+  } else requirePlatform(s, 'platform.refunds.approve', { write: true });
+  if (refund.status !== 'failed') fail('INVALID_STATE_TRANSITION', 'Only failed refunds can be completed manually.');
+  const reference = (input.reference ?? '').trim();
+  if (!/^[A-Za-z0-9-]{6,40}$/.test(reference)) fail('VALIDATION_FAILED', 'Enter the bank transfer reference (6–40 letters, numbers or dashes).', { fields: [{ field: 'reference', message: 'Transfer reference is required.' }] });
+  s.db.update('refunds', refund.id, (x) => {
+    x.manual = { reference, method: 'bank_transfer', by: s.actor.realUser!.id, at: s.now, note: (input.note ?? '').trim().slice(0, 300) };
+    transition(REFUND_TRANSITIONS, x, 'processing', s.now, s.actor.realUser!.id, `Sent by bank transfer (ref ${reference})`, 'refund');
+  });
+  onRefundSettled(s, refund.id, true, null);
+  audit(s, { action: 'refund.manual_completed', targetType: 'refund', targetId: refund.id, businessId: refund.businessId, summary: `Refund ${formatPHP(refund.amount)} completed by bank transfer (ref ${reference})`, reason: input.note ?? null });
+  return s.db.must('refunds', refund.id);
 }
 
 export function myRefunds(s: Svc): Refund[] {

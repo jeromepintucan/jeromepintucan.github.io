@@ -710,6 +710,7 @@ export function calendar(s: Svc, input: { businessId: Id; venueId: Id; date: str
 
 function findBookingForCheckIn(s: Svc, businessId: Id, codeOrToken: string): Booking {
   const raw = (codeOrToken ?? '').trim();
+  if (!raw) invalid([{ field: 'code', message: 'Enter or scan the booking code.' }]);
   let b: Booking | undefined;
   if (raw.startsWith('CK1.')) {
     b = verifyQrToken(s.db, raw);

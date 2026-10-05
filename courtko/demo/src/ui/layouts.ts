@@ -228,7 +228,7 @@ layout('admin', (ctx, content) => {
     ...(can('platform.businesses.view') ? [{ href: '#/admin/businesses', label: 'Businesses', icon: 'building', group: 'Marketplace' }, { href: '#/admin/venues', label: 'Venues', icon: 'court' }] : []),
     ...(can('platform.users.view') ? [{ href: '#/admin/users', label: 'Users', icon: 'users' }] : []),
     ...(can('platform.bookings.view') ? [{ href: '#/admin/bookings', label: 'Bookings', icon: 'ticket' }, { href: '#/admin/open-play', label: 'Open Play', icon: 'users' }, { href: '#/admin/events', label: 'Events', icon: 'trophy' }, { href: '#/admin/products', label: 'Products', icon: 'box' }] : []),
-    ...(can('platform.transactions.view') ? [{ href: '#/admin/transactions', label: 'Transactions', icon: 'receipt', group: 'Money' }] : []),
+    ...(can('platform.transactions.view') ? [{ href: '#/admin/transactions', label: 'Transactions', icon: 'receipt', group: 'Money' }, { href: '#/admin/payment-exceptions', label: 'Payment exceptions', icon: 'alert' }] : []),
     ...(can('platform.commissions.manage') ? [{ href: '#/admin/commissions', label: 'Commissions', icon: 'percent' }] : []),
     ...(can('platform.transactions.view') ? [{ href: '#/admin/payouts', label: 'Payouts', icon: 'wallet' }, { href: '#/admin/refunds', label: 'Refunds', icon: 'refresh' }] : []),
     ...(can('platform.disputes.manage') ? [{ href: '#/admin/disputes', label: 'Disputes', icon: 'scale' }] : []),

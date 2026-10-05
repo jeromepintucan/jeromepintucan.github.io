@@ -34,9 +34,54 @@ bizRoute('/biz/open-play', 'Open Play', (_ctx, b) => {
   <h2 class="section-title">Upcoming</h2>${upcoming.length ? html`<div class="stack-sm">${upcoming.map(row)}</div>` : empty('No upcoming sessions', canManage ? 'Create your first Open Play session.' : undefined, canManage ? btn('New session', { href: '#/biz/open-play/new', variant: 'primary' }) : undefined, 'users')}
   ${past.length ? html`<h2 class="section-title">Past & cancelled</h2><div class="stack-sm">${past.slice(0, 8).map(row)}</div>` : ''}`;
 });
+type CourtCheck = ReadResult<'GET /v1/businesses/{businessId}/open-play/{sessionId}/court-check'>;
+
+function conflictModal(check: CourtCheck): void {
+  const sessionId = check.sessionId;
+  const bookings = check.bookingCount + check.holdCount;
+  app.modal({
+    title: 'Some courts aren’t free for this session',
+    wide: true,
+    body: html`<div class="stack-sm">
+      <p class="small">Publishing reserves the courts for the whole session (and any layouts that share the same floor). These are in the way:</p>
+      ${check.courts.filter((c) => c.conflicts.length).map((c) => html`<div class="conflict-court"><b>${c.name}</b><ul class="conflict-list">${c.conflicts.map((x) => html`<li>${icon(x.kind === 'block' ? 'ban' : x.kind === 'hold' ? 'clock' : x.kind === 'booking' ? 'calendar' : 'users', 14)} <span>${x.label}</span><span class="xs muted">${x.when}${x.court !== c.name ? ` · on ${x.court}` : ''}</span>${x.changeover ? tag('changeover gap', 'warning') : ''}</li>`)}</ul></div>`)}
+      ${check.suggestion ? alertBox('success', `${check.suggestion.names.join(' & ')} ${check.suggestion.names.length === 1 ? 'is' : 'are'} free for the whole session`, 'Switch to these courts and publish — no one is affected.') : ''}
+      ${bookings && !check.canCancelBookings && !check.blocking.length ? alertBox('info', 'Cancelling bookings needs the “Cancel bookings” permission', 'Pick other courts, move the session, or ask a manager.') : ''}
+      ${check.blocking.length ? html`<p class="xs muted">Blocks, events and other Open Play sessions must be moved first — they can't be cancelled from here.</p>` : ''}
+      <div class="row" style="justify-content:flex-end;flex-wrap:wrap;gap:8px">${btn('Close', { action: 'modal.close', variant: 'ghost' })}${btn('Change time or courts', { href: `#/biz/open-play/edit/${sessionId}`, variant: 'secondary' })}
+      ${check.canCancelBookings ? btn(`Cancel ${bookings} booking${bookings === 1 ? '' : 's'} (full refund) & publish`, { action: 'opb.publishForce', data: { id: sessionId, n: String(bookings) }, variant: 'danger' }) : ''}
+      ${check.suggestion ? btn(`Use ${check.suggestion.names.join(' & ')} & publish`, { action: 'opb.publishSwap', data: { id: sessionId, courts: check.suggestion.courtIds.join(',') }, variant: 'primary', icon: 'check' }) : ''}</div></div>`,
+  });
+}
+
+async function publishNow(el: HTMLElement, sessionId: string, extra: { courtIds?: string[]; resolution?: 'cancel_and_refund' } = {}, success = 'Published — courts reserved on the calendar.'): Promise<void> {
+  try {
+    await app.api.write('POST /v1/businesses/{businessId}/open-play/{sessionId}/publish', { businessId: app.businessId!, sessionId, ...extra }, { idempotencyKey: app.idem() });
+    app.closeModal();
+    app.toast(success, 'success');
+    if (location.hash.includes('/edit/')) app.navigate('#/biz/open-play');
+    else app.render();
+  } catch (e) {
+    const d = (e as { code?: string; details?: { check?: CourtCheck } });
+    if (d.code === 'COURT_CONFLICT' && d.details?.check) return conflictModal(d.details.check); // someone booked meanwhile
+    app.handleError(e);
+  }
+  void el;
+}
+
 action('opb.publish', async (el) => {
-  const r = await app.run(el, () => app.api.write('POST /v1/businesses/{businessId}/open-play/{sessionId}/publish', { businessId: app.businessId!, sessionId: el.dataset.id! }), { success: 'Published — courts reserved on the calendar.' });
-  if (r && location.hash.includes('/edit/')) app.navigate('#/biz/open-play');
+  const sessionId = el.dataset.id!;
+  const check = app.api.read('GET /v1/businesses/{businessId}/open-play/{sessionId}/court-check', { businessId: app.businessId!, sessionId });
+  if (!check.clear) return conflictModal(check);
+  await publishNow(el, sessionId);
+});
+action('opb.publishSwap', async (el) => {
+  await publishNow(el, el.dataset.id!, { courtIds: el.dataset.courts!.split(',') }, 'Courts switched and session published.');
+});
+action('opb.publishForce', async (el) => {
+  const ok = await app.confirm({ title: `Cancel ${el.dataset.n} booking(s) and publish?`, body: 'Each player gets a full refund including fees and an apology notification. This is recorded in the audit log.', confirmLabel: 'Cancel bookings & publish', danger: true });
+  if (!ok) return;
+  await publishNow(el, el.dataset.id!, { resolution: 'cancel_and_refund' }, 'Published. Conflicting bookings were cancelled with full refunds and players were notified.');
 });
 action('opb.duplicate', async (el) => {
   const r = await app.run(el, () => app.api.write('POST /v1/businesses/{businessId}/open-play/{sessionId}/duplicate', { businessId: app.businessId!, sessionId: el.dataset.id!, days: 7 }), { success: 'Draft copy created for next week' });
@@ -62,6 +107,15 @@ function editor(b: { businessId: string; venueId: string; perms: Set<string> }, 
   const cat = sportsCatalog().find((x) => x.code === sport)!;
   const formats = cat.formats.filter((f) => f.appliesTo.includes('open_play'));
   const courts = v.courts.filter((c) => c.status === 'active' && (c.sport ?? 'pickleball') === sport);
+  let busy = new Map<string, string>();
+  if (sessionId && courts.length) {
+    try {
+      const chk = app.api.read('GET /v1/businesses/{businessId}/open-play/{sessionId}/court-check', { businessId: b.businessId, sessionId, courtIds: courts.map((c) => c.id) });
+      busy = new Map(chk.courts.filter((c) => c.conflicts.length).map((c) => [c.courtId, c.conflicts.map((x) => `${x.label} ${x.when}`).join('; ')]));
+    } catch {
+      busy = new Map();
+    }
+  }
   let members: { member: { id: string; status: string }; name: string }[] = [];
   try {
     members = app.api.read('GET /v1/businesses/{businessId}/members', { businessId: b.businessId }).members;
@@ -84,7 +138,7 @@ function editor(b: { businessId: string; venueId: string; perms: Set<string> }, 
     ${card(html`<div class="form-grid">${field({ name: 'start', label: 'Starts', type: 'datetime-local', value: localInput(start), step: 900 })}${field({ name: 'end', label: 'Ends', type: 'datetime-local', value: localInput(end), step: 900 })}
       ${field({ name: 'regOpens', label: 'Registration opens', type: 'datetime-local', value: localInput(existing?.registrationOpensAt ?? app.store.now()), step: 900 })}${field({ name: 'regCloses', label: 'Registration closes', type: 'datetime-local', value: localInput(existing?.registrationClosesAt ?? start - HOUR), step: 900 })}
       ${select({ name: 'checkInBefore', label: 'Check-in opens', value: String(existing ? Math.round((existing.startMs - existing.checkInOpensAt) / MINUTE) : 30), options: [15, 30, 45, 60, 90].map((n) => ({ value: String(n), label: `${n} min before start` })) })}${select({ name: 'lateAfter', label: 'Late-arrival cutoff', value: String(existing ? Math.round((existing.lateCutoffAt - existing.startMs) / MINUTE) : 45), options: [0, 15, 30, 45, 60, 90].map((n) => ({ value: String(n), label: n ? `${n} min after start` : 'At the start' })) })}
-      <div class="full"><span class="label">Courts</span><div class="chips" style="margin-top:6px">${courts.map((c) => html`<label class="chip"><input type="checkbox" name="courtIds" value="${c.id}"${existing?.courtIds.includes(c.id) ? html` checked` : ''}/> ${c.name}</label>`)}</div>${courts.length ? html`<p class="hint">Courts are reserved on the calendar when you publish (dependent layouts on the same floor are blocked too).</p>` : html`<p class="hint">No ${cat.name.toLowerCase()} courts at this venue yet — add one in Courts & layouts.</p>`}</div></div>`, { title: '3 · When & where' })}
+      <div class="full"><span class="label">Courts</span><div class="chips" style="margin-top:6px">${courts.map((c) => html`<label class="chip${busy.has(c.id) ? ' chip-busy' : ''}" title="${busy.get(c.id) ?? 'Free for this session'}"><input type="checkbox" name="courtIds" value="${c.id}"${existing?.courtIds.includes(c.id) ? html` checked` : ''}/> ${c.name}${sessionId ? html` <small>${busy.has(c.id) ? 'in use' : 'free'}</small>` : ''}</label>`)}</div>${courts.length ? html`<p class="hint">Courts are reserved on the calendar when you publish (dependent layouts on the same floor are blocked too).${sessionId ? ' “In use” means a booking, block or event overlaps the saved time — save first to re-check after changing the time.' : ' Save the draft to see which courts are free at that time.'}</p>` : html`<p class="hint">No ${cat.name.toLowerCase()} courts at this venue yet — add one in Courts & layouts.</p>`}</div></div>`, { title: '3 · When & where' })}
     ${card(html`<div class="form-grid">${field({ name: 'capacity', label: 'Maximum capacity', type: 'number', value: existing?.capacity ?? cat.openPlay.defaultCapacity, min: 2, max: 200 })}${select({ name: 'capacityUnit', label: 'Capacity counts', value: existing?.capacityUnit ?? 'player', options: [{ value: 'player', label: 'Players' }, { value: 'team', label: 'Teams' }] })}${field({ name: 'minParticipants', label: 'Minimum participants', type: 'number', value: existing?.minParticipants ?? 4, min: 1, max: 200 })}
       <div class="full"><span class="label">Registration types</span><div class="chips" style="margin-top:6px">${cat.openPlay.registrationModes.map((m) => html`<label class="chip"><input type="checkbox" name="modes" value="${m}"${modes.includes(m) ? html` checked` : ''}/> ${REGISTRATION_MODE_LABEL[m]}</label>`)}</div><p class="hint">The server checks these against the format (e.g. partner registration needs a doubles format).</p></div>
       ${select({ name: 'pricing', label: 'Price', value: existing?.pricing ?? 'per_player', options: [{ value: 'free', label: 'Free' }, { value: 'per_player', label: 'Per player' }, { value: 'per_team', label: 'Per team' }] })}${field({ name: 'price', label: 'Amount (₱)', value: existing ? String(existing.price / 100) : '250', inputmode: 'decimal' })}
@@ -204,8 +258,12 @@ function deskTab(d: Desk, lastScan: { ok: boolean; text: string; at: number } | 
   const notArrived = d.players.filter((p) => p.attendance === 'not_arrived');
   const tempOff = d.players.filter((p) => p.attendance === 'temp_off');
   const checkedOnly = d.players.filter((p) => p.attendance === 'checked_in');
+  const running = (o.status === 'published' || o.status === 'in_progress') && now < o.endMs;
+  const started = running && now >= o.startMs;
+  const ready = d.queue.length + checkedOnly.length;
   return html`<div class="desk"><div class="stack">
-    ${can.checkIn ? card(html`<div class="checkin-window ${d.checkInWindow.open ? 'open' : ''}">${icon('clock', 14)} Check-in ${d.checkInWindow.open ? 'open' : now < d.checkInWindow.opensAt ? `opens ${formatTime(d.checkInWindow.opensAt)}` : 'closed'} · late-arrival cutoff ${formatTime(d.checkInWindow.lateCutoffAt)}</div>
+    ${!running ? alertBox('info', o.status === 'cancelled' ? 'This session was cancelled' : 'This session has ended', 'Check-in and the rotation are closed. The attendance log and corrections stay available.') : ''}
+    ${can.checkIn && running ? card(html`<div class="checkin-window ${d.checkInWindow.open ? 'open' : ''}">${icon('clock', 14)} Check-in ${d.checkInWindow.open ? 'open' : now < d.checkInWindow.opensAt ? `opens ${formatTime(d.checkInWindow.opensAt)}` : 'closed'} · late-arrival cutoff ${formatTime(d.checkInWindow.lateCutoffAt)}</div>
       <form class="row" data-form="desk.scan" data-id="${o.id}" style="align-items:flex-end;margin-top:10px"><div style="flex:1">${field({ name: 'token', label: 'Scan or paste the player’s Open Play pass', placeholder: 'OP1.… or REG1.…', autocomplete: 'off' })}</div>${btn('Check in', { type: 'submit', variant: 'primary', icon: 'scan' })}</form>
       ${lastScan ? html`<div class="scan-result ${lastScan.ok ? 'ok' : 'bad'}" role="status">${icon(lastScan.ok ? 'checkCircle' : 'alert', 18)}<span>${lastScan.text}</span><span class="xs muted">${formatTime(lastScan.at)}</span></div>` : ''}
       <div class="demo-pass"><span class="xs muted">${icon('info', 12)} Demo: camera scanning isn't available here. Load a sample pass to scan —</span>${['valid', 'duplicate', 'expired', 'wrong_session', 'tampered'].map((k) => btn(k.replace('_', ' '), { action: 'desk.sample', data: { id: o.id, kind: k }, variant: 'ghost', size: 'sm' }))}</div>
@@ -216,10 +274,10 @@ function deskTab(d: Desk, lastScan: { ok: boolean; text: string; at: number } | 
     <div class="court-board">${d.board.map((c) => html`<div class="court-tile${c.game ? ' live' : ''}"><header><b>${c.name}</b>${c.game ? html`<span class="pill ${c.game.overtime ? 'pill-danger' : 'pill-success'}">${icon('timer', 12)} ${Math.max(0, Math.round((now - c.game.startedAt) / MINUTE))} min${c.game.overtime ? ' · over time' : ''}</span>` : html`<span class="pill pill-neutral">Free</span>`}</header>
       ${c.game ? html`<div class="sides"><div class="side">${c.game.sideA.map((p) => html`<span class="pchip">${avatar(p.name, (p.name.charCodeAt(0) * 9) % 360, 22)}${p.name}</span>`)}</div><span class="vs">vs</span><div class="side">${c.game.sideB.map((p) => html`<span class="pchip">${avatar(p.name, (p.name.charCodeAt(0) * 9) % 360, 22)}${p.name}</span>`)}</div></div>` : c.assigned.length ? html`<div class="side">${c.assigned.map((p) => html`<span class="pchip">${p.name}</span>`)}</div>` : html`<p class="xs muted">No players assigned.</p>`}
       ${c.lastGame?.score ? html`<p class="xs muted" style="margin:6px 0 0">Last game: ${c.lastGame.score.a}–${c.lastGame.score.b}</p>` : ''}
-      ${can.run ? html`<div class="row" style="gap:6px;margin-top:8px">${c.game ? btn('End game', { action: 'desk.end', data: { session: o.id, game: c.game.id, score: o.scoreRecording ? '1' : '' }, variant: 'primary', size: 'sm' }) : btn('Next game', { action: 'desk.suggest', data: { session: o.id, court: c.courtId }, variant: 'primary', size: 'sm', icon: 'shuffle' })}</div>` : ''}
+      ${can.run && running ? html`<div class="row" style="gap:6px;margin-top:8px">${c.game ? btn('End game', { action: 'desk.end', data: { session: o.id, game: c.game.id, score: o.scoreRecording ? '1' : '' }, variant: 'primary', size: 'sm' }) : !started ? html`<span class="xs muted">Games start at ${formatTime(o.startMs)}</span>` : ready >= 2 ? btn('Next game', { action: 'desk.suggest', data: { session: o.id, court: c.courtId }, variant: 'primary', size: 'sm', icon: 'shuffle' }) : html`<span class="xs muted">Waiting for checked-in players</span>`}</div>` : ''}
     </div>`)}</div>
   </div><div class="stack">
-    ${card(d.queue.length ? html`<ol class="queue">${d.queue.map((p) => html`<li><span class="qpos">${p.position}</span><div style="flex:1;min-width:0"><b>${p.name}</b><div class="xs muted">${p.skillLabel} · ${p.gamesPlayed} games · waiting ${Math.max(0, Math.round((now - p.since) / MINUTE))} min</div></div>${can.run ? html`<select aria-label="Assign ${p.name} to a court" data-change="desk.assign" data-session="${o.id}" data-reg="${p.registrationId}" style="width:auto"><option value="">Assign…</option>${d.board.map((c) => html`<option value="${c.courtId}">${c.name}</option>`)}<option value="__temp_off">Take a break</option><option value="__check_out">Check out</option></select>` : ''}</li>`)}</ol>` : html`<p class="small muted">Nobody is waiting.</p>`, { title: html`Waiting rotation <span class="tab-count">${d.queue.length}</span>`, subtitle: d.rotationLabel })}
+    ${card(d.queue.length ? html`<ol class="queue">${d.queue.map((p) => html`<li><span class="qpos">${p.position}</span><div style="flex:1;min-width:0"><b>${p.name}</b><div class="xs muted">${p.skillLabel} · ${p.gamesPlayed} games · waiting ${Math.max(0, Math.round((now - p.since) / MINUTE))} min</div></div>${can.run && running ? html`<select aria-label="Assign ${p.name} to a court" data-change="desk.assign" data-session="${o.id}" data-reg="${p.registrationId}" style="width:auto"><option value="">Assign…</option>${d.board.map((c) => html`<option value="${c.courtId}">${c.name}</option>`)}<option value="__temp_off">Take a break</option><option value="__check_out">Check out</option></select>` : ''}</li>`)}</ol>` : html`<p class="small muted">Nobody is waiting.</p>`, { title: html`Waiting rotation <span class="tab-count">${d.queue.length}</span>`, subtitle: d.rotationLabel })}
     ${checkedOnly.length ? card(html`${checkedOnly.map((p) => html`<div class="row-between small"><b>${p.name}</b>${can.run ? btn('Add to queue', { action: 'desk.move', data: { session: o.id, reg: p.registrationId, to: 'to_waiting' }, variant: 'ghost', size: 'sm' }) : ''}</div>`)}`, { title: 'Checked in, not queued' }) : ''}
     ${tempOff.length ? card(html`${tempOff.map((p) => html`<div class="row-between small"><b>${p.name}</b>${can.run ? btn('Back to queue', { action: 'desk.move', data: { session: o.id, reg: p.registrationId, to: 'to_waiting' }, variant: 'ghost', size: 'sm' }) : ''}</div>`)}`, { title: 'Taking a break' }) : ''}
     ${card(d.exceptions.length ? html`<ul class="exceptions">${d.exceptions.map((e) => html`<li class="exc-${e.kind}">${icon(e.kind === 'rejected' ? 'ban' : e.kind === 'needs_partner' ? 'userPlus' : e.kind === 'overtime' ? 'timer' : 'alert', 14)} ${e.text}</li>`)}</ul>` : html`<p class="small muted">No exceptions.</p>`, { title: 'Attendance exceptions' })}
@@ -285,6 +343,10 @@ action('desk.manual', (el) => {
   });
 });
 form('desk.manual', async (fd, f) => {
+  if (!str(fd, 'reg')) {
+    app.closeModal();
+    return app.toast('Everyone registered is already checked in.', 'info');
+  }
   await app.api.write('POST /v1/businesses/{businessId}/open-play/{sessionId}/check-ins', { businessId: bid(), sessionId: f.dataset.id!, registrationId: str(fd, 'reg'), method: 'manual', reason: str(fd, 'reason') });
   app.closeModal();
   app.toast('Checked in manually (logged with your reason)', 'success');
@@ -319,6 +381,7 @@ action('desk.suggest', (el) => {
   const sug = app.api.read('GET /v1/businesses/{businessId}/open-play/{sessionId}/rotation-suggestion', { businessId: bid(), sessionId, courtId });
   const d = app.api.read('GET /v1/businesses/{businessId}/open-play/{sessionId}/desk', { businessId: bid(), sessionId });
   const pool = d.players.filter((p) => ['waiting', 'checked_in', 'on_court'].includes(p.attendance) && (p.attendance !== 'on_court' || p.courtId === courtId));
+  if (pool.length < 2) return app.toast('Not enough checked-in players for a game yet.', 'info');
   const sideOf = (id: string) => (sug.sideA.includes(id) ? 'a' : sug.sideB.includes(id) ? 'b' : '');
   app.modal({
     title: `Next game · ${d.board.find((c) => c.courtId === courtId)?.name ?? 'Court'}`,

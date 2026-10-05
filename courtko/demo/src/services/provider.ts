@@ -12,6 +12,7 @@
  */
 
 import { fail } from '../domain/errors.ts';
+import { PAYMENT_FAILURES } from '../domain/paymentFailures.ts';
 import { randomCode } from '../domain/ids.ts';
 import { providerFeeOn, type Centavos } from '../domain/money.ts';
 import type { PaymentMethodCode } from '../domain/pricing.ts';
@@ -34,8 +35,39 @@ function pid(prefix: string): string {
   return `${prefix}-${randomCode(20).toLowerCase()}`;
 }
 
-function assertAvailable(s: Svc): void {
-  if (settings(s.db).demo.providerOutage) fail('PROVIDER_UNAVAILABLE', 'The payment provider is temporarily unavailable. Your hold is kept — please try again shortly.');
+/** Transport-level provider failure (HTTP 5xx, timeout, channel down). The platform retries these with the same idempotency key. */
+export class ProviderError extends Error {
+  readonly kind: 'server_error' | 'timeout' | 'unavailable' | 'channel_unavailable';
+  readonly status: number;
+  constructor(kind: ProviderError['kind'], status: number, message: string) {
+    super(message);
+    this.name = 'ProviderError';
+    this.kind = kind;
+    this.status = status;
+  }
+}
+
+function setDemo(s: Svc, patch: Partial<ReturnType<typeof settings>['demo']>): void {
+  s.db.update('settings', 'platform', (x) => {
+    Object.assign(x.demo, patch);
+  });
+}
+
+function assertAvailable(s: Svc, method?: PaymentMethodCode): void {
+  const demo = settings(s.db).demo;
+  if (demo.providerOutage || demo.providerFault === 'down') throw new ProviderError('unavailable', 503, 'Service Unavailable');
+  if (demo.providerFault === 'flaky') {
+    setDemo(s, { providerFault: 'none' }); // the next attempt succeeds
+    throw new ProviderError('server_error', 502, 'Bad Gateway');
+  }
+  if (method && demo.channelDown === method) throw new ProviderError('channel_unavailable', 503, `${METHOD_LABEL[method]} channel unavailable`);
+}
+
+/** Health as the provider's status page would report it (sandbox: derived from the fault switches). */
+export function providerHealth(s: Svc): { status: 'operational' | 'degraded' | 'down'; channelDown: PaymentMethodCode | null } {
+  const demo = settings(s.db).demo;
+  if (demo.providerOutage || demo.providerFault === 'down') return { status: 'down', channelDown: demo.channelDown ?? null };
+  return { status: demo.channelDown ? 'degraded' : 'operational', channelDown: demo.channelDown ?? null };
 }
 
 function webhookDelayMs(s: Svc): number {
@@ -66,9 +98,9 @@ export function createSession(
   s: Svc,
   p: { externalId: string; amount: Centavos; method: PaymentMethodCode; forUserId: string | null; splitPlatformAmount: Centavos; merchantName: string; description: string; expiresAt: number; idempotencyKey: string },
 ): ProviderSession {
-  assertAvailable(s);
+  assertAvailable(s, p.method);
   const prior = s.db.get('providerIdempotency', p.idempotencyKey);
-  if (prior) return s.db.must('providerSessions', prior.resultId);
+  if (prior) return s.db.must('providerSessions', prior.resultId); // a retry after a lost response gets the SAME session
   if (p.amount < 100) fail('VALIDATION_FAILED', 'Amount below provider minimum.');
   const session: ProviderSession = {
     id: pid('ps'),
@@ -89,6 +121,11 @@ export function createSession(
   };
   s.db.insert('providerSessions', session);
   s.db.insert('providerIdempotency', { id: p.idempotencyKey, resultId: session.id });
+  if (settings(s.db).demo.providerFault === 'timeout') {
+    // The provider created the session but the response never reached us.
+    setDemo(s, { providerFault: 'none' });
+    throw new ProviderError('timeout', 504, 'Gateway Timeout');
+  }
   return session;
 }
 
@@ -120,11 +157,14 @@ export function customerApprove(s: Svc, sessionId: string, opts: { last4?: strin
   if (session.status !== 'PENDING') fail('CONFLICT', `This payment session is ${session.status.toLowerCase()}.`);
   if (s.now > session.expiresAt) fail('HOLD_EXPIRED', 'This payment session has expired.');
   const fee = actualFee(s, session.method, session.amount, !!opts.international);
+  // Amount-mismatch drill: the provider reports a different captured amount than the session amount.
+  const mismatch = settings(s.db).demo.amountMismatchNext ? 100 : 0;
+  if (mismatch) setDemo(s, { amountMismatchNext: false });
   const payment: ProviderPayment = {
     id: pid('py'),
     sessionId,
     externalId: session.externalId,
-    amount: session.amount,
+    amount: session.amount + mismatch,
     fee,
     method: session.method,
     methodDisplay: masked(session.method, opts.last4 ?? '0001'),
@@ -149,13 +189,17 @@ export function customerApprove(s: Svc, sessionId: string, opts: { last4?: strin
       a.balance += session.amount - session.splitPlatformAmount;
     });
   }
-  scheduleWebhook(s, 'payment.succeeded', { payment_id: payment.id, payment_session_id: sessionId, reference_id: session.externalId, amount: session.amount, currency: 'PHP', status: 'SUCCEEDED', channel_code: session.method.toUpperCase() });
+  if (mismatch) s.db.update('providerMaster', 'master', (m) => {
+    m.balance += mismatch;
+  });
+  scheduleWebhook(s, 'payment.succeeded', { payment_id: payment.id, payment_session_id: sessionId, reference_id: session.externalId, amount: payment.amount, currency: 'PHP', status: 'SUCCEEDED', channel_code: session.method.toUpperCase() });
   return s.db.must('providerSessions', sessionId);
 }
 
-export function customerDecline(s: Svc, sessionId: string, code: 'INSUFFICIENT_BALANCE' | 'CARD_DECLINED' | 'USER_CANCELLED'): ProviderSession {
+export function customerDecline(s: Svc, sessionId: string, code: string): ProviderSession {
   const session = s.db.must('providerSessions', sessionId, 'payment session');
   if (session.status !== 'PENDING') fail('CONFLICT', `This payment session is ${session.status.toLowerCase()}.`);
+  if (!PAYMENT_FAILURES[code]) fail('VALIDATION_FAILED', 'Unknown failure code.');
   s.db.update('providerSessions', sessionId, (x) => {
     x.status = code === 'USER_CANCELLED' ? 'CANCELLED' : 'FAILED';
     x.failureCode = code;
@@ -199,14 +243,14 @@ export function settlePayments(s: Svc): number {
 }
 
 export function createRefund(s: Svc, p: { providerPaymentId: string; amount: Centavos; externalId: string; idempotencyKey: string }): { id: string; status: 'PENDING' } {
-  assertAvailable(s);
+  assertAvailable(s, undefined);
   const prior = s.db.get('providerIdempotency', p.idempotencyKey);
   if (prior) return { id: prior.resultId, status: 'PENDING' };
   const payment = s.db.must('providerPayments', p.providerPaymentId, 'provider payment');
   if (p.amount <= 0 || p.amount > payment.amount - payment.refundedAmount) fail('VALIDATION_FAILED', 'Refund amount exceeds the refundable balance.');
   const demo = settings(s.db).demo;
   const id = pid('rfd');
-  s.db.insert('providerRefunds', { id, paymentId: payment.id, externalId: p.externalId, amount: p.amount, status: 'PENDING', createdAt: s.now, completeAt: s.now + 3_000, failureCode: demo.failNextRefund ? 'REFUND_REJECTED_BY_CHANNEL' : null, idempotencyKey: p.idempotencyKey });
+  s.db.insert('providerRefunds', { id, paymentId: payment.id, externalId: p.externalId, amount: p.amount, status: 'PENDING', createdAt: s.now, completeAt: s.now + 3_000, failureCode: demo.failNextRefund ? demo.refundFailureCode || 'REFUND_REJECTED_BY_CHANNEL' : null, idempotencyKey: p.idempotencyKey });
   s.db.insert('providerIdempotency', { id: p.idempotencyKey, resultId: id });
   if (demo.failNextRefund) {
     s.db.update('settings', 'platform', (x) => {
@@ -254,10 +298,10 @@ export function createSubAccount(s: Svc, businessId: string): string {
 }
 
 export function createPayout(s: Svc, p: { forUserId: string; amount: Centavos; externalId: string }): { id: string } {
-  assertAvailable(s);
+  assertAvailable(s, undefined);
   const demo = settings(s.db).demo;
   const id = pid('po');
-  s.db.insert('providerPayouts', { id, externalId: p.externalId, forUserId: p.forUserId, amount: p.amount, status: 'PENDING', createdAt: s.now, completeAt: s.now + 4_000, failureCode: demo.failNextPayout ? 'INVALID_DESTINATION_ACCOUNT' : null });
+  s.db.insert('providerPayouts', { id, externalId: p.externalId, forUserId: p.forUserId, amount: p.amount, status: 'PENDING', createdAt: s.now, completeAt: s.now + 4_000, failureCode: demo.failNextPayout ? demo.payoutFailureCode || 'INVALID_DESTINATION_ACCOUNT' : null });
   if (demo.failNextPayout) {
     s.db.update('settings', 'platform', (x) => {
       x.demo.failNextPayout = false;

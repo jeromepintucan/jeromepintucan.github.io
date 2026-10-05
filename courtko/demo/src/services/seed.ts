@@ -7,6 +7,7 @@
  */
 
 import { DEFAULT_BOOKING_SETTINGS, type BookingSettings, type WeeklyHours } from '../domain/availability.ts';
+import { paymentFailure } from '../domain/paymentFailures.ts';
 import { canonicalJson, sha256Hex, toBase32 } from '../domain/crypto.ts';
 import { bookingCode, mulberry32, newId, type Rng } from '../domain/ids.ts';
 import { captureJournal, computeRefund, payoutJournal, payoutFailedJournal, providerFeeJournal, refundJournal, type JournalDraft } from '../domain/ledger.ts';
@@ -89,7 +90,7 @@ interface VenueSpec {
 }
 
 const V: VenueSpec[] = [
-  { key: 'bgc', business: 'Dink District', legal: 'Dink District Sports Inc.', name: 'Dink District BGC', tagline: 'Six pickleball courts and a multi-sport hall in the heart of BGC', sports: ['pickleball', 'basketball', 'volleyball'], halls: [{ name: 'The Hall', env: 'indoor', surface: 'Sprung hardwood', sports: ['basketball', 'volleyball'], split: true, changeover: 15, capacity: 30, equipment: ['Basketballs', 'Volleyballs', 'Volleyball net & antennae', 'Scoreboard', 'Team bibs'] }], sportRates: { basketball: { base: 1600, peak: 2200, weekend: 2000 }, volleyball: { base: 1500, peak: 2000, weekend: 1800 } }, city: 'Taguig', barangay: 'Fort Bonifacio', province: 'Metro Manila', landmark: 'Near Bonifacio High Street', line1: '28th St. cor. 9th Ave.', lat: 14.5507, lng: 121.0494, courts: [{ name: 'Court 1', env: 'indoor' }, { name: 'Court 2', env: 'indoor' }, { name: 'Court 3', env: 'indoor' }, { name: 'Court 4', env: 'indoor' }, { name: 'Court 5', env: 'covered' }, { name: 'Court 6', env: 'covered' }], base: 400, peak: 600, weekend: 550, amenities: ['parking', 'showers', 'lockers', 'pro_shop', 'cafe', 'paddle_rental', 'lights', 'aircon', 'wifi', 'first_aid', 'pwd_access', 'coaching'], popularity: 9, vat: true, hue: 158, pattern: 'lines', settings: { bufferMinutes: 10 } },
+  { key: 'bgc', business: 'Dink District', legal: 'Dink District Sports Inc.', name: 'Dink District BGC', tagline: 'Six tournament-grade pickleball courts in the heart of BGC', city: 'Taguig', barangay: 'Fort Bonifacio', province: 'Metro Manila', landmark: 'Near Bonifacio High Street', line1: '28th St. cor. 9th Ave.', lat: 14.5507, lng: 121.0494, courts: [{ name: 'Court 1', env: 'indoor' }, { name: 'Court 2', env: 'indoor' }, { name: 'Court 3', env: 'indoor' }, { name: 'Court 4', env: 'indoor' }, { name: 'Court 5', env: 'covered' }, { name: 'Court 6', env: 'covered' }], base: 400, peak: 600, weekend: 550, amenities: ['parking', 'showers', 'lockers', 'pro_shop', 'cafe', 'paddle_rental', 'lights', 'aircon', 'wifi', 'first_aid', 'pwd_access', 'coaching'], popularity: 9, vat: true, hue: 158, pattern: 'lines', settings: { bufferMinutes: 10 } },
   { key: 'alabang', business: 'Dink District', legal: 'Dink District Sports Inc.', name: 'Dink District Alabang', tagline: 'South-side courts with a family-friendly lounge', city: 'Muntinlupa', barangay: 'Alabang', province: 'Metro Manila', landmark: 'Near Festival Mall', line1: 'Commerce Ave.', lat: 14.4195, lng: 121.0391, courts: [{ name: 'Court A', env: 'indoor' }, { name: 'Court B', env: 'indoor' }, { name: 'Court C', env: 'covered' }, { name: 'Court D', env: 'covered' }], base: 380, peak: 520, weekend: 480, amenities: ['parking', 'showers', 'cafe', 'paddle_rental', 'lights', 'aircon', 'pwd_access'], popularity: 6, vat: true, hue: 190, pattern: 'waves' },
   { key: 'makati', business: 'Kitchen Line Pickleball Club', legal: 'Kitchen Line Pickleball Club Corp.', name: 'Kitchen Line Club Makati', tagline: 'Members-style club, open to everyone', city: 'Makati', barangay: 'Poblacion', province: 'Metro Manila', landmark: 'Near Rockwell', line1: 'P. Burgos St.', lat: 14.5649, lng: 121.0317, courts: [{ name: 'Center Court', env: 'indoor' }, { name: 'Court 2', env: 'indoor' }, { name: 'Court 3', env: 'indoor' }, { name: 'Court 4', env: 'indoor' }], base: 450, peak: 650, weekend: 600, amenities: ['showers', 'lockers', 'pro_shop', 'cafe', 'aircon', 'wifi', 'coaching', 'seating'], popularity: 8, vat: true, hue: 18, pattern: 'dots', settings: { incrementMinutes: 60 } },
   { key: 'ortigas', business: 'Ortigas Paddle House', legal: 'Ortigas Paddle House (Sole Proprietorship)', name: 'Ortigas Paddle House', tagline: 'Affordable covered courts near the business district', city: 'Pasig', barangay: 'San Antonio', province: 'Metro Manila', landmark: 'Near Ortigas Center', line1: 'Meralco Ave.', lat: 14.5869, lng: 121.0614, courts: [{ name: 'Court 1', env: 'covered' }, { name: 'Court 2', env: 'covered' }, { name: 'Court 3', env: 'covered' }, { name: 'Court 4', env: 'outdoor' }, { name: 'Court 5', env: 'outdoor' }], base: 300, peak: 450, weekend: 400, amenities: ['parking', 'paddle_rental', 'lights', 'first_aid'], popularity: 7, vat: false, hue: 210, pattern: 'lines' },
@@ -98,6 +99,7 @@ const V: VenueSpec[] = [
   { key: 'davao', business: 'Davao Rally Courts', legal: 'Davao Rally Courts Co.', name: 'Davao Rally Courts', tagline: 'Covered courts with mountain views', city: 'Davao City', barangay: 'Lanang', province: 'Davao del Sur', landmark: 'Near SM Lanang', line1: 'J.P. Laurel Ave.', lat: 7.0985, lng: 125.6312, courts: [{ name: 'Court 1', env: 'covered' }, { name: 'Court 2', env: 'covered' }, { name: 'Court 3', env: 'outdoor' }], base: 280, peak: 400, weekend: 350, amenities: ['parking', 'lights', 'paddle_rental', 'first_aid'], popularity: 4, vat: false, hue: 40, pattern: 'lines' },
   { key: 'clark', business: 'Clark Pickle Yard', legal: 'Clark Pickle Yard Corp.', name: 'Clark Pickle Yard', tagline: 'Six outdoor courts and a weekend league', city: 'Mabalacat', barangay: 'Clark Freeport Zone', province: 'Pampanga', landmark: 'Near Clark Global City', line1: 'Manuel A. Roxas Hwy.', lat: 15.185, lng: 120.546, courts: [1, 2, 3, 4, 5, 6].map((n) => ({ name: `Court ${n}`, env: 'outdoor' as const })), base: 300, peak: 420, weekend: 380, amenities: ['parking', 'lights', 'seating', 'ev_charging', 'first_aid'], popularity: 5, vat: true, hue: 120, pattern: 'dots' },
   { key: 'hoops', business: 'Hoopsville Sports Center', legal: 'Hoopsville Sports Center Inc.', name: 'Hoopsville Cubao', tagline: 'Two indoor gyms for full-court runs, half-court 3x3 and volleyball', city: 'Quezon City', barangay: 'Socorro', province: 'Metro Manila', landmark: 'Near Araneta City', line1: 'Gen. Romulo Ave.', lat: 14.6205, lng: 121.0548, courts: [], sports: ['basketball', 'volleyball'], halls: [{ name: 'Gym 1', env: 'indoor', surface: 'Sprung hardwood', sports: ['basketball'], split: true, capacity: 30, equipment: ['Basketballs', 'Scoreboard & shot clock', 'Team bibs'] }, { name: 'Gym 2', env: 'indoor', surface: 'Synthetic sports tile', sports: ['basketball', 'volleyball'], split: true, changeover: 20, capacity: 30, equipment: ['Basketballs', 'Volleyballs', 'Volleyball net & antennae', 'Team bibs'] }], sportRates: { basketball: { base: 1400, peak: 2000, weekend: 1800 }, volleyball: { base: 1300, peak: 1800, weekend: 1600 } }, base: 1400, peak: 2000, weekend: 1800, amenities: ['parking', 'showers', 'lockers', 'lights', 'aircon', 'first_aid', 'seating', 'pwd_access'], popularity: 7, vat: true, hue: 22, pattern: 'lines', settings: { minDurationMinutes: 60, maxDurationMinutes: 240 } },
+  { key: 'riverside', business: 'Riverside Hoops', legal: 'Riverside Hoops Sports Co.', name: 'Riverside Hoops Marikina', tagline: 'A covered full court by the river — book the whole court or one half', city: 'Marikina', barangay: 'Sta. Elena', province: 'Metro Manila', landmark: 'Near the Marikina River Park', line1: 'J.P. Rizal St.', lat: 14.6326, lng: 121.0977, courts: [], sports: ['basketball'], halls: [{ name: 'Main Court', env: 'covered', surface: 'Synthetic sports tile', sports: ['basketball'], split: true, capacity: 24, equipment: ['Basketballs (rental)', 'Scoreboard'] }], sportRates: { basketball: { base: 900, peak: 1300, weekend: 1200 } }, base: 900, peak: 1300, weekend: 1200, amenities: ['parking', 'lights', 'seating'], popularity: 4, vat: false, hue: 30, pattern: 'dots' },
   { key: 'baseline', business: 'Baseline Racquet Club', legal: 'Baseline Racquet Club Corp.', name: 'Baseline Racquet Club', tagline: 'Hard and clay tennis courts — two convert to pickleball on weekday mornings', city: 'Pasig', barangay: 'Kapitolyo', province: 'Metro Manila', landmark: 'Near Capitol Commons', line1: 'United St.', lat: 14.5741, lng: 121.0601, courts: [], sports: ['tennis', 'pickleball'], halls: [{ name: 'Court 1', env: 'outdoor', surface: 'Acrylic hard court', sports: ['tennis', 'pickleball'], split: true, changeover: 15, capacity: 8, equipment: ['Ball machine (on request)', 'Portable pickleball nets'] }, { name: 'Court 2', env: 'covered', surface: 'Acrylic hard court', sports: ['tennis', 'pickleball'], split: true, changeover: 15, capacity: 8, equipment: ['Portable pickleball nets'] }, { name: 'Court 3', env: 'outdoor', surface: 'Clay', sports: ['tennis'], split: false, capacity: 4 }], sportRates: { tennis: { base: 500, peak: 750, weekend: 700 }, pickleball: { base: 300, peak: 420, weekend: 400 } }, base: 500, peak: 750, weekend: 700, amenities: ['parking', 'showers', 'lockers', 'pro_shop', 'lights', 'ball_machine', 'coaching', 'cafe'], popularity: 6, vat: true, hue: 75, pattern: 'dots' },
   { key: 'spike', business: 'Spikehouse Volleyball Arena', legal: 'Spikehouse Sports Co.', name: 'Spikehouse Mandaue', tagline: "Cebu's volleyball home — three indoor courts and weekly open play", city: 'Mandaue City', barangay: 'Subangdaku', province: 'Cebu', landmark: 'Near the Mandaue Sports Complex', line1: 'A.S. Fortuna St.', lat: 10.3389, lng: 123.9218, courts: [], sports: ['volleyball'], halls: [{ name: 'Court 1', env: 'indoor', surface: 'Synthetic sports tile', sports: ['volleyball'], split: false, capacity: 18 }, { name: 'Court 2', env: 'indoor', surface: 'Synthetic sports tile', sports: ['volleyball'], split: false, capacity: 18 }, { name: 'Court 3', env: 'covered', surface: 'Sprung hardwood', sports: ['volleyball'], split: false, capacity: 18 }], sportRates: { volleyball: { base: 900, peak: 1300, weekend: 1200 } }, base: 900, peak: 1300, weekend: 1200, amenities: ['parking', 'showers', 'lights', 'first_aid', 'seating'], popularity: 5, vat: false, hue: 205, pattern: 'waves', settings: { maxDurationMinutes: 240 } },
   { key: 'tagaytay', business: 'Tagaytay Ridge Pickleball', legal: 'Tagaytay Ridge Leisure Inc.', name: 'Tagaytay Ridge Pickleball', tagline: 'Cool-weather courts overlooking Taal', city: 'Tagaytay', barangay: 'Kaybagal South', province: 'Cavite', landmark: 'Along Aguinaldo Hwy.', line1: 'Aguinaldo Hwy.', lat: 14.1153, lng: 120.9621, courts: [{ name: 'Ridge Court', env: 'outdoor' }, { name: 'Lake Court', env: 'covered' }], base: 350, peak: 450, weekend: 500, amenities: ['parking', 'cafe', 'seating'], popularity: 3, vat: true, hue: 175, pattern: 'waves', policy: 'strict' },
@@ -106,7 +108,8 @@ const V: VenueSpec[] = [
 export const PERSONAS: { key: string; first: string; last: string; email: string; phone: string; role?: PlatformRoleKey; mfa: boolean; label: string; description: string }[] = [
   { key: 'player', first: 'Juan', last: 'dela Cruz', email: 'juan.delacruz@example.com', phone: '+639170000001', mfa: false, label: 'Player', description: 'Plays pickleball, basketball & tennis in Metro Manila' },
   { key: 'player2', first: 'Bea', last: 'Santiago', email: 'bea.santiago@example.com', phone: '+639170000002', mfa: false, label: 'Player 2', description: 'Second player — pickleball & tennis (has a partner invite)' },
-  { key: 'owner', first: 'Maria', last: 'Santos', email: 'maria.santos@example.com', phone: '+639170000010', mfa: true, label: 'Business Owner', description: 'Owns Dink District — pickleball courts + a basketball/volleyball hall' },
+  { key: 'owner', first: 'Maria', last: 'Santos', email: 'maria.santos@example.com', phone: '+639170000010', mfa: true, label: 'Business Owner', description: 'Owns Dink District — pickleball courts in BGC & Alabang' },
+  { key: 'owner2', first: 'Gabriel', last: 'Tan', email: 'gabriel.tan@example.com', phone: '+639170000013', mfa: true, label: 'Venue Owner (multi-sport)', description: 'Owns Hoopsville Cubao — basketball & volleyball gyms with half courts' },
   { key: 'manager', first: 'Ramon', last: 'Cruz', email: 'ramon.cruz@example.com', phone: '+639170000011', mfa: true, label: 'Business Manager', description: 'Runs operations at Dink District' },
   { key: 'receptionist', first: 'Paolo', last: 'Reyes', email: 'paolo.reyes@example.com', phone: '+639170000012', mfa: false, label: 'Receptionist', description: 'Front desk at Dink District BGC — runs the Open Play desk' },
   { key: 'applicant', first: 'Rafael', last: 'Lim', email: 'rafael.lim@example.com', phone: '+639170000020', mfa: true, label: 'New Business Owner', description: 'Registered Iloilo Esplanade Pickleball — awaiting approval' },
@@ -192,7 +195,7 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       { code: 'tournament', label: 'Tournament' }, { code: 'league', label: 'League' }, { code: 'clinic', label: 'Clinic' }, { code: 'training', label: 'Training session' },
       { code: 'social', label: 'Social event' }, { code: 'private', label: 'Private event' },
     ],
-    demo: { webhookMode: 'normal', providerOutage: false, failNextPayout: false, failNextRefund: false, latency: 'realistic' },
+    demo: { webhookMode: 'normal', providerOutage: false, failNextPayout: false, failNextRefund: false, latency: 'realistic', providerFault: 'none', channelDown: null, refundFailureCode: 'REFUND_REJECTED_BY_CHANNEL', payoutFailureCode: 'INVALID_DESTINATION_ACCOUNT', amountMismatchNext: false },
     updatedAt: longAgo,
     updatedBy: null,
   };
@@ -254,6 +257,7 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
   }
   const ownerFor = new Map<string, User>();
   ownerFor.set('Dink District', persona.owner!);
+  ownerFor.set('Hoopsville Sports Center', persona.owner2!);
 
   // ---------------------------------------------------------------- commission agreements
   const globalAgreement = { id: 'cag_platform_default', businessId: null, ratePpm: 50_000, appliesToProducts: false, appliesToEvents: true, effectiveFrom: longAgo, effectiveTo: null, status: 'active' as const, note: 'Platform default commission (launch terms)', createdBy: persona.superadmin!.id, createdAt: longAgo, approvedBy: persona.finance!.id, approvedAt: longAgo, approvalId: null };
@@ -391,7 +395,7 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       mkRule(`${sportCfgs.find((x) => x.code === sport)!.name} weekend`, 'weekend', { type: 'rate', ratePerHour: pesos(r.weekend) }, { daysOfWeek: [0, 6] }, 10, { sports: [sport] }),
     ];
     const rules = [
-      mkRule('Standard rate', 'base', { type: 'rate', ratePerHour: pesos(spec.base) }, {}, 0, { minChargeCentavos: pesos(spec.base) }),
+      mkRule('Standard rate', 'base', { type: 'rate', ratePerHour: pesos(spec.base) }, {}, 0, { minChargeCentavos: pesos(Math.round((spec.base * 0.75) / 10) * 10) }),
       mkRule('Weekday peak', 'peak', { type: 'rate', ratePerHour: pesos(spec.peak) }, { daysOfWeek: [1, 2, 3, 4, 5], startMinute: 17 * 60, endMinute: 22 * 60 }, 20),
       mkRule('Weekend', 'weekend', { type: 'rate', ratePerHour: pesos(spec.weekend) }, { daysOfWeek: [0, 6] }, 10),
       mkRule('Early bird', 'off_peak', { type: 'adjust_percent', percentPpm: -150_000 }, { daysOfWeek: [1, 2, 3, 4, 5], startMinute: 6 * 60, endMinute: 9 * 60 }, 5),
@@ -478,6 +482,20 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
     t.payments[payId] = { id: payId, checkoutId, userId: o.userId, businessId: o.business.id, provider: 'xendit_sandbox', providerSessionId: sessionId, providerPaymentId: ppId, method: o.method, methodDisplay: display, snapshotId: snapId, amount: o.quote.total, currency: 'PHP', status: 'captured', history: hist([['created', 'pending', o.at - 2 * MINUTE, 'Payment session created'], ['pending', 'captured', o.at, 'Capture verified via webhook']]), customerFee: o.quote.fee?.customerAmount ?? 0, estimatedProviderFee: o.quote.fee?.estimatedProviderFee ?? 0, actualProviderFee: fee, splitPlatformAmount: split, attempt: 1, idempotencyKey: `${checkoutId}:1`, createdAt: o.at - 2 * MINUTE, capturedAt: o.at, failureReason: null, refundedAmount: 0, reconciledAt: o.at + HOUR, confirmedVia: 'webhook', settledAt: o.settle ? o.at + HOUR : null, payoutId: null };
     t.providerSessions[sessionId] = { id: sessionId, externalId: payId, forUserId: o.business.payoutAccount.providerSubAccountId, splitPlatformAmount: split, amount: o.quote.total, currency: 'PHP', method: o.method, merchantName: o.venue.name, description: 'Checkout', status: 'COMPLETED', paymentId: ppId, createdAt: o.at - 2 * MINUTE, expiresAt: o.at + 8 * MINUTE, idempotencyKey: `${checkoutId}:1`, failureCode: null };
     t.providerPayments[ppId] = { id: ppId, sessionId, externalId: payId, amount: o.quote.total, fee, method: o.method, methodDisplay: display, status: 'SUCCEEDED', forUserId: o.business.payoutAccount.providerSubAccountId, splitPlatformAmount: split, createdAt: o.at, refundedAmount: 0, settledAt: o.settle ? o.at + HOUR : null };
+    const hsh = [...payId].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
+    if (o.at > seededAt - 7 * DAY && o.at < seededAt && hsh % 9 === 0) {
+      // A realistic share of checkouts needed a second attempt (wallet balance, declined OTP, card decline…).
+      const codes = o.method === 'card' ? ['CARD_DECLINED', 'AUTHENTICATION_FAILED', 'INSUFFICIENT_BALANCE', 'INVALID_CVV'] : ['INSUFFICIENT_BALANCE', 'USER_DECLINED_PAYMENT', 'MAXIMUM_LIMIT_EXCEEDED', 'OTP_EXPIRED', 'USER_UNREACHABLE'];
+      const code = codes[hsh % codes.length]!;
+      const fid = `${payId}a`;
+      const fsid = `${sessionId}a`;
+      t.payments[fid] = { ...t.payments[payId]!, id: fid, providerSessionId: fsid, providerPaymentId: null, status: 'failed', history: hist([['created', 'pending', o.at - 4 * MINUTE, 'Payment session created'], ['pending', 'failed', o.at - 3 * MINUTE, paymentFailure(code).title]]), actualProviderFee: null, attempt: 1, idempotencyKey: `${checkoutId}:1`, createdAt: o.at - 4 * MINUTE, capturedAt: null, failureReason: paymentFailure(code).title, failureCode: code, reconciledAt: null, confirmedVia: null, settledAt: null };
+      t.providerSessions[fsid] = { ...t.providerSessions[sessionId]!, id: fsid, externalId: fid, status: code === 'USER_CANCELLED' ? 'CANCELLED' : 'FAILED', paymentId: null, createdAt: o.at - 4 * MINUTE, idempotencyKey: `${checkoutId}:1`, failureCode: code };
+      t.payments[payId]!.attempt = 2;
+      t.payments[payId]!.idempotencyKey = `${checkoutId}:2`;
+      t.providerSessions[sessionId]!.idempotencyKey = `${checkoutId}:2`;
+      t.checkouts[checkoutId]!.paymentIds = [fid, payId];
+    }
     t.providerMaster.master!.balance += split - fee;
     const sub = o.business.payoutAccount.providerSubAccountId;
     if (sub) t.providerSubAccounts[sub]!.balance += o.quote.total - split;
@@ -605,6 +623,8 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
     fee: (m) => feeFor(m),
   };
   const opPlan = planOpenPlay(opCtx, { fri: scripted.fri, sat: scripted.sat });
+  // Open Play sessions the player persona is registered for — generated bookings never overlap them.
+  const juanOpenPlay = opPlan.filter((p) => ['later', 'friday', 'hoops_sat', 'tennis', 'past_pb1', 'past_pb2', 'past_hoops', 'past_tennis'].includes(p.key));
 
   // Historical & upcoming bookings
   for (const vv of venues) {
@@ -624,7 +644,9 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
         if (!isFree(court.id, startMs, endMs + vv.venue.settings.bufferMinutes * MINUTE)) continue;
         if (day >= 0 && startMs < seededAt + 90 * MINUTE && day === 0 && k % 3 !== 0) continue;
         take(court.id, startMs, endMs + vv.venue.settings.bufferMinutes * MINUTE);
-        const user = g.chance(0.06) && vv.spec.city !== 'Cebu City' && vv.spec.city !== 'Davao City' ? persona.player! : g.pick(players);
+        // Juan plays ~2–3 times a week across Metro Manila (realistic frequency), never double-booked.
+        const juanBusy = (s: number, e: number) => Object.values(t.bookings).some((b) => b.userId === persona.player!.id && b.startMs < e + 2 * HOUR && s < b.endMs + 2 * HOUR) || juanOpenPlay.some((p) => p.startMs < e + 2 * HOUR && s < p.endMs + 2 * HOUR);
+        const user = g.chance(0.012) && vv.spec.province === 'Metro Manila' && !juanBusy(startMs, endMs) ? persona.player! : g.pick(players);
         const method = g.pick(methods);
         const addOns = g.chance(0.18) ? [{ p: vv.products[0]!, qty: g.int(1, 3) }] : [];
         const quote = quoteFor(vv, court, startMs, minutes, method, business, addOns);
@@ -704,10 +726,28 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
   const mk = venues.find((v) => v.spec.key === 'makati')!;
   demoBooking(persona.player!.id, mk.courts[1]!, scripted.juanMakati, 60, 'confirmed', mk);
 
+  // A refund the channel couldn't take through the API (QR Ph): shows the bank-transfer route in Payment issues.
+  const failedRefundBooking = Object.values(t.bookings).filter((b) => b.businessId === dink.id && b.status === 'completed').sort((a, b) => b.startMs - a.startMs)[1];
+  if (failedRefundBooking) {
+    const pay = t.payments[t.checkouts[failedRefundBooking.checkoutId]!.paymentIds.at(-1)!]!;
+    const q = t.snapshots[pay.snapshotId]!.quote;
+    const breakdown = computeRefund(q, { items: [{ ref: 'court', sharePpm: 1_000_000 }], refundGatewayFee: true });
+    const id = g.id('rfn');
+    t.refunds[id] = { id, paymentId: pay.id, businessId: dink.id, userId: pay.userId, checkoutId: pay.checkoutId, bookingId: failedRefundBooking.id, orderId: null, registrationId: null, amount: breakdown.toCustomer, breakdown, reason: 'Court closed for urgent repairs — full refund', initiator: 'venue', requestedBy: persona.manager!.id, status: 'failed', history: hist([['requested', 'approved', now - 26 * HOUR, 'Venue cancellation (full refund)'], ['approved', 'processing', now - 26 * HOUR, 'Submitted to provider'], ['processing', 'failed', now - 25 * HOUR, 'REFUND_NOT_SUPPORTED']]), providerRefundId: `rfd-${g.id('r').slice(2, 20)}`, approvals: [], needsBusinessApproval: false, needsPlatformApproval: false, afterPayout: false, createdAt: now - 26 * HOUR, completedAt: null, failureReason: 'REFUND_NOT_SUPPORTED', partial: false };
+    failedRefundBooking.status = 'refund_pending';
+    failedRefundBooking.history.push({ from: 'completed', to: 'refund_pending', at: now - 26 * HOUR, by: persona.manager!.id, reason: 'Court closed for urgent repairs' });
+  }
+  const incident = (at: number, op: 'create_session' | 'create_refund', method: PaymentMethodCode | null, outcome: 'recovered' | 'failed', errors: string[], detail: string, businessId: Id | null) => {
+    const id = g.id('pin');
+    t.providerIncidents[id] = { id, at, op, method, businessId, outcome, attempts: errors.length + (outcome === 'recovered' ? 1 : 0), errors, detail };
+  };
+  incident(now - 5 * HOUR, 'create_session', 'gcash', 'recovered', ['502 Bad Gateway'], 'Recovered after 1 failed attempt (502 Bad Gateway); idempotency key reused, no duplicate created', dink.id);
+  incident(now - 30 * HOUR, 'create_session', 'maya', 'failed', ['503 Maya channel unavailable'], 'Maya reported down by the provider (player switched to GCash)', dink.id);
+
   // Pending goodwill refund needing owner approval (requested by the manager)
   const completedDink = Object.values(t.bookings).filter((b) => b.businessId === dink.id && b.status === 'completed').sort((a, b) => b.startMs - a.startMs)[0];
   if (completedDink) {
-    const pay = t.payments[t.checkouts[completedDink.checkoutId]!.paymentIds[0]!]!;
+    const pay = t.payments[t.checkouts[completedDink.checkoutId]!.paymentIds.at(-1)!]!;
     const q = t.snapshots[pay.snapshotId]!.quote;
     const breakdown = computeRefund(q, { items: [{ ref: 'court', sharePpm: 500_000 }], refundGatewayFee: false });
     const id = g.id('rfn');

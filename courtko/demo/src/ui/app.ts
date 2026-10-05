@@ -307,8 +307,17 @@ class App {
 
   // ---------------------------------------------------------------- ticker
 
+  private lastLiveRender = 0;
+
   tick(): void {
     const now = this.store.now();
+    // Live Open Play panels refresh every 10 s (production: Server-Sent Events push the same aggregates).
+    if (document.querySelector('[data-live]') && Date.now() - this.lastLiveRender > 10_000) {
+      this.lastLiveRender = Date.now();
+      const a = document.activeElement;
+      const modalOpen = (document.getElementById('modal') as HTMLDialogElement | null)?.open;
+      if (!modalOpen && !(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) this.render();
+    }
     for (const el of document.querySelectorAll<HTMLElement>('[data-countdown]')) {
       const until = Number(el.dataset.countdown);
       const left = Math.max(0, until - now);

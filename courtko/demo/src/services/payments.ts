@@ -16,18 +16,14 @@ import { fulfillCheckout, onPaymentAttemptFailed, bookingSummary } from './check
 import { journalsFor, platformBalance, postJournal } from './ledgerSvc.ts';
 import type { Id, Payment, ProviderPayment } from './model.ts';
 import * as provider from './provider.ts';
+import { callProvider } from './gateway.ts';
 import { onRefundSettled } from './refunds.ts';
 import { onPayoutSettled } from './payouts.ts';
 import { onDisputeCreated, onDisputeResolved } from './disputes.ts';
 import { ConstraintViolation } from './store.ts';
-import { audit, displayName, pageOf, requireBusiness, requirePlatform, requireUser, requireWritable, securityEvent, type Svc } from './svc.ts';
+import { audit, displayName, notify, pageOf, requireBusiness, requirePlatform, requireUser, requireWritable, securityEvent, type Svc } from './svc.ts';
 
-const FAILURE_TEXT: Record<string, string> = {
-  INSUFFICIENT_BALANCE: 'Insufficient balance in the e-wallet',
-  CARD_DECLINED: 'The card issuer declined the payment',
-  USER_CANCELLED: 'You cancelled the payment',
-  MERCHANT_CANCELLED: 'Superseded by a newer payment attempt',
-};
+import { paymentFailure } from '../domain/paymentFailures.ts';
 
 export function handleProviderWebhook(s: Svc, input: { headers: Record<string, string>; body: { id: string; event: string; data: Record<string, unknown> } }): { status: number; result: string } {
   const token = input.headers['x-callback-token'] ?? '';
@@ -98,35 +94,45 @@ export function handleProviderWebhook(s: Svc, input: { headers: Record<string, s
 }
 
 /** Authoritative status check against the provider; idempotent. */
-export function syncPayment(s: Svc, paymentId: Id, via: 'webhook' | 'reconciliation' | 'return_check'): 'captured' | 'failed' | 'expired' | 'pending' | 'noop' {
+export function syncPayment(s: Svc, paymentId: Id, via: 'webhook' | 'reconciliation' | 'return_check'): 'captured' | 'failed' | 'expired' | 'pending' | 'review' | 'noop' {
   const payment = s.db.get('payments', paymentId);
   if (!payment) return 'noop';
+  if (payment.review && !payment.review.resolvedAt) return 'review';
   const session = provider.getSession(s, payment.providerSessionId);
   if (!session) return 'noop';
   if (session.status === 'COMPLETED') {
     const pp = provider.getPayment(s, session.paymentId);
     if (pp && pp.status !== 'FAILED') {
-      captureFromProvider(s, payment, pp, via);
-      return 'captured';
+      return captureFromProvider(s, payment, pp, via) ? 'captured' : 'review';
     }
   }
   if (session.status === 'FAILED' || session.status === 'CANCELLED') {
-    if (payment.status === 'pending') onPaymentAttemptFailed(s, payment.id, FAILURE_TEXT[session.failureCode ?? ''] ?? 'Payment failed');
+    if (payment.status === 'pending') onPaymentAttemptFailed(s, payment.id, paymentFailure(session.failureCode).title, session.failureCode);
     return 'failed';
   }
   if (session.status === 'EXPIRED') {
-    if (payment.status === 'pending') s.db.update('payments', payment.id, (p) => transition(PAYMENT_TRANSITIONS, p, 'expired', s.now, 'provider', 'Payment session expired', 'payment'));
+    if (payment.status === 'pending') s.db.update('payments', payment.id, (p) => {
+      p.failureCode = 'SESSION_EXPIRED';
+      p.failureReason = paymentFailure('SESSION_EXPIRED').title;
+      transition(PAYMENT_TRANSITIONS, p, 'expired', s.now, 'provider', 'Payment session expired', 'payment');
+    });
     return 'expired';
   }
   return 'pending';
 }
 
-function captureFromProvider(s: Svc, payment: Payment, pp: ProviderPayment, via: 'webhook' | 'reconciliation' | 'return_check'): void {
-  if (['captured', 'partially_refunded', 'refunded', 'disputed', 'chargeback'].includes(payment.status)) return; // idempotent
+/** Returns false when the payment was put on hold for review instead of being captured. */
+function captureFromProvider(s: Svc, payment: Payment, pp: ProviderPayment, via: 'webhook' | 'reconciliation' | 'return_check'): boolean {
+  if (['captured', 'partially_refunded', 'refunded', 'disputed', 'chargeback'].includes(payment.status)) return true; // idempotent
   if (pp.amount !== payment.amount) {
-    // Deferred so the alert survives the rollback of this request.
-    s.deferred.push({ at: s.now, type: 'payment_amount_mismatch', severity: 'critical', userId: null, businessId: payment.businessId, detail: `Amount mismatch for ${payment.id}: provider ${pp.amount} vs expected ${payment.amount} — held for review`, ip: s.req.ip });
-    fail('CONFLICT', 'Provider amount does not match the checkout; held for manual review.');
+    // Never fulfil on a mismatched amount. Hold for review and acknowledge the webhook (no retry storm).
+    s.db.update('payments', payment.id, (p) => {
+      p.review = { reason: 'amount_mismatch', providerAmount: pp.amount, providerPaymentId: pp.id, detectedAt: s.now, resolvedAt: null, resolution: null };
+      p.providerPaymentId = pp.id;
+    });
+    securityEvent(s, { type: 'payment_amount_mismatch', severity: 'critical', userId: null, businessId: payment.businessId, detail: `Amount mismatch for ${payment.id}: provider ${formatPHP(pp.amount)} vs expected ${formatPHP(payment.amount)} — held for review, not fulfilled` });
+    notify(s, payment.userId, 'payment_updates', { title: 'We are checking your payment', body: `The payment provider reported a different amount than your checkout (${formatPHP(pp.amount)} vs ${formatPHP(payment.amount)}). Our team is reviewing it — if it can't be confirmed you'll get a full refund.`, link: '#/app/payments' });
+    return false;
   }
   const late = payment.status !== 'pending';
   s.db.update('payments', payment.id, (p) => {
@@ -143,12 +149,32 @@ function captureFromProvider(s: Svc, payment: Payment, pp: ProviderPayment, via:
   postJournal(s, captureJournal(snap.quote, payment.businessId, refs, s.now, `Payment captured ${formatPHP(payment.amount)} (${pp.methodDisplay})`));
   if (pp.fee > 0) postJournal(s, providerFeeJournal(pp.fee, payment.businessId, refs, s.now, `Provider fee for ${payment.id}`));
   fulfillCheckout(s, checkout.id, payment.id);
+  return true;
+}
+
+/**
+ * Resolve an amount-mismatch review (platform finance, MFA). The provider payment is refunded in full to the
+ * customer because the platform never captured it in the ledger; the checkout is not fulfilled.
+ */
+export function resolveAmountMismatch(s: Svc, input: { paymentId: Id; note: string }) {
+  requirePlatform(s, 'platform.refunds.approve', { write: true });
+  const p = s.db.get('payments', input.paymentId);
+  if (!p || !p.review || p.review.resolvedAt) fail('NOT_FOUND', 'No open amount review for this payment.');
+  if ((input.note ?? '').trim().length < 5) fail('VALIDATION_FAILED', 'Add a note for the audit log.', { fields: [{ field: 'note', message: 'Note is required.' }] });
+  const pp = s.db.must('providerPayments', p.review.providerPaymentId, 'provider payment');
+  const r = callProvider(s, 'create_refund', { method: p.method, businessId: p.businessId }, () => provider.createRefund(s, { providerPaymentId: pp.id, amount: pp.amount - pp.refundedAmount, externalId: `review:${p.id}`, idempotencyKey: `review:${p.id}` }));
+  s.db.update('payments', p.id, (x) => {
+    x.review = { ...x.review!, resolvedAt: s.now, resolution: `Refunded ${formatPHP(pp.amount)} in full (provider refund ${r.id}). ${input.note.trim()}` };
+  });
+  audit(s, { action: 'payment.review_resolved', targetType: 'payment', targetId: p.id, businessId: p.businessId, summary: `Amount mismatch: refunded provider payment ${formatPHP(pp.amount)} in full`, reason: input.note.trim() });
+  notify(s, p.userId, 'payment_updates', { title: 'Payment refunded', body: `We couldn't confirm your payment, so ${formatPHP(pp.amount)} is being refunded in full. Sorry for the trouble — you can book again any time.`, link: '#/app/payments' });
+  return { refunded: pp.amount };
 }
 
 /** Job: pending payments older than a minute are checked against the provider (heals missed webhooks). */
 export function reconcilePending(s: Svc): number {
   let n = 0;
-  for (const p of s.db.filter('payments', (x) => x.status === 'pending' && s.now - x.createdAt > 60_000)) {
+  for (const p of s.db.filter('payments', (x) => x.status === 'pending' && !x.review && s.now - x.createdAt > 60_000)) {
     const r = syncPayment(s, p.id, 'reconciliation');
     if (r === 'captured') {
       securityEvent(s, { type: 'reconciliation_healed', severity: 'info', userId: null, businessId: p.businessId, detail: `Reconciliation confirmed ${p.id} without a webhook (missed/late webhook healed)` });

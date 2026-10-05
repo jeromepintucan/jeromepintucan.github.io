@@ -70,11 +70,17 @@ export function planOpenPlay(ctx: SeedCtx, scripted: { fri: number; sat: number 
   let liveStart = half(ctx.now - 40 * MINUTE);
   const live = localHour(liveStart) >= 6 && localHour(liveStart) <= 20;
   if (!live) liveStart = ctx.at(1, 18);
+  // "Later today" session the player persona is registered for: check-in is already open (60 min before the
+  // start) so the live status shows people arriving. At night it moves to tomorrow evening.
+  let laterStart = half(ctx.now + 75 * MINUTE);
+  if (localHour(laterStart) < 7) laterStart = ctx.at(0, 18, 30); // small hours: this evening is still "later today"
+  else if (localHour(laterStart) > 20.5) laterStart = ctx.at(1, 18, 30);
   const base = { style: 'recreational' as const, capacityUnit: 'player' as const, pricing: 'per_player' as const, teamSize: 2, skillLevels: [] as string[], past: false, live: false, instructions: 'Check in at the front desk with your Open Play pass, then wait for the court captain to call your group.', equipment: '' };
   const items: PlanItem[] = [
     { ...base, key: 'live', venueKey: 'bgc', courtIds: [court(ctx, 'bgc', 'Court 5'), court(ctx, 'bgc', 'Court 6')], sport: 'pickleball', title: live ? 'Drop-in Open Play — All Levels' : 'Evening Open Play — All Levels', description: 'Show up, check in and rotate through doubles games with players at your level. Paddles available at the desk.', startMs: liveStart, endMs: liveStart + 3 * HOUR, formatCode: 'rotation', capacity: 16, price: pesos(250), modes: ['individual'], rotation: 'first_waiting', gameMinutes: 15, live, equipment: 'Paddles and balls provided' },
+    { ...base, key: 'later', venueKey: 'bgc', courtIds: [court(ctx, 'bgc', 'Court 1'), court(ctx, 'bgc', 'Court 2')], sport: 'pickleball', title: 'After-Work Open Play — Intermediate', description: 'Two courts of skill-matched doubles for 3.0–3.5 players. Check in early to get on the first games.', startMs: laterStart, endMs: laterStart + 2 * HOUR, formatCode: 'rotation', capacity: 16, price: pesos(250), modes: ['individual', 'partner'], rotation: 'first_checked_in', gameMinutes: 15, skillLevels: ['novice', 'intermediate'], equipment: 'Balls provided; bring your paddle' },
     { ...base, key: 'friday', venueKey: 'bgc', courtIds: [court(ctx, 'bgc', 'Court 5'), court(ctx, 'bgc', 'Court 6')], sport: 'pickleball', title: 'Friday Night Open Play', description: 'Rotate in, meet new players and play as many games as you like. Skill-balanced courts; perfect after work.', startMs: ctx.at(scripted.fri, 19), endMs: ctx.at(scripted.fri, 22), formatCode: 'rotation', capacity: 24, price: pesos(250), modes: ['individual', 'partner'], rotation: 'skill_based', gameMinutes: 15 },
-    { ...base, key: 'vball_bgc', venueKey: 'bgc', courtIds: [court(ctx, 'bgc', 'The Hall · Volleyball court')], sport: 'volleyball', title: 'Volleyball Night — Beginner Friendly', description: 'Learn the rotation, play friendly 6s and meet the BGC volleyball crowd. Coaches on court.', startMs: ctx.at(2, 19), endMs: ctx.at(2, 21), formatCode: 'individual', style: 'beginner', capacity: 18, price: pesos(180), modes: ['individual'], rotation: 'random', gameMinutes: 20, skillLevels: ['beginner', 'intermediate'], equipment: 'Volleyballs provided' },
+    { ...base, key: 'vball_bgc', venueKey: 'hoops', courtIds: [court(ctx, 'hoops', 'Gym 2 · Volleyball court')], sport: 'volleyball', title: 'Volleyball Night — Beginner Friendly', description: 'Learn the rotation, play friendly 6s and meet the Cubao volleyball crowd. Coaches on court.', startMs: ctx.at(2, 19), endMs: ctx.at(2, 21), formatCode: 'individual', style: 'beginner', capacity: 18, price: pesos(180), modes: ['individual'], rotation: 'random', gameMinutes: 20, skillLevels: ['beginner', 'intermediate'], equipment: 'Volleyballs provided' },
     { ...base, key: 'hoops_sat', venueKey: 'hoops', courtIds: [court(ctx, 'hoops', 'Gym 1 · Full court')], sport: 'basketball', title: 'Saturday Pickup Run (5-on-5)', description: 'Full-court runs, games to 21 or 12 minutes. Bring a squad or sign up solo and we’ll place you on a team.', startMs: ctx.at(scripted.sat, 16), endMs: ctx.at(scripted.sat, 19), formatCode: 'team', capacity: 30, price: pesos(200), modes: ['team', 'individual'], teamSize: 5, rotation: 'winner_stays', gameMinutes: 12 },
     { ...base, key: 'hoops_3x3', venueKey: 'hoops', courtIds: [court(ctx, 'hoops', 'Gym 2 · Half court A'), court(ctx, 'hoops', 'Gym 2 · Half court B')], sport: 'basketball', title: 'Weeknight 3x3 Half-Court', description: 'Fast 3-on-3 on two half courts. First to 11 or 10 minutes.', startMs: ctx.at(1, 19), endMs: ctx.at(1, 21), formatCode: 'half_court', style: 'competitive', capacity: 18, price: pesos(150), modes: ['team', 'individual'], teamSize: 3, rotation: 'winner_stays', gameMinutes: 10 },
     { ...base, key: 'spike', venueKey: 'spike', courtIds: [court(ctx, 'spike', 'Court 1'), court(ctx, 'spike', 'Court 2')], sport: 'volleyball', title: 'Coed 6s Open Play', description: 'Bring your team of six for round-robin coed matches. One fee per team.', startMs: ctx.at(2, 18), endMs: ctx.at(2, 21), formatCode: 'team', capacity: 8, capacityUnit: 'team', pricing: 'per_team', price: pesos(1_200), modes: ['team'], teamSize: 6, rotation: 'first_waiting', gameMinutes: 25 },
@@ -121,7 +127,8 @@ export function seedOpenPlayAndSocial(ctx: SeedCtx, plan: PlanItem[]): void {
       endMs: it.endMs,
       registrationOpensAt: created,
       registrationClosesAt: it.endMs - HOUR,
-      checkInOpensAt: it.startMs - 30 * MINUTE,
+      // The "later today" session opened check-in a little before the demo starts so early arrivals show up.
+      checkInOpensAt: it.key === 'later' && it.startMs - ctx.now < 3 * HOUR ? Math.min(it.startMs - 60 * MINUTE, ctx.now - 20 * MINUTE) : it.startMs - 30 * MINUTE,
       lateCutoffAt: it.startMs + 45 * MINUTE,
       minParticipants: Math.min(8, it.capacity),
       capacity: it.capacity,
@@ -242,7 +249,7 @@ export function seedOpenPlayAndSocial(ctx: SeedCtx, plan: PlanItem[]): void {
 
   // ---- LIVE session (BGC pickleball)
   const live = sessions.get('live')!;
-  const liveRegs = [juan, bea, ...pool([], 13, 2)].map((u) => regFor(live, u, { role: 'individual', mode: 'individual' }));
+  const liveRegs = [bea, ...pool([], 14, 2)].map((u) => regFor(live, u, { role: 'individual', mode: 'individual' }));
   const liveItem = plan.find((x) => x.key === 'live')!;
   if (liveItem.live) {
     const [c5, c6] = live.courtIds;
@@ -290,10 +297,25 @@ export function seedOpenPlayAndSocial(ctx: SeedCtx, plan: PlanItem[]): void {
       r.attendance = 'on_court';
       r.courtId = c6!;
     }
-    present[0]!.queueSince = t0 + 14 * MINUTE; // Juan finished first → first in the queue
+    present[0]!.queueSince = t0 + 14 * MINUTE; // Bea finished first → first in the queue
     present[4]!.queueSince = t0 + 17 * MINUTE;
     present[7]!.attendance = 'temp_off';
     ev(live, { registrationId: present[7]!.id, type: 'temp_off', from: 'waiting', to: 'temp_off', actorUserId: persona.receptionist!.id, actorLabel: staffLabel, at: ctx.now - 6 * MINUTE });
+  }
+
+  // ---- later today: Juan registered (not arrived yet); a few early arrivals already checked in
+  const later = sessions.get('later')!;
+  const laterRegs = [juan, ...pool([juan.id, bea.id], 11, 30)].map((u) => regFor(later, u, { role: 'individual', mode: 'individual' }));
+  if (ctx.now >= later.checkInOpensAt) {
+    laterRegs.slice(1, 5).forEach((r, i) => {
+      const at = Math.min(ctx.now - 2 * MINUTE, later.checkInOpensAt + (i + 1) * 3 * MINUTE);
+      r.attendance = 'waiting';
+      r.checkedInAt = at;
+      r.checkedInBy = persona.receptionist!.id;
+      r.checkInMethod = 'qr';
+      r.queueSince = at;
+      ev(later, { registrationId: r.id, type: 'check_in', method: 'qr', from: 'not_arrived', to: 'waiting', actorUserId: persona.receptionist!.id, actorLabel: staffLabel, at });
+    });
   }
 
   // ---- upcoming sessions
@@ -397,6 +419,7 @@ export function seedOpenPlayAndSocial(ctx: SeedCtx, plan: PlanItem[]): void {
   };
   note(bea.id, 'events', 'Juan dela Cruz invited you to Open Play', `${tennis.title} — join as their partner. Respond before the invitation expires.`, '#/app/invites', ctx.now - 20 * MINUTE);
   note(juan.id, 'social', 'New follow request', `${t.profiles[players[7]!.id]!.displayName} (@${t.profiles[players[7]!.id]!.username}) wants to follow you.`, '#/app/follow-requests', ctx.now - 24 * HOUR);
-  if (liveItem.live) note(juan.id, 'events', "You're next on court", `${live.title}: you're #1 in the waiting rotation.`, `#/app/open-play/registrations/${liveRegs[0]!.id}`, ctx.now - 2 * MINUTE);
+  if (liveItem.live) note(bea.id, 'events', "You're next on court", `${live.title}: you're #1 in the waiting rotation.`, `#/app/open-play/registrations/${liveRegs[0]!.id}`, ctx.now - 2 * MINUTE);
+  note(juan.id, 'events', ctx.now >= later.checkInOpensAt ? 'Check-in is open' : 'Open Play reminder', `${later.title} at Dink District BGC — ${ctx.now >= later.checkInOpensAt ? 'check-in is open. Open your pass to see who’s already there.' : 'see the live status on your pass.'}`, `#/app/open-play/registrations/${laterRegs[0]!.id}`, Math.min(ctx.now - MINUTE, Math.max(later.checkInOpensAt, ctx.now - 30 * MINUTE)));
   void ({} as AttendanceStatus);
 }

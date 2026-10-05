@@ -20,6 +20,7 @@ import './ui/views/openplay.ts';
 import './ui/views/social.ts';
 import './ui/views/business-openplay.ts';
 import './ui/views/admin-sports.ts';
+import './ui/views/exceptions.ts';
 import { mountPresenter } from './ui/views/presenter.ts';
 
 async function main(): Promise<void> {

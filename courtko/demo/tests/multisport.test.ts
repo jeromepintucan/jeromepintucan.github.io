@@ -92,10 +92,10 @@ describe('sport catalog', () => {
 
 describe('court dependencies (space units)', () => {
   test('a full-court hold blocks the halves, and a half-court hold blocks the full court', async () => {
-    const v = venue('dink-district-bgc');
-    const full = layout(v.id, (c) => c.sport === 'basketball' && c.layout === 'full');
-    const halfA = layout(v.id, (c) => c.sport === 'basketball' && c.name.endsWith('Half court A'));
-    const halfB = layout(v.id, (c) => c.sport === 'basketball' && c.name.endsWith('Half court B'));
+    const v = venue('hoopsville-cubao');
+    const full = layout(v.id, (c) => c.name === 'Gym 1 · Full court');
+    const halfA = layout(v.id, (c) => c.name === 'Gym 1 · Half court A');
+    const halfB = layout(v.id, (c) => c.name === 'Gym 1 · Half court B');
     const startMs = freeStart(player, v.id, full.id, 'basketball', 4, 9);
     const hold = await player.api.write('POST /v1/me/booking-holds', { venueId: v.id, courtId: full.id, startMs, durationMinutes: 60 });
     await expectCode(player2.api.write('POST /v1/me/booking-holds', { venueId: v.id, courtId: halfA.id, startMs, durationMinutes: 60 }), 'SLOT_UNAVAILABLE');
@@ -147,9 +147,9 @@ describe('court dependencies (space units)', () => {
   });
 
   test('the store itself rejects overlapping unit occupancy (constraint, not UI)', async () => {
-    const v = venue('dink-district-bgc');
-    const full = layout(v.id, (c) => c.sport === 'basketball' && c.layout === 'full');
-    const half = layout(v.id, (c) => c.sport === 'basketball' && c.layout === 'half');
+    const v = venue('hoopsville-cubao');
+    const full = layout(v.id, (c) => c.name === 'Gym 1 · Full court');
+    const half = layout(v.id, (c) => c.name === 'Gym 1 · Half court B');
     const t = h.store.now() + 20 * DAY;
     const base = { businessId: v.businessId, venueId: v.id, startMs: t, endMs: t + HOUR, occupiedEndMs: t + HOUR, kind: 'block' as const, sourceId: 'x', status: 'active' as const, expiresAt: null, createdAt: t, releasedAt: null };
     await assert.rejects(
@@ -162,20 +162,23 @@ describe('court dependencies (space units)', () => {
     assert.ok(!h.store.read((db) => db.get('slots', 'slt_test_full')), 'transaction rolled back');
   });
 
-  test('sport-specific rates price basketball and half courts differently', () => {
-    const v = venue('dink-district-bgc');
+  test('sport-specific rates: half courts are cheaper, tennis and pickleball are priced separately', () => {
+    const hoops = venue('hoopsville-cubao');
+    const base = venue('baseline-racquet-club');
     const date = addDays(localDate(h.store.now()), 7);
-    const bb = owner.api.read('GET /v1/public/venues/{venueId}/availability', { venueId: v.id, date, durationMinutes: 60, sport: 'basketball' });
-    const pb = owner.api.read('GET /v1/public/venues/{venueId}/availability', { venueId: v.id, date, durationMinutes: 60, sport: 'pickleball' });
+    const bb = owner.api.read('GET /v1/public/venues/{venueId}/availability', { venueId: hoops.id, date, durationMinutes: 60, sport: 'basketball' });
+    const tn = owner.api.read('GET /v1/public/venues/{venueId}/availability', { venueId: base.id, date, durationMinutes: 60, sport: 'tennis' });
+    const pb = owner.api.read('GET /v1/public/venues/{venueId}/availability', { venueId: base.id, date, durationMinutes: 60, sport: 'pickleball' });
     const row = (av: typeof bb, pred: (n: string) => boolean) => av.courts.find((c) => pred(c.court.name))!.cells;
-    const fullCells = row(bb, (n) => n.endsWith('Full court'));
-    const halfCells = row(bb, (n) => n.endsWith('Half court A'));
-    const pickleCells = row(pb, (n) => n === 'Court 1');
-    const at = fullCells.find((c) => c.bookable && halfCells.find((x) => x.startMs === c.startMs)?.bookable && pickleCells.find((x) => x.startMs === c.startMs)?.bookable)!.startMs;
+    const fullCells = row(bb, (n) => n === 'Gym 1 · Full court');
+    const halfCells = row(bb, (n) => n === 'Gym 1 · Half court A');
+    const tennisCells = row(tn, (n) => n === 'Court 3');
+    const pickleCells = row(pb, (n) => n === 'Court 1 · Pickleball A');
+    const tAt = tennisCells.find((c) => c.bookable && pickleCells.find((x) => x.startMs === c.startMs)?.bookable)!.startMs;
+    assert.ok(tennisCells.find((c) => c.startMs === tAt)!.price! > pickleCells.find((c) => c.startMs === tAt)!.price!, 'tennis rate differs from the pickleball overlay rate');
+    const at = fullCells.find((c) => c.bookable && halfCells.find((x) => x.startMs === c.startMs)?.bookable)!.startMs;
     const fullP = fullCells.find((c) => c.startMs === at)!.price!;
     const halfP = halfCells.find((c) => c.startMs === at)!.price!;
-    const pickleP = pickleCells.find((c) => c.startMs === at)!.price!;
-    assert.ok(fullP > pickleP, 'basketball full court costs more than a pickleball court');
     assert.ok(halfP < fullP, 'half court is cheaper than the full court');
   });
 });
@@ -188,15 +191,47 @@ describe('Open Play', () => {
     const tennis = layout(v.id, (c) => c.sport === 'tennis');
     const start = localToInstant(addDays(localDate(h.store.now()), 9), 8 * 60);
     const base = { businessId: v.businessId, venueId: v.id, sport: 'tennis', title: 'Bad format', description: '', courtIds: [tennis.id], startMs: start, endMs: start + 2 * HOUR, registrationOpensAt: h.store.now(), registrationClosesAt: start - HOUR, checkInOpensAt: start - 30 * MINUTE, lateCutoffAt: start + 30 * MINUTE, minParticipants: 2, capacity: 8, capacityUnit: 'player' as const, style: 'recreational' as const, skillLevels: [], pricing: 'per_player' as const, price: 30_000, registrationModes: ['individual' as const], walkInsAllowed: true, waitlistEnabled: true, equipmentIncluded: false, policyKey: 'standard' as const, rotation: 'first_waiting' as const, scoreRecording: false };
-    const owner2 = await h.tab();
-    void owner2;
+    const owner2 = await h.tab('owner2');
     // Baseline is another business: the Dink owner gets 404 (tenant isolation)
     await expectCode(owner.api.write('PUT /v1/businesses/{businessId}/open-play', { ...base, formatCode: 'doubles' }), 'NOT_FOUND');
+    const hoops = venue('hoopsville-cubao');
+    const vball = layout(hoops.id, (c) => c.sport === 'volleyball');
+    await expectCode(owner2.api.write('PUT /v1/businesses/{businessId}/open-play', { ...base, businessId: hoops.businessId, venueId: hoops.id, sport: 'volleyball', courtIds: [vball.id], formatCode: 'doubles' }), 'FORMAT_INCOMPATIBLE');
+    const bbFull = layout(hoops.id, (c) => c.name === 'Gym 1 · Full court');
+    await expectCode(owner2.api.write('PUT /v1/businesses/{businessId}/open-play', { ...base, businessId: hoops.businessId, venueId: hoops.id, sport: 'volleyball', courtIds: [bbFull.id], formatCode: 'individual' }), 'VALIDATION_FAILED');
+    await expectCode(owner2.api.write('PUT /v1/businesses/{businessId}/open-play', { ...base, businessId: hoops.businessId, venueId: hoops.id, sport: 'basketball', courtIds: [bbFull.id], formatCode: 'half_court', registrationModes: ['team'], teamSize: 3 }), 'VALIDATION_FAILED');
+  });
+
+  test('publish lists the conflicting bookings, can switch to free courts, or cancel bookings with full refunds', async () => {
     const dink = venue('dink-district-bgc');
-    const hall = layout(dink.id, (c) => c.sport === 'volleyball');
-    await expectCode(owner.api.write('PUT /v1/businesses/{businessId}/open-play', { ...base, businessId: dink.businessId, venueId: dink.id, sport: 'volleyball', courtIds: [hall.id], formatCode: 'doubles' }), 'FORMAT_INCOMPATIBLE');
-    const pickle = layout(dink.id, (c) => c.name === 'Court 1');
-    await expectCode(owner.api.write('PUT /v1/businesses/{businessId}/open-play', { ...base, businessId: dink.businessId, venueId: dink.id, sport: 'volleyball', courtIds: [pickle.id], formatCode: 'individual' }), 'VALIDATION_FAILED');
+    const c4 = layout(dink.id, (c) => c.name === 'Court 4');
+    const startMs = freeStart(player, dink.id, c4.id, 'pickleball', 11, 9);
+    const hold = await player.api.write('POST /v1/me/booking-holds', { venueId: dink.id, courtId: c4.id, startMs, durationMinutes: 60 });
+    await pay(player, hold.checkoutId);
+    const booking = h.store.read((db) => db.find('bookings', (b) => b.checkoutId === hold.checkoutId)!);
+    assert.equal(booking.status, 'confirmed');
+    const mk = (title: string) => owner.api.write('PUT /v1/businesses/{businessId}/open-play', { businessId: dink.businessId, venueId: dink.id, sport: 'pickleball', title, description: '', courtIds: [c4.id], startMs, endMs: startMs + 2 * HOUR, registrationOpensAt: h.store.now(), registrationClosesAt: startMs - HOUR, checkInOpensAt: startMs - 30 * MINUTE, lateCutoffAt: startMs + 30 * MINUTE, minParticipants: 2, capacity: 8, capacityUnit: 'player', formatCode: 'rotation', style: 'recreational', skillLevels: [], pricing: 'free', price: 0, registrationModes: ['individual'], walkInsAllowed: true, waitlistEnabled: true, equipmentIncluded: false, policyKey: 'flexible', rotation: 'first_waiting', scoreRecording: false });
+    const d1 = await mk('Conflict test A');
+    const check = owner.api.read('GET /v1/businesses/{businessId}/open-play/{sessionId}/court-check', { businessId: dink.businessId, sessionId: d1.id });
+    assert.equal(check.clear, false);
+    assert.equal(check.bookingCount, 1);
+    assert.ok(check.courts[0]!.conflicts.some((c) => c.label.includes(booking.code)), 'names the booking code');
+    assert.equal(check.canCancelBookings, true);
+    assert.ok(check.suggestion && !check.suggestion.courtIds.includes(c4.id));
+    const err = await expectCode(owner.api.write('POST /v1/businesses/{businessId}/open-play/{sessionId}/publish', { businessId: dink.businessId, sessionId: d1.id }), 'COURT_CONFLICT');
+    assert.ok(err.message.includes(booking.code) && (err.details as { check?: unknown }).check, 'the error carries the conflict list');
+    const swapped = await owner.api.write('POST /v1/businesses/{businessId}/open-play/{sessionId}/publish', { businessId: dink.businessId, sessionId: d1.id, courtIds: check.suggestion!.courtIds });
+    assert.equal(swapped.status, 'published');
+    assert.deepEqual(swapped.courtIds, check.suggestion!.courtIds);
+    assert.equal(h.store.read((db) => db.must('bookings', booking.id)).status, 'confirmed', 'switching courts affects nobody');
+    // Second session on the same court: cancel the booking with a full refund and publish.
+    const d2 = await mk('Conflict test B');
+    const pub = await owner.api.write('POST /v1/businesses/{businessId}/open-play/{sessionId}/publish', { businessId: dink.businessId, sessionId: d2.id, resolution: 'cancel_and_refund' }, { idempotencyKey: 'pub-force-1' });
+    assert.equal(pub.status, 'published');
+    const after = h.store.read((db) => db.must('bookings', booking.id));
+    assert.ok(['cancelled', 'refund_pending', 'refunded'].includes(after.status), after.status);
+    const refunds = h.store.read((db) => db.filter('refunds', (r) => r.bookingId === booking.id));
+    assert.ok(refunds.length === 1 && refunds[0]!.amount === h.store.read((db) => db.filter('payments', (p) => p.checkoutId === hold.checkoutId)[0]!.amount), 'full refund including fees');
   });
 
   test('create, publish (courts reserved), register & pay, then cancel with a policy refund', async () => {
@@ -275,15 +310,15 @@ describe('secure check-in & attendance', () => {
 
   test('the pass is signed, time-limited and contains no user id or personal data', async () => {
     const s = live();
-    const reg = h.store.read((db) => db.find('opRegistrations', (r) => r.sessionId === s.id && r.userId === db.find('users', (u) => u.persona === 'player')!.id)!);
-    const t = player.api.read('GET /v1/me/open-play/registrations/{registrationId}/checkin-token', { registrationId: reg.id });
+    const reg = h.store.read((db) => db.find('opRegistrations', (r) => r.sessionId === s.id && r.userId === db.find('users', (u) => u.persona === 'player2')!.id)!);
+    const t = player2.api.read('GET /v1/me/open-play/registrations/{registrationId}/checkin-token', { registrationId: reg.id });
     const parsed = parseCheckinToken(t.token)!;
     assert.ok(parsed && parsed.kind === 'OP1');
-    assert.ok(!t.token.includes(reg.userId) && !t.token.includes(reg.id) && !t.token.toLowerCase().includes('juan'));
+    assert.ok(!t.token.includes(reg.userId) && !t.token.includes(reg.id) && !t.token.toLowerCase().includes('bea'));
     assert.ok(t.expiresAt - h.store.now() <= 10 * MINUTE);
     assert.ok(t.registrationToken.startsWith('REG1.'));
     // Another player cannot fetch someone else's pass
-    await expectCode(() => player2.api.read('GET /v1/me/open-play/registrations/{registrationId}/checkin-token', { registrationId: reg.id }), 'NOT_FOUND');
+    await expectCode(() => player.api.read('GET /v1/me/open-play/registrations/{registrationId}/checkin-token', { registrationId: reg.id }), 'NOT_FOUND');
   });
 
   test('valid scan checks in once; duplicate, expired, tampered and wrong-session scans are rejected AND recorded', async () => {
@@ -347,13 +382,34 @@ describe('secure check-in & attendance', () => {
 
   test('players see a privacy-safe live summary: counts plus their own status only', () => {
     const s = live();
-    const v = player.api.read('GET /v1/public/open-play/{sessionId}', { sessionId: s.id });
+    const v = player2.api.read('GET /v1/public/open-play/{sessionId}', { sessionId: s.id });
     const l = v.liveSummary!;
-    assert.deepEqual(Object.keys(l).sort(), ['capacity', 'checkedIn', 'me', 'playing', 'registered', 'remaining', 'status', 'updatedAt', 'waiting'].sort());
+    assert.deepEqual(Object.keys(l).sort(), ['arrivedLast15', 'capacity', 'checkInOpensAt', 'checkedIn', 'courts', 'endsAt', 'gameMinutes', 'gamesCompleted', 'lastArrivalAt', 'lateCutoffAt', 'me', 'notArrived', 'phase', 'playersPerGame', 'playing', 'registered', 'remaining', 'startsAt', 'status', 'updatedAt', 'waiting'].sort());
     assert.ok(l.me && 'attendance' in l.me);
+    for (const c of l.courts) assert.deepEqual(Object.keys(c).sort(), ['inGame', 'minutes', 'name', 'players'], 'courts expose occupancy only — no player names');
     const json = JSON.stringify(v);
     assert.ok(!json.includes('@example.com') && !json.includes('+63917'), 'no contact details');
     assert.ok(!json.includes('checkinRefHash') || !json.includes('Bea'), 'no other players’ check-in metadata');
+  });
+
+  test('live status is on before the session starts: a player registered for later today sees arrivals as they happen', async () => {
+    const later = h.store.read((db) => db.find('openPlaySessions', (o) => o.title.startsWith('After-Work Open Play'))!);
+    const reg = h.store.read((db) => db.find('opRegistrations', (r) => r.sessionId === later.id && r.userId === db.find('users', (u) => u.persona === 'player')!.id)!);
+    const before = player.api.read('GET /v1/me/open-play/registrations/{registrationId}', { registrationId: reg.id }).live;
+    assert.ok(['upcoming', 'check_in'].includes(before.phase));
+    assert.equal(before.me!.attendance, 'not_arrived');
+    if (before.phase === 'upcoming') h.clock.t = later.checkInOpensAt + MINUTE;
+    const r = await player.api.write('POST /demo/open-play/arrivals', { sessionId: later.id });
+    assert.ok(r.checkedIn >= 2);
+    const after = player.api.read('GET /v1/me/open-play/registrations/{registrationId}', { registrationId: reg.id }).live;
+    assert.equal(after.checkedIn, (before.phase === 'upcoming' ? 0 : before.checkedIn) + r.checkedIn);
+    assert.equal(after.notArrived, after.registered - after.checkedIn);
+    assert.ok(after.lastArrivalAt && after.arrivedLast15 >= r.checkedIn);
+    // Public visitors see the same aggregate counts (no "me")
+    const anon = await h.tab();
+    const pub = anon.api.read('GET /v1/public/open-play/{sessionId}', { sessionId: later.id }).liveSummary;
+    assert.equal(pub.checkedIn, after.checkedIn);
+    assert.equal(pub.me, null);
   });
 });
 

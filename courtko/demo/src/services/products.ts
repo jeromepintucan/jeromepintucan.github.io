@@ -160,6 +160,7 @@ export function setOrderStatus(s: Svc, input: { businessId: Id; orderId: Id; sta
 
 export function claimOrder(s: Svc, input: { businessId: Id; code: string }) {
   const raw = (input.code ?? '').trim();
+  if (!raw) invalid([{ field: 'code', message: 'Enter or scan the pickup code.' }]);
   let order: Order | undefined;
   if (raw.startsWith('PU1.')) {
     const m = /^PU1\.([a-z0-9_]+)\.([0-9a-f]{20})$/.exec(raw);

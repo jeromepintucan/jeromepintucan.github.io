@@ -18,8 +18,10 @@ import { CHECKOUT_TRANSITIONS, OP_REG_TRANSITIONS, OP_SESSION_TRANSITIONS, trans
 import { formatDateShort, formatTime, formatTimeRange, HOUR, MINUTE } from '../domain/time.ts';
 import { normalizePhMobile } from '../domain/validation.ts';
 import { defaultPreferences } from './auth.ts';
-import { activeRestriction, assertNotRestricted, buildQuoteSafe, cancelCheckout, insertSlot, registerCheckoutHooks, releaseSlot, saveSnapshot, startPayment, taxProfile } from './checkout.ts';
-import type { AttendanceEvent, AttendanceStatus, Checkout, Id, OpenPlayGame, OpenPlayParty, OpenPlayRegistration, OpenPlaySession, PartyInvite, Payment, Venue } from './model.ts';
+import { activeRestriction, assertNotRestricted, buildQuoteSafe, cancelCheckout, insertSlot, registerCheckoutHooks, releaseSlot, saveSnapshot, startPayment, taxProfile, unitsOfCourt } from './checkout.ts';
+import type { AttendanceEvent, AttendanceStatus, BookingSlot, Checkout, Id, OpenPlayGame, OpenPlayParty, OpenPlayRegistration, OpenPlaySession, PartyInvite, Payment, Venue } from './model.ts';
+import { venueCancelBooking } from './booking.ts';
+import { slotUnits, unitsIntersect } from './store.ts';
 import { createRefund } from './refunds.ts';
 import type { Db } from './store.ts';
 import { actorLabel, audit, commissionTermsFor, DEFAULT_SOCIAL, displayName, notify, notifyBusiness, profileOf, requireBusiness, requirePlatform, requireUser, requireVerifiedUser, requireWritable, settings, type Svc } from './svc.ts';
@@ -208,23 +210,64 @@ export function listOpenPlay(s: Svc, input: OpenPlaySearch) {
     .sort((a, b) => a.session.startMs - b.session.startMs);
 }
 
-/** Privacy-safe live summary for players (doc 24 §5): counts plus the viewer's own status only. */
+export type LivePhase = 'upcoming' | 'check_in' | 'live' | 'ended' | 'cancelled';
+
+export function livePhase(o: OpenPlaySession, now: number): LivePhase {
+  if (o.status === 'cancelled') return 'cancelled';
+  if (o.status === 'completed' || now >= o.endMs) return 'ended';
+  if (o.status === 'in_progress' || now >= o.startMs) return 'live';
+  return now >= o.checkInOpensAt ? 'check_in' : 'upcoming';
+}
+
+/**
+ * Privacy-safe live status for players (doc 24 §5), available from publication until the session ends:
+ * aggregate counts, court occupancy and the viewer's own status only — never other players' names,
+ * contact details or individual check-in records. Clients refresh it on the live channel (SSE in production).
+ */
 function playerLive(s: Svc, o: OpenPlaySession, mine: OpenPlayRegistration | undefined) {
   const regs = s.db.filter('opRegistrations', (r) => r.sessionId === o.id && r.status === 'confirmed');
   const waiting = regs.filter((r) => r.attendance === 'waiting').sort((a, b) => queueKey(o, a) - queueKey(o, b));
+  const sport = s.db.get('sports', o.sport);
+  const format = sport ? findFormat(sport, o.formatCode) : undefined;
+  const perGame = format ? playersPerGame(format) : 4;
+  const games = s.db.filter('opGames', (g) => g.sessionId === o.id);
+  const liveGames = games.filter((g) => g.status === 'in_progress');
+  const courts = o.courtIds.map((courtId) => {
+    const g = liveGames.find((x) => x.courtId === courtId);
+    return { name: courtLabel(s.db, courtId) ?? 'Court', inGame: !!g, minutes: g ? Math.max(0, Math.round((s.now - g.startedAt) / MINUTE)) : 0, players: g ? g.sideA.length + g.sideB.length : 0 };
+  });
+  const arrivals = regs.map((r) => r.checkedInAt).filter((t): t is number => t !== null && t <= s.now);
+  const position = mine && mine.attendance === 'waiting' ? waiting.findIndex((r) => r.id === mine.id) + 1 : null;
+  const freeSeats = courts.filter((c) => !c.inGame).length * perGame;
+  // Rough estimate only: games ahead of you ÷ courts × game length (shown as "about").
+  const estWaitMinutes = position === null ? null : position <= freeSeats ? 0 : Math.ceil((position - freeSeats) / (perGame * Math.max(1, courts.length))) * o.gameMinutes;
   return {
     status: o.status,
+    phase: livePhase(o, s.now),
     capacity: o.capacity,
     registered: regs.length,
     checkedIn: regs.filter((r) => PRESENT.includes(r.attendance)).length,
+    notArrived: regs.filter((r) => r.attendance === 'not_arrived').length,
     waiting: waiting.length,
     playing: regs.filter((r) => r.attendance === 'on_court').length,
     remaining: remaining(s.db, o, s.now),
+    arrivedLast15: arrivals.filter((t) => s.now - t <= 15 * MINUTE).length,
+    lastArrivalAt: arrivals.length ? Math.max(...arrivals) : null,
+    gamesCompleted: games.filter((g) => g.status === 'completed').length,
+    courts,
+    gameMinutes: o.gameMinutes,
+    playersPerGame: perGame,
+    startsAt: o.startMs,
+    endsAt: o.endMs,
+    checkInOpensAt: o.checkInOpensAt,
+    lateCutoffAt: o.lateCutoffAt,
     me: mine
       ? {
+          registrationStatus: mine.status,
           attendance: mine.attendance,
           court: courtLabel(s.db, mine.courtId),
-          waitingPosition: mine.attendance === 'waiting' ? waiting.findIndex((r) => r.id === mine.id) + 1 : null,
+          waitingPosition: position,
+          estWaitMinutes,
           gamesPlayed: mine.gamesPlayed,
         }
       : null,
@@ -267,7 +310,7 @@ export function getOpenPlay(s: Svc, input: { sessionId: Id }) {
     joinableTeams,
     restricted: me ? !!activeRestriction(s.db, me.id, o.businessId, o.venueId, s.now) : false,
     mine: mine ? { registration: publicRegistration(mine), party: partyView(s, mine.partyId, me!.id) } : null,
-    liveSummary: o.status === 'in_progress' || (s.now >= o.checkInOpensAt && s.now < o.endMs) ? playerLive(s, o, mine) : null,
+    liveSummary: playerLive(s, o, mine),
   };
 }
 
@@ -781,7 +824,10 @@ export function businessOpenPlay(s: Svc, input: { businessId: Id; venueId?: Id }
   const acc = requireBusiness(s, input.businessId, 'openplay.view', { venueId: input.venueId ?? null });
   return s.db
     .filter('openPlaySessions', (o) => o.businessId === input.businessId && (!input.venueId || o.venueId === input.venueId) && (!acc.member.venueIds || acc.member.venueIds.includes(o.venueId)))
-    .sort((a, b) => (a.status === 'in_progress' ? -1 : 0) - (b.status === 'in_progress' ? -1 : 0) || Math.abs(a.startMs - s.now) - Math.abs(b.startMs - s.now))
+    .sort((a, b) => {
+      const rank = (o: OpenPlaySession) => (livePhase(o, s.now) === 'live' ? 0 : o.endMs > s.now && o.status !== 'cancelled' ? 1 : 2);
+      return rank(a) - rank(b) || (rank(a) === 2 ? b.startMs - a.startMs : a.startMs - b.startMs);
+    })
     .map((o) => sessionSummary(s, o, { internal: true }));
 }
 
@@ -969,10 +1015,140 @@ export function saveOpenPlay(s: Svc, input: SaveOpenPlayInput) {
   return s.db.must('openPlaySessions', row.id);
 }
 
-export function publishOpenPlay(s: Svc, input: { businessId: Id; sessionId: Id }) {
+export interface CourtConflict {
+  kind: 'booking' | 'hold' | 'block' | 'event' | 'open_play';
+  sourceId: Id;
+  label: string;
+  court: string;
+  startMs: number;
+  endMs: number;
+  when: string;
+  /** True when the clash is only the sport changeover gap, not a direct overlap. */
+  changeover: boolean;
+}
+
+function slotConflicts(s: Svc, courtId: Id, startMs: number, endMs: number, excludeSourceId: Id | null): CourtConflict[] {
+  const court = s.db.must('courts', courtId);
+  const venue = s.db.must('venues', court.venueId);
+  const units = unitsOfCourt(court, court.id);
+  const physical = court.physicalCourtId ? s.db.get('physicalCourts', court.physicalCourtId) : undefined;
+  const gap = (physical?.changeoverMinutes ?? venue.settings.changeoverMinutes ?? 15) * MINUTE;
+  const overlaps = (x: BookingSlot) => x.startMs < endMs && startMs < x.occupiedEndMs;
+  const changeover = (x: BookingSlot) => !!gap && !!x.sport && !!court.sport && x.sport !== court.sport && x.startMs - gap < endMs && startMs < x.occupiedEndMs + gap;
+  return s.db
+    .filter('slots', (x) => x.status === 'active' && x.sourceId !== excludeSourceId && !(x.kind === 'hold' && x.expiresAt !== null && x.expiresAt <= s.now) && unitsIntersect(slotUnits(x), units) && (overlaps(x) || changeover(x)))
+    .sort((a, b) => a.startMs - b.startMs)
+    .map((x) => {
+      const b = x.kind === 'booking' || x.kind === 'hold' ? s.db.get('bookings', x.sourceId) : undefined;
+      const e = x.kind === 'event' ? s.db.get('events', x.sourceId) : undefined;
+      const op = x.kind === 'open_play' ? s.db.get('openPlaySessions', x.sourceId) : undefined;
+      const blk = x.kind === 'block' ? s.db.get('courtBlocks', x.sourceId) : undefined;
+      const label = b
+        ? x.kind === 'hold'
+          ? `Checkout in progress (${b.code})`
+          : `Booking ${b.code}`
+        : e
+          ? `Event: ${e.name}`
+          : op
+            ? `Open Play: ${op.title}`
+            : blk
+              ? `Court block (${blk.reason.replace(/_/g, ' ')}${blk.note ? ` — ${blk.note}` : ''})`
+              : 'Court block';
+      return { kind: x.kind as CourtConflict['kind'], sourceId: x.sourceId, label, court: s.db.get('courts', x.courtId)?.name ?? 'Court', startMs: x.startMs, endMs: x.endMs, when: `${formatDateShort(x.startMs, venue.offsetMin)} ${formatTimeRange(x.startMs, x.endMs, venue.offsetMin)}`, changeover: !overlaps(x) };
+    });
+}
+
+/**
+ * Pre-publish court check: what is already on each assigned court (and on dependent layouts that share its space)
+ * during the session, plus a suggested set of free courts for the same sport and layout. Staff see exactly which
+ * bookings, blocks or events are in the way instead of a generic "slot unavailable".
+ */
+export function openPlayCourtCheck(s: Svc, input: { businessId: Id; sessionId: Id; courtIds?: Id[] }) {
   const o = ownSession(s, input.businessId, input.sessionId);
-  requireBusiness(s, input.businessId, 'openplay.manage', { venueId: o.venueId, write: true });
+  const acc = requireBusiness(s, input.businessId, 'openplay.view', { venueId: o.venueId });
+  const courtIds = input.courtIds?.length ? [...new Set(input.courtIds)] : o.courtIds;
+  const exclude = o.status === 'draft' ? null : o.id;
+  const courts = courtIds.map((courtId) => ({ courtId, name: s.db.get('courts', courtId)?.name ?? 'Court', conflicts: s.db.get('courts', courtId) ? slotConflicts(s, courtId, o.startMs, o.endMs, exclude) : [] }));
+  const sport = s.db.get('sports', o.sport);
+  const format = sport ? findFormat(sport, o.formatCode) : undefined;
+  const candidates = s.db
+    .filter('courts', (c) => c.venueId === o.venueId && c.status === 'active' && (c.sport ?? 'pickleball') === o.sport && (format?.layout !== 'half' || c.layout === 'half'))
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  // Greedy replacement: keep the free courts, swap each blocked court for a free one whose space doesn't overlap the others.
+  const kept = courts.filter((c) => !c.conflicts.length).map((c) => c.courtId);
+  const used = kept.flatMap((id) => unitsOfCourt(s.db.get('courts', id), id));
+  const replacement: Id[] = [...kept];
+  for (let i = courts.filter((x) => x.conflicts.length).length; i > 0; i--) {
+    const alt = candidates.find((k) => !replacement.includes(k.id) && !courtIds.includes(k.id) && !unitsIntersect(unitsOfCourt(k, k.id), used) && !slotConflicts(s, k.id, o.startMs, o.endMs, exclude).length);
+    if (!alt) break;
+    replacement.push(alt.id);
+    used.push(...unitsOfCourt(alt, alt.id));
+  }
+  const all = courts.flatMap((c) => c.conflicts);
+  const unique = [...new Map(all.map((c) => [`${c.kind}:${c.sourceId}`, c])).values()];
+  const bookingsOnly = unique.length > 0 && unique.every((c) => c.kind === 'booking' || c.kind === 'hold');
+  const fullSwap = replacement.length === courtIds.length && courts.some((c) => c.conflicts.length);
+  return {
+    sessionId: o.id,
+    clear: unique.length === 0,
+    courts,
+    conflictCount: unique.length,
+    bookingCount: unique.filter((c) => c.kind === 'booking').length,
+    holdCount: unique.filter((c) => c.kind === 'hold').length,
+    blocking: unique.filter((c) => c.kind !== 'booking' && c.kind !== 'hold'),
+    canCancelBookings: bookingsOnly && acc.perms.has('bookings.cancel'),
+    suggestion: fullSwap ? { courtIds: replacement, names: replacement.map((id) => s.db.get('courts', id)?.name ?? 'Court') } : null,
+  };
+}
+
+function setSessionCourts(s: Svc, o: OpenPlaySession, courtIds: Id[]): void {
+  const ids = [...new Set(courtIds)];
+  if (!ids.length) invalid([{ field: 'courtIds', message: 'Assign at least one court.' }]);
+  const sport = s.db.get('sports', o.sport);
+  const format = sport ? findFormat(sport, o.formatCode) : undefined;
+  const units: string[] = [];
+  for (const id of ids) {
+    const c = s.db.get('courts', id);
+    if (!c || c.venueId !== o.venueId || c.status !== 'active') fail('NOT_FOUND', 'One of the courts is not available at this venue.');
+    if ((c.sport ?? 'pickleball') !== o.sport) fail('SPORT_NOT_SUPPORTED', `${c.name} is set up for ${c.sport ?? 'pickleball'}, not ${sport?.name ?? o.sport}.`);
+    if (format?.layout === 'half' && c.layout !== 'half') fail('FORMAT_INCOMPATIBLE', `${format.label} is played on half courts.`);
+    const u = unitsOfCourt(c, c.id);
+    if (unitsIntersect(u, units)) fail('CONFLICT', `${c.name} shares space with another court you picked.`);
+    units.push(...u);
+  }
+  s.db.update('openPlaySessions', o.id, (x) => {
+    x.courtIds = ids;
+    x.updatedAt = s.now;
+  });
+}
+
+export function publishOpenPlay(s: Svc, input: { businessId: Id; sessionId: Id; courtIds?: Id[]; resolution?: 'fail' | 'cancel_and_refund' }) {
+  let o = ownSession(s, input.businessId, input.sessionId);
+  const acc = requireBusiness(s, input.businessId, 'openplay.manage', { venueId: o.venueId, write: true });
   if (o.status !== 'draft') fail('INVALID_STATE_TRANSITION', 'Only draft sessions can be published.');
+  if (o.endMs <= s.now) fail('CONFLICT', 'This session is already over. Duplicate it to a new date instead.');
+  if (input.courtIds?.length) {
+    setSessionCourts(s, o, input.courtIds);
+    o = s.db.must('openPlaySessions', o.id);
+  }
+  const check = openPlayCourtCheck(s, { businessId: input.businessId, sessionId: o.id });
+  if (!check.clear) {
+    const list = check.courts.filter((c) => c.conflicts.length).map((c) => `${c.name}: ${c.conflicts.map((x) => `${x.label} ${x.when}${x.changeover ? ' (changeover)' : ''}`).join(', ')}`).join('; ');
+    if (input.resolution !== 'cancel_and_refund') throw new AppError('COURT_CONFLICT', `These courts aren't free for the whole session — ${list}. Pick other courts, move the session, or cancel the affected bookings.`, { meta: { check } });
+    if (check.blocking.length) throw new AppError('COURT_CONFLICT', `Blocks, events and other Open Play sessions can't be cancelled from here — ${check.blocking.map((x) => `${x.label} on ${x.court}`).join(', ')}. Pick other courts or move the session.`, { meta: { check } });
+    if (!acc.perms.has('bookings.cancel')) fail('FORBIDDEN', 'Cancelling the affected bookings needs the “Cancel bookings” permission. Ask a manager, or pick other courts.');
+    const seen = new Set<string>();
+    for (const c of check.courts.flatMap((x) => x.conflicts)) {
+      if (seen.has(c.sourceId)) continue;
+      seen.add(c.sourceId);
+      const b = s.db.must('bookings', c.sourceId);
+      if (c.kind === 'hold') {
+        cancelCheckout(s, b.checkoutId, 'Court reserved for Open Play', acc.user.id);
+        notify(s, b.userId, 'booking_updates', { title: 'Your checkout was cancelled', body: `The court you were checking out was just reserved for ${o.title}. If you already paid, you'll get a full refund automatically.`, link: '#/app/bookings' });
+      } else if (b.status === 'confirmed') venueCancelBooking(s, { businessId: input.businessId, bookingId: b.id, reason: 'court_unavailable', note: `Reserved for Open Play: ${o.title}` });
+      else releaseSlot(s, b.slotId, 'Court reserved for Open Play');
+    }
+  }
   const slotIds: Id[] = [];
   for (const courtId of o.courtIds) {
     const slot = insertSlot(s, { businessId: o.businessId, venueId: o.venueId, courtId, startMs: o.startMs, endMs: o.endMs, bufferMinutes: 0, kind: 'open_play', sourceId: o.id, expiresAt: null });
@@ -983,7 +1159,7 @@ export function publishOpenPlay(s: Svc, input: { businessId: Id; sessionId: Id }
     x.publishedAt = s.now;
     transition(OP_SESSION_TRANSITIONS, x, 'published', s.now, s.actor.realUser?.id ?? 'system', 'Published', 'session');
   });
-  audit(s, { action: 'openplay.published', targetType: 'open_play_session', targetId: o.id, businessId: o.businessId, summary: `Published ${o.title}; reserved ${slotIds.length} court${slotIds.length === 1 ? '' : 's'}` });
+  audit(s, { action: 'openplay.published', targetType: 'open_play_session', targetId: o.id, businessId: o.businessId, summary: `Published ${o.title}; reserved ${slotIds.length} court${slotIds.length === 1 ? '' : 's'}${check.clear ? '' : `; cancelled ${check.bookingCount + check.holdCount} conflicting booking(s) with full refunds`}` });
   return s.db.must('openPlaySessions', o.id);
 }
 
@@ -1543,6 +1719,46 @@ export function demoSamplePass(s: Svc, input: { businessId: Id; sessionId: Id; k
   let token = issueLiveToken(ref, sessionId, input.kind === 'expired' ? s.now - 30 * MINUTE : s.now, input.kind === 'expired' ? s.now - 20 * MINUTE : target.lateCutoffAt).token;
   if (input.kind === 'tampered') token = token.slice(0, -1) + (token.endsWith('0') ? '1' : '0');
   return { token, player: displayName(s.db, reg.userId), kind: input.kind };
+}
+
+/**
+ * DEMO helper: simulate players arriving at the front desk (2–3 check-ins through the same attendance path as a
+ * staff scan) and, when a court is free and enough players are waiting, start the next game. Used by the presenter
+ * to show the player-facing live status changing in real time.
+ */
+export function demoSimulateArrivals(s: Svc, input: { sessionId?: Id }) {
+  const juan = s.db.find('users', (u) => u.persona === 'player');
+  const o = input.sessionId
+    ? s.db.get('openPlaySessions', input.sessionId)
+    : s.db
+        .filter('openPlaySessions', (x) => (x.status === 'published' || x.status === 'in_progress') && x.endMs > s.now && !!juan && s.db.count('opRegistrations', (r) => r.sessionId === x.id && r.userId === juan.id && r.status === 'confirmed') > 0)
+        .sort((a, b) => a.startMs - b.startMs)[0];
+  if (!o) fail('NOT_FOUND', 'No upcoming Open Play session to simulate.');
+  if (o.status !== 'published' && o.status !== 'in_progress') fail('CONFLICT', 'That session is not running.');
+  if (s.now < o.checkInOpensAt) fail('CHECKIN_WINDOW_CLOSED', `Check-in for ${o.title} opens at ${formatTime(o.checkInOpensAt)}. Move the demo clock forward first.`);
+  if (s.now >= o.lateCutoffAt) fail('CHECKIN_WINDOW_CLOSED', 'The late-arrival cutoff has passed for this session.');
+  const personaIds = new Set(s.db.filter('users', (u) => !!u.persona).map((u) => u.id));
+  const due = s.db.filter('opRegistrations', (r) => r.sessionId === o.id && r.status === 'confirmed' && r.attendance === 'not_arrived' && !personaIds.has(r.userId)).sort((a, b) => a.createdAt - b.createdAt);
+  const n = Math.min(due.length, 2 + (Math.floor(s.now / 1000) % 2));
+  const to: AttendanceStatus = o.autoQueueOnCheckIn ? 'waiting' : 'checked_in';
+  for (const r of due.slice(0, n)) setAttendance(s, r, to, { type: 'check_in', method: 'qr', actorLabel: 'Front desk (demo)' }, { checkedInAt: s.now, checkInMethod: 'qr', queueSince: s.now });
+  let started: string | null = null;
+  if (livePhase(o, s.now) === 'live') {
+    if (o.status === 'published') s.db.update('openPlaySessions', o.id, (x) => transition(OP_SESSION_TRANSITIONS, x, 'in_progress', s.now, 'system', 'Session started', 'session'));
+    const sport = s.db.get('sports', o.sport);
+    const format = sport ? findFormat(sport, o.formatCode) : undefined;
+    const per = format ? playersPerGame(format) : 4;
+    const free = o.courtIds.find((c) => !liveGameOn(s, o, c));
+    const queue = s.db.filter('opRegistrations', (r) => r.sessionId === o.id && r.status === 'confirmed' && r.attendance === 'waiting' && !personaIds.has(r.userId)).sort((a, b) => queueKey(o, a) - queueKey(o, b));
+    if (free && queue.length >= per) {
+      const group = queue.slice(0, per);
+      const g: OpenPlayGame = { id: newId('opg'), sessionId: o.id, businessId: o.businessId, courtId: free, sideA: group.slice(0, per / 2).map((r) => r.id), sideB: group.slice(per / 2).map((r) => r.id), status: 'in_progress', startedAt: s.now, endedAt: null, score: null, winner: null, startedBy: 'system', recordedBy: null };
+      s.db.insert('opGames', g);
+      for (const r of group) setAttendance(s, r, 'on_court', { type: 'start_game', courtId: free, gameId: g.id, actorLabel: 'Court captain (demo)' }, { courtId: free });
+      started = courtLabel(s.db, free);
+    }
+  }
+  return { sessionId: o.id, title: o.title, checkedIn: n, started };
 }
 
 /**

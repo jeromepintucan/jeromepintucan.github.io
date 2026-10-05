@@ -457,6 +457,10 @@ export interface Payment {
   createdAt: number;
   capturedAt: number | null;
   failureReason: string | null;
+  /** Provider failure code of a failed/expired attempt (see domain/paymentFailures.ts). */
+  failureCode?: string | null;
+  /** Held for manual review (e.g. the provider captured a different amount). */
+  review?: { reason: 'amount_mismatch'; providerAmount: Centavos; providerPaymentId: string; detectedAt: number; resolvedAt: number | null; resolution: string | null } | null;
   refundedAmount: Centavos;
   reconciledAt: number | null;
   confirmedVia: 'webhook' | 'reconciliation' | 'return_check' | null;
@@ -527,6 +531,8 @@ export interface Refund {
   completedAt: number | null;
   failureReason: string | null;
   partial: boolean;
+  /** Completed outside the provider API (e.g. bank transfer for channels without API refunds). */
+  manual?: { reference: string; method: 'bank_transfer'; by: Id; at: number; note: string } | null;
 }
 
 export interface Payout {
@@ -963,6 +969,39 @@ export interface DemoControls {
   failNextPayout: boolean;
   failNextRefund: boolean;
   latency: 'fast' | 'realistic';
+  /** Sandbox fault injection on provider API calls: `flaky` = one 502 then OK, `timeout` = response lost after the provider created the session, `down` = every call 503. */
+  providerFault?: 'none' | 'flaky' | 'timeout' | 'down';
+  /** One payment channel reported down by the provider. */
+  channelDown?: PaymentMethodCode | null;
+  /** Failure code used when "fail the next refund/payout" is on. */
+  refundFailureCode?: string;
+  payoutFailureCode?: string;
+  /** The provider reports a different captured amount on the next payment (amount-mismatch drill). */
+  amountMismatchNext?: boolean;
+}
+
+/** A provider API call that failed (and was retried) — feeds the provider health status and the exceptions center. */
+export interface ProviderIncident {
+  id: Id;
+  at: number;
+  op: 'create_session' | 'create_refund' | 'create_payout';
+  method: PaymentMethodCode | null;
+  businessId: Id | null;
+  outcome: 'recovered' | 'failed';
+  attempts: number;
+  errors: string[];
+  detail: string;
+}
+
+/** Staff acknowledgement of a payment exception (the underlying records are never edited). */
+export interface ExceptionResolution {
+  id: string;
+  kind: string;
+  ref: Id;
+  businessId: Id | null;
+  note: string;
+  by: Id;
+  at: number;
 }
 
 export interface PlatformSettings {
@@ -1329,6 +1368,8 @@ export interface DbTables {
   providerSubAccounts: Record<Id, ProviderSubAccount>;
   providerMaster: Record<Id, ProviderMasterBalance>;
   providerIdempotency: Record<Id, ProviderIdempotency>;
+  providerIncidents: Record<Id, ProviderIncident>;
+  exceptionResolutions: Record<Id, ExceptionResolution>;
   sports: Record<Id, SportConfig>;
   physicalCourts: Record<Id, PhysicalCourt>;
   openPlaySessions: Record<Id, OpenPlaySession>;
@@ -1371,7 +1412,7 @@ export const TABLES: TableName[] = [
   'matches', 'ratings', 'products', 'inventory', 'orders', 'pickupClaims', 'restrictions', 'reviews', 'contentReports',
   'notifications', 'outbound', 'supportSessions', 'audit', 'securityEvents', 'idempotency', 'approvals', 'favorites',
   'holidays', 'settings', 'providerSessions', 'providerPayments', 'providerRefunds', 'providerPayouts',
-  'providerDeliveries', 'providerSubAccounts', 'providerMaster', 'providerIdempotency',
+  'providerDeliveries', 'providerSubAccounts', 'providerMaster', 'providerIdempotency', 'providerIncidents', 'exceptionResolutions',
   'sports', 'physicalCourts', 'openPlaySessions', 'opRegistrations', 'opParties', 'opInvites', 'attendanceEvents', 'opGames',
   'follows', 'blocks', 'sportProfiles',
 ];

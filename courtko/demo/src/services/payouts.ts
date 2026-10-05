@@ -13,6 +13,7 @@ import { newId } from '../domain/ids.ts';
 import { postJournal, venueBalance, statementTotals } from './ledgerSvc.ts';
 import type { Id, Payout } from './model.ts';
 import * as provider from './provider.ts';
+import { callProvider } from './gateway.ts';
 import { audit, notifyBusiness, pageOf, requireBusiness, requirePlatform, type Svc } from './svc.ts';
 
 function settledUnpaidNet(s: Svc, businessId: Id): { amount: number; paymentIds: Id[] } {
@@ -32,6 +33,7 @@ function settledUnpaidNet(s: Svc, businessId: Id): { amount: number; paymentIds:
 
 export function runPayouts(s: Svc, onlyBusinessId?: Id): Payout[] {
   const created: Payout[] = [];
+  if (provider.providerHealth(s).status === 'down') return created; // nothing is created; the next run picks it up
   for (const b of s.db.filter('businesses', (x) => x.status === 'active' && x.payoutAccount.status === 'verified' && (!onlyBusinessId || x.id === onlyBusinessId))) {
     if (s.db.find('payouts', (p) => p.businessId === b.id && p.status === 'processing')) continue;
     const { amount: settled, paymentIds } = settledUnpaidNet(s, b.id);
@@ -54,7 +56,7 @@ export function runPayouts(s: Svc, onlyBusinessId?: Id): Payout[] {
       attempts: 1,
     };
     s.db.insert('payouts', payout);
-    const res = provider.createPayout(s, { forUserId: b.payoutAccount.providerSubAccountId!, amount, externalId: payout.id });
+    const res = callProvider(s, 'create_payout', { businessId: b.id }, () => provider.createPayout(s, { forUserId: b.payoutAccount.providerSubAccountId!, amount, externalId: payout.id }));
     s.db.update('payouts', payout.id, (x) => {
       x.providerPayoutId = res.id;
       transition(PAYOUT_TRANSITIONS, x, 'processing', s.now, 'system', 'Submitted to provider', 'payout');
@@ -107,7 +109,7 @@ export function retryPayout(s: Svc, input: { payoutId: Id }): Payout {
     x.failureReason = null;
     transition(PAYOUT_TRANSITIONS, x, 'scheduled', s.now, s.actor.realUser!.id, 'Retry requested', 'payout');
   });
-  const res = provider.createPayout(s, { forUserId: business.payoutAccount.providerSubAccountId, amount, externalId: payout.id });
+  const res = callProvider(s, 'create_payout', { businessId: business.id }, () => provider.createPayout(s, { forUserId: business.payoutAccount.providerSubAccountId!, amount, externalId: payout.id }));
   s.db.update('payouts', payout.id, (x) => {
     x.providerPayoutId = res.id;
     transition(PAYOUT_TRANSITIONS, x, 'processing', s.now, 'system', `Resubmitted (attempt ${x.attempts})`, 'payout');

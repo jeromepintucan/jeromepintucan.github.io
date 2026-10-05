@@ -122,7 +122,7 @@ export function openPlayCard(o: OpenPlayRow, base = '#/open-play'): SafeHtml {
       <h3 style="margin:6px 0 2px">${s.title}</h3><p class="small muted" style="margin:0">${o.venue.name} · ${formatTimeRange(s.startMs, s.endMs)}</p>
       <p class="small" style="margin:6px 0 0"><b>${o.priceLabel}</b> · ${o.formatLabel} · ${o.levelLabel}</p></div>
     </div>
-    <div style="padding:0 16px 14px"><div class="bar-inline" aria-label="${o.used} of ${s.capacity} taken"><span style="width:${pct}%"></span></div><div class="row-between xs muted" style="margin-top:4px"><span>${o.registered} registered${o.live ? ` · ${o.checkedIn} here · ${o.playing} playing` : ''}</span><span>${o.capacityLabel}</span></div></div>
+    <div style="padding:0 16px 14px"><div class="bar-inline" aria-label="${o.used} of ${s.capacity} taken"><span style="width:${pct}%"></span></div><div class="row-between xs muted" style="margin-top:4px"><span>${o.registered} registered${o.live || o.checkedIn ? ` · ${o.checkedIn} here${o.live ? ` · ${o.playing} playing` : ''}` : ''}</span><span>${o.capacityLabel}</span></div></div>
   </a>`;
 }
 

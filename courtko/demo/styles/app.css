@@ -426,3 +426,48 @@ body.phone-frame .content { padding: 16px 14px 90px; } body.phone-frame .topbar 
 @media (max-width: 640px) { .live-counts { grid-template-columns: repeat(3, minmax(0, 1fr)); } .sport-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .op-hero { aspect-ratio: 16 / 9; } }
 .split > *, .desk > *, .grid > * { min-width: 0; }
 .dl dd { overflow-wrap: anywhere; }
+.chart-bars .chart-xlabels, .chart-bars .chart-values { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); font-size: .7rem; color: var(--ck-slate-500); text-align: center; white-space: nowrap; }
+.chart-bars .chart-values { font-weight: 700; color: var(--ck-slate-700); margin-bottom: 2px; }
+.chart-bars .chart-xlabels span { overflow: visible; }
+.avail-time b { display: block; font-size: .72rem; color: var(--ck-slate-700); } .avail-time span.half { color: var(--ck-slate-400); }
+
+/* ---------- Open Play live status (always on) ---------- */
+.live-panel { display: flex; flex-direction: column; gap: 12px; }
+.live-phase { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.lp { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .9rem; padding: 4px 10px; border-radius: 999px; }
+.lp-upcoming { background: var(--ck-slate-100); color: var(--ck-slate-700); }
+.lp-checkin { background: #FEF3C7; color: #92400E; }
+.lp-live { background: #FEE2E2; color: #B91C1C; }
+.lp-ended { background: var(--ck-slate-100); color: var(--ck-slate-600); }
+.arrivals .big-num { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.arrivals-bar { margin-top: 8px; height: 10px; }
+.live-courts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.live-courts .lc { border-radius: 10px; padding: 8px 10px; border: 1px solid var(--ck-slate-200); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.live-courts .lc b { font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live-courts .lc span { font-size: .75rem; color: var(--ck-slate-600); }
+.live-courts .lc.busy { background: #ECFDF5; border-color: #A7F3D0; }
+.live-courts .lc.busy span { color: #047857; font-weight: 600; }
+.live-courts .lc.free { background: var(--ck-slate-50); }
+.live-foot { margin: 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.me-status .small { flex: 1; min-width: 200px; }
+/* ---------- publish conflicts ---------- */
+.conflict-court { border: 1px solid #FECACA; background: #FEF2F2; border-radius: 10px; padding: 10px 12px; }
+.conflict-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.conflict-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .875rem; }
+.chip small { font-size: .7rem; color: #047857; font-weight: 700; }
+.chip.chip-busy { border-color: #FCA5A5; background: #FEF2F2; }
+.chip.chip-busy small { color: #B91C1C; }
+.plain-fieldset { border: 0; padding: 0; margin: 0; min-width: 0; } .plain-fieldset:disabled .btn[type=submit] { display: none; }
+/* ---------- payment exceptions ---------- */
+.exc { border-left: 4px solid var(--ck-slate-300); }
+.exc.exc-critical { border-left-color: #DC2626; }
+.exc.exc-warning { border-left-color: #D97706; }
+.exc.exc-info { border-left-color: #2563EB; }
+.exc.exc-resolved { opacity: .7; }
+.method.method-down { opacity: .55; cursor: not-allowed; border-style: dashed; }
+.method.method-warn { border-color: #FCD34D; }
+.test-cards, .sim-fails { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 4px; }
+.test-cards .chip { font-size: .72rem; padding: 4px 8px; cursor: pointer; }
+.live-counts.live-counts-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 640px) { .live-counts.live-counts-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.venue-hero, .op-hero { width: 100%; max-width: 100%; }

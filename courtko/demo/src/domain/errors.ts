@@ -30,6 +30,7 @@ export type ErrorCode =
   | 'SPORT_NOT_SUPPORTED'
   | 'FORMAT_INCOMPATIBLE'
   | 'CHANGEOVER_CONFLICT'
+  | 'COURT_CONFLICT'
   | 'SESSION_FULL'
   | 'REGISTRATION_CLOSED'
   | 'PARTNER_REQUIRED'
@@ -73,6 +74,7 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   SPORT_NOT_SUPPORTED: 422,
   FORMAT_INCOMPATIBLE: 422,
   CHANGEOVER_CONFLICT: 409,
+  COURT_CONFLICT: 409,
   SESSION_FULL: 409,
   REGISTRATION_CLOSED: 409,
   PARTNER_REQUIRED: 422,
@@ -117,6 +119,7 @@ export const ERROR_TITLE: Record<ErrorCode, string> = {
   SPORT_NOT_SUPPORTED: "That sport isn't offered here",
   FORMAT_INCOMPATIBLE: "That format doesn't fit this sport",
   CHANGEOVER_CONFLICT: 'The court needs changeover time',
+  COURT_CONFLICT: 'Those courts are not free',
   SESSION_FULL: 'This session is full',
   REGISTRATION_CLOSED: 'Registration is closed',
   PARTNER_REQUIRED: 'A partner is required',
@@ -177,6 +180,8 @@ export interface ProblemDetails {
   code: ErrorCode;
   correlationId: string;
   errors?: FieldError[];
+  /** Machine-readable details the client can act on (e.g. the list of conflicting bookings). */
+  details?: Record<string, unknown>;
 }
 
 export function toProblem(e: unknown, correlationId: string): ProblemDetails {
@@ -189,6 +194,7 @@ export function toProblem(e: unknown, correlationId: string): ProblemDetails {
       code: e.code,
       correlationId,
       ...(e.fields.length ? { errors: e.fields } : {}),
+      ...(Object.keys(e.meta).length ? { details: e.meta } : {}),
     };
   }
   return {

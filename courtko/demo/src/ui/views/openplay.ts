@@ -129,10 +129,66 @@ form('op.f.q', (fd) => {
 
 // ---------------------------------------------------------------- session details
 
-function liveCard(l: NonNullable<SessionView['liveSummary']>, title = 'Live now'): SafeHtml {
-  return card(html`<div class="live-counts">${[['Registered', l.registered], ['Checked in', l.checkedIn], ['Waiting', l.waiting], ['Playing', l.playing], ['Spots left', l.remaining]].map(([k, v]) => html`<div><b>${v}</b><span>${k}</span></div>`)}</div>
-  ${l.me ? html`<div class="me-status">${attendancePill(l.me.attendance)}${l.me.court ? html` <b>${l.me.court}</b>` : ''}${l.me.waitingPosition ? html` · You're <b>#${l.me.waitingPosition}</b> in the waiting rotation` : ''}${l.me.gamesPlayed ? html` · ${l.me.gamesPlayed} games played` : ''}</div>` : ''}
-  <p class="xs muted" style="margin-top:8px">${icon('shield', 12)} Only counts are shown — never other players' names, contact details or check-in records. Updated ${formatTime(l.updatedAt)}.</p>`, { title: html`<span class="row" style="gap:6px">${icon('live', 16)} ${title}</span>` });
+type LiveView = SessionView['liveSummary'];
+
+const ago = (at: number | null): string => {
+  if (at === null) return '—';
+  const m = Math.max(0, Math.round((app.store.now() - at) / 60_000));
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ${m % 60} min ago`;
+};
+
+function phaseLine(l: LiveView): SafeHtml {
+  switch (l.phase) {
+    case 'upcoming':
+      return html`<span class="lp lp-upcoming">${icon('clock', 14)} Check-in opens ${formatDateShort(l.checkInOpensAt)} ${formatTime(l.checkInOpensAt)}</span><span class="xs muted">Starts in ${countdown(l.startsAt)}</span>`;
+    case 'check_in':
+      return html`<span class="lp lp-checkin"><span class="live-dot">${icon('live', 14)}</span> Check-in open</span><span class="xs muted">Starts in ${countdown(l.startsAt)} · late cutoff ${formatTime(l.lateCutoffAt)}</span>`;
+    case 'live':
+      return html`<span class="lp lp-live"><span class="live-dot">${icon('live', 14)}</span> In progress</span><span class="xs muted">Ends ${formatTime(l.endsAt)} · ${l.gamesCompleted} game${l.gamesCompleted === 1 ? '' : 's'} played so far</span>`;
+    case 'cancelled':
+      return html`<span class="lp lp-ended">${icon('ban', 14)} Cancelled</span>`;
+    default:
+      return html`<span class="lp lp-ended">${icon('checkCircle', 14)} Session ended</span><span class="xs muted">${l.gamesCompleted} games played</span>`;
+  }
+}
+
+function meLine(l: LiveView): SafeHtml {
+  const me = l.me;
+  if (!me || me.registrationStatus !== 'confirmed') return html``;
+  const open = l.phase === 'check_in' || l.phase === 'live';
+  let text: SafeHtml;
+  if (me.attendance === 'not_arrived') text = open ? html`You're not checked in yet. Show your pass at the front desk — <b>${l.checkedIn}</b> player${l.checkedIn === 1 ? ' is' : 's are'} already here.` : l.phase === 'upcoming' ? html`You're registered. Check-in opens at <b>${formatTime(l.checkInOpensAt)}</b>.` : html`You didn't check in for this session.`;
+  else if (me.attendance === 'waiting') text = me.waitingPosition ? html`You're <b>#${me.waitingPosition}</b> in line${me.estWaitMinutes === 0 ? html` — <b>you're up when the next court frees</b>` : me.estWaitMinutes ? html` · about <b>${me.estWaitMinutes} min</b> to your next game` : ''}.` : html`You're in the waiting rotation.`;
+  else if (me.attendance === 'on_court') text = html`You're playing on <b>${me.court ?? 'court'}</b>. Have fun!`;
+  else if (me.attendance === 'checked_in') text = html`You're checked in. Staff will add you to the rotation.`;
+  else if (me.attendance === 'temp_off') text = html`You're taking a break. Tell the desk when you want back in.`;
+  else text = html`${ATT_LABEL[me.attendance] ?? me.attendance}.`;
+  return html`<div class="me-status">${attendancePill(me.attendance)}<span class="small">${text}</span>${me.gamesPlayed ? html`<span class="xs muted">${me.gamesPlayed} game${me.gamesPlayed === 1 ? '' : 's'} played</span>` : ''}</div>`;
+}
+
+/** Always-on, privacy-safe live status: arrivals, waiting, playing, per-court occupancy and the viewer's own place. */
+export function livePanel(l: LiveView, opts: { title?: string } = {}): SafeHtml {
+  const ended = l.phase === 'ended' || l.phase === 'cancelled';
+  const pct = l.registered ? Math.round((l.checkedIn / l.registered) * 100) : 0;
+  const started = l.phase === 'live';
+  return card(
+    html`<div class="live-panel" data-live="1">
+    <div class="live-phase">${phaseLine(l)}</div>
+    <div class="arrivals"><div class="row-between"><span><b class="big-num">${l.checkedIn}</b> <span class="small">of ${l.registered} registered ${ended ? 'checked in' : 'are here'}</span></span><span class="xs muted">${l.remaining} spot${l.remaining === 1 ? '' : 's'} left</span></div>
+      <div class="bar-inline arrivals-bar" role="img" aria-label="${l.checkedIn} of ${l.registered} checked in"><span style="width:${pct}%"></span></div>
+      ${!ended && l.lastArrivalAt ? html`<p class="xs muted" style="margin:6px 0 0">${l.arrivedLast15 ? html`<b>${l.arrivedLast15}</b> arrived in the last 15 min · ` : ''}last check-in ${ago(l.lastArrivalAt)}</p>` : ''}</div>
+    <div class="live-counts live-counts-4">${[
+      ['Here now', l.checkedIn],
+      ['Waiting', l.waiting],
+      ['Playing', l.playing],
+      [ended ? 'No-show / absent' : 'Not here yet', l.notArrived],
+    ].map(([k, v]) => html`<div><b>${v}</b><span>${k}</span></div>`)}</div>
+    ${!ended ? html`<div class="live-courts">${l.courts.map((c) => html`<div class="lc ${c.inGame ? 'busy' : 'free'}"><b>${c.name}</b><span>${c.inGame ? `Game on · ${c.minutes} min` : started ? 'Free — next game soon' : 'Opens at the start'}</span></div>`)}</div>` : ''}
+    ${meLine(l)}
+    <p class="xs muted live-foot">${ended ? '' : html`<span class="live-dot">${icon('live', 12)}</span> Live · `}Updated ${formatTime(l.updatedAt)}${ended ? '' : ' · refreshes automatically'}. ${icon('shield', 12)} Counts only — never other players' names, contacts or check-in records.</p>
+  </div>`,
+    { title: html`<span class="row" style="gap:6px">${icon('live', 16)} ${opts.title ?? (ended ? 'Session summary' : 'Live status')}</span>` },
+  );
 }
 
 export function openPlayDetailView(ctx: ViewCtx, inApp: boolean): SafeHtml {
@@ -156,7 +212,7 @@ export function openPlayDetailView(ctx: ViewCtx, inApp: boolean): SafeHtml {
   return html`<div class="op-hero" style="--sport-hue:${sportsCatalog().find((x) => x.code === o.sport)?.hue ?? 150}">${venueCover(d.venue.art, { sport: o.sport, label: o.title })}<div class="overlay"><div class="row" style="gap:6px;margin-bottom:6px">${sportTag(o.sport)}${d.live ? html`<span class="pill pill-danger">${icon('live', 12)} Live now</span>` : ''}${tag(d.styleLabel, 'accent')}</div><h1>${o.title}</h1><p>${d.venue.name} · ${formatDateLong(o.startMs)} · ${formatTimeRange(o.startMs, o.endMs)}</p></div></div>
   ${btn('All Open Play', { href: inApp ? '#/app/open-play' : '#/open-play', variant: 'ghost', size: 'sm', icon: 'chevronLeft' })}
   <div class="split" style="margin-top:8px"><div class="stack">
-    ${d.liveSummary ? liveCard(d.liveSummary) : ''}
+    ${livePanel(d.liveSummary)}
     ${card(html`<p>${o.description}</p>${dl([['Sport', d.sportName], ['Format', d.formatLabel], ['Style', d.styleLabel], ['Level', d.levelLabel], ['Eligibility', o.eligibility], ['Courts', d.courts.join(', ')], ['Registration', o.registrationModes.map((m) => (m === 'individual' ? 'Individual' : m === 'partner' ? 'With a partner' : `Team (${o.teamSize} players)`)).join(' · ')], ['Rotation', d.rotationLabel], ['Equipment', o.equipmentIncluded ? o.equipmentNote || 'Provided' : 'Bring your own'], ['Organizer', o.organizer]])}`, { title: 'About this session' })}
     ${card(dl([['Check-in opens', `${formatTime(o.checkInOpensAt)} (${formatDateShort(o.checkInOpensAt)})`], ['Late-arrival cutoff', formatTime(o.lateCutoffAt)], ['No-shows', o.noShowPolicy], ['Walk-ins', o.walkInsAllowed ? 'Welcome if spots remain' : 'Registration required'], ['Instructions', o.instructions || '—']]), { title: 'On the day' })}
   </div><div class="stack">
@@ -239,6 +295,7 @@ route('/app/open-play/registrations/:id', 'player', 'My Open Play pass', (ctx) =
   ${reg.status === 'waitlisted' ? alertBox('info', `You're #${reg.waitlistPosition} on the waitlist`, 'We will notify you if a spot opens. You will have 1 hour to claim it.') : ''}
   ${reg.status === 'offered' ? alertBox('success', 'A spot opened for you!', html`Claim it before ${formatTime(reg.offerExpiresAt ?? now)}. ${btn('Claim my spot', { action: 'op.offer', data: { id: reg.id }, variant: 'primary', size: 'sm' })}`) : ''}
   <div class="split"><div class="stack">
+    ${reg.status === 'confirmed' || reg.status === 'waitlisted' || reg.status === 'offered' ? livePanel(d.live, past ? { title: 'Session summary' } : {}) : ''}
     ${tok ? card(html`<div class="pass">
       <div class="pass-qr">${qrCode(showReg ? tok.registrationToken : tok.token, 200, showReg ? 'Registration QR code' : 'Open Play check-in pass')}</div>
       <div class="stack-sm" style="flex:1;min-width:200px">
@@ -246,7 +303,6 @@ route('/app/open-play/registrations/:id', 'player', 'My Open Play pass', (ctx) =
         ${showReg ? html`<p class="small">Your registration QR (from your confirmation) — valid until the late-arrival cutoff at <b>${formatTime(tok.validUntil)}</b>.</p>` : html`<p class="small">Show this at the front desk. It refreshes automatically every 10 minutes — screenshots stop working.</p><p class="small">Refreshes in ${countdown(tok.expiresAt)}</p>`}
         <p class="xs muted">${icon('shield', 12)} The code is signed and time-limited. It contains no name, phone or account number — the venue's scanner checks it with CourtKo's server. Check-in opens ${formatTime(d.checkInOpensAt)}.</p>
       </div></div>`, { title: 'Check-in pass' }) : ''}
-    ${reg.status === 'confirmed' && (o.status === 'in_progress' || reg.attendance !== 'not_arrived') ? liveCard(d.live, past ? 'Session summary' : 'Live status') : ''}
     ${party ? card(html`<div class="stack-sm">${party.members.map((m) => html`<div class="row-between"><div class="row">${icon(m.role === 'captain' ? 'star' : 'user', 16)}<b>${m.name}${m.me ? ' (you)' : ''}</b>${m.username ? html`<a class="xs" href="#/players/${m.username}">@${m.username}</a>` : ''}</div><span class="row" style="gap:6px">${pill(m.status)}${m.status === 'confirmed' ? attendancePill(m.attendance) : ''}</span></div>`)}${party.invites.filter((i) => i.status !== 'accepted').map((i) => html`<div class="row-between small"><span>${icon('mail', 14)} Invited ${i.name}</span>${pill(i.status === 'pending' && i.expiresAt < now ? 'expired' : i.status)}</div>`)}</div>
       ${isCaptain && party.openSeats > 0 && reg.status === 'confirmed' && !past ? html`<form class="row" data-form="op.invitePartner" data-id="${reg.id}" style="margin-top:12px;align-items:flex-end"><div style="flex:1">${field({ name: 'username', label: party.party.kind === 'pair' ? 'Invite a partner' : `Invite a teammate (${party.openSeats} open)`, placeholder: '@username', required: true })}</div>${btn('Send invite', { type: 'submit', variant: 'secondary', icon: 'userPlus' })}</form>` : ''}
       <p class="xs muted" style="margin-top:8px">Teammates see each other's display names only — never contact details.</p>`, { title: party.party.kind === 'pair' ? 'Your pair' : `Team ${party.party.name}`, subtitle: `${party.party.status.replace(/_/g, ' ')}${party.party.joinable ? ' · open for others to join' : ''}` }) : ''}

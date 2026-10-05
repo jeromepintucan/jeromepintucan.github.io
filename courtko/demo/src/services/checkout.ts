@@ -25,6 +25,10 @@ import { formatDateShort, formatTimeRange, MINUTE } from '../domain/time.ts';
 import { reserveStock, releaseStock, sellStock } from './inventory.ts';
 import type { Booking, BookingSlot, Business, Checkout, Court, Id, OrderItem, Payment, PriceSnapshot, Restriction, Venue } from './model.ts';
 import * as provider from './provider.ts';
+import { callProvider } from './gateway.ts';
+import { paymentFailure } from '../domain/paymentFailures.ts';
+
+export const MAX_FAILED_ATTEMPTS = 5;
 import { createRefund } from './refunds.ts';
 import { ConstraintViolation, slotUnits, unitsIntersect } from './store.ts';
 import { commissionTermsFor, displayName, feeSchedule, notify, notifyBusiness, settings, type Svc } from './svc.ts';
@@ -347,6 +351,12 @@ export function startPayment(s: Svc, checkoutId: Id, method: PaymentMethodCode):
   const venue = s.db.must('venues', checkout.venueId);
   const business = s.db.must('businesses', checkout.businessId);
   if (!venue.acceptedMethods.includes(method)) fail('PAYMENT_METHOD_UNAVAILABLE', `${provider.METHOD_LABEL[method]} isn't accepted at this venue.`);
+  // Card-testing / abuse guard: a checkout allows a limited number of failed attempts.
+  const failedAttempts = checkout.paymentIds.filter((id) => s.db.get('payments', id)?.status === 'failed').length;
+  if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+    s.deferred.push({ at: s.now, type: 'rate_limited', severity: 'warning', userId: checkout.userId, businessId: checkout.businessId, detail: `Checkout ${checkout.id} blocked after ${failedAttempts} failed payment attempts (possible card testing)`, ip: s.req.ip });
+    fail('RATE_LIMITED', `This checkout had ${failedAttempts} failed payment attempts, so we've paused payments for it. Please start a new booking in a few minutes or contact support.`);
+  }
   const quote = rebuildQuoteWithMethod(s, checkout, method);
   const snap = saveSnapshot(s, business.id, quote, checkout.expiresAt);
   const cfg = settings(s.db);
@@ -392,7 +402,7 @@ export function startPayment(s: Svc, checkoutId: Id, method: PaymentMethodCode):
     payoutId: null,
   };
   s.db.insert('payments', payment);
-  const session = provider.createSession(s, {
+  const session = callProvider(s, 'create_session', { method, businessId: business.id }, () => provider.createSession(s, {
     externalId: paymentId,
     amount: quote.total,
     method,
@@ -402,7 +412,7 @@ export function startPayment(s: Svc, checkoutId: Id, method: PaymentMethodCode):
     description: checkout.kind === 'court_booking' ? 'Court booking' : checkout.kind === 'event_registration' ? 'Event registration' : checkout.kind === 'open_play_registration' ? 'Open Play registration' : 'Venue order',
     expiresAt,
     idempotencyKey: payment.idempotencyKey,
-  });
+  }));
   s.db.update('payments', paymentId, (p) => {
     p.providerSessionId = session.id;
     transition(PAYMENT_TRANSITIONS, p, 'pending', s.now, 'system', 'Payment session created', 'payment');
@@ -649,11 +659,12 @@ function fulfillOrder(s: Svc, checkout: Checkout, payment: Payment): void {
 }
 
 /** Payment failed/cancelled at the provider: the hold stays so the player can retry within the hold time. */
-export function onPaymentAttemptFailed(s: Svc, paymentId: Id, reason: string): void {
+export function onPaymentAttemptFailed(s: Svc, paymentId: Id, reason: string, code: string | null = null): void {
   const payment = s.db.must('payments', paymentId);
   if (payment.status !== 'pending' && payment.status !== 'created') return;
   s.db.update('payments', payment.id, (p) => {
     p.failureReason = reason;
+    p.failureCode = code;
     transition(PAYMENT_TRANSITIONS, p, 'failed', s.now, 'provider', reason, 'payment');
   });
   const checkout = s.db.must('checkouts', payment.checkoutId);
@@ -672,7 +683,8 @@ export function onPaymentAttemptFailed(s: Svc, paymentId: Id, reason: string): v
       if (r?.status === 'pending_payment') s.db.update('opRegistrations', r.id, (x) => transition(OP_REG_TRANSITIONS, x, 'held', s.now, 'provider', 'Payment failed', 'Open Play registration'));
     }
   }
-  notify(s, payment.userId, 'payment_updates', { title: 'Payment was not completed', body: `${provider.METHOD_LABEL[payment.method]}: ${reason}. Your hold is kept until it expires — you can try again.`, link: '#/app/bookings' });
+  const info = paymentFailure(code);
+  notify(s, payment.userId, 'payment_updates', { title: `Payment not completed · ${info.title}`, body: `${provider.METHOD_LABEL[payment.method]}: ${info.message} ${info.nextStep}`, link: `#/app/checkout/${payment.checkoutId}` });
 }
 
 export function bookingSummary(db: Db, booking: Booking): string {

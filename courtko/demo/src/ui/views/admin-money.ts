@@ -11,6 +11,12 @@ import { icon } from '../icons.ts';
 import { download } from './booking.ts';
 import { adminRoute } from './admin.ts';
 import { methodLogo } from './shared.ts';
+import { exceptionsView } from './exceptions.ts';
+
+adminRoute('/admin/payment-exceptions', 'Payment exceptions', () => {
+  const d = app.api.read('GET /v1/admin/payment-exceptions');
+  return html`${pageHeader('Payment exceptions', { subtitle: 'Everything in the money flow that needs a person: failed refunds and payouts, stuck or mismatched payments, chargebacks and provider incidents.' })}${exceptionsView(d, 'platform')}`;
+});
 
 adminRoute('/admin/transactions', 'Transactions', () => {
   const tab = app.state<string>('txTab', 'payments');

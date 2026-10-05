@@ -108,9 +108,9 @@ test('business Open Play desk renders for owner and receptionist', async () => {
       if (persona === 'owner') assertOk(render(`/biz/open-play/edit/${x.session.id}`), 'edit session');
     }
   }
-  await as('owner');
+  await as('owner2'); // Hoopsville: the multi-sport venue with half courts
   const cal = render('/biz/calendar');
-  assert.ok(cal.includes('The Hall') && cal.includes('cal-partial') === cal.includes('cal-partial'), 'calendar shows physical courts');
+  assert.ok(cal.includes('Gym 1') && cal.includes('Gym 2'), 'calendar shows physical courts');
   const courts = render('/biz/courts');
   assert.ok(courts.includes('Half court A') && courts.includes('Blocks when booked'));
 });

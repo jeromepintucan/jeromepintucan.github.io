@@ -3,21 +3,24 @@
 import { escapeHtml, raw, type SafeHtml } from './html.ts';
 
 export function barChart(data: { label: string; value: number; highlight?: boolean }[], opts: { height?: number; format?: (n: number) => string; title: string; color?: string } = { title: '' }): SafeHtml {
+  // Bars are drawn in a stretchable SVG; axis labels are HTML so text never gets distorted or overlaps.
   const h = opts.height ?? 180;
-  const w = Math.max(280, data.length * 26);
+  const n = Math.max(1, data.length);
+  const w = n * 40;
   const max = Math.max(1, ...data.map((d) => d.value));
-  const bw = (w - 20) / Math.max(1, data.length);
-  const fmt = opts.format ?? ((n: number) => String(n));
+  const fmt = opts.format ?? ((v: number) => String(v));
+  const every = n <= 8 ? 1 : n <= 16 ? 2 : Math.ceil(n / 8);
   const bars = data
     .map((d, i) => {
-      const bh = Math.round(((h - 34) * d.value) / max);
-      const x = 10 + i * bw + bw * 0.15;
-      const y = h - 20 - bh;
-      const showLabel = data.length <= 16 || i % Math.ceil(data.length / 12) === 0;
-      return `<g><title>${escapeHtml(`${d.label}: ${fmt(d.value)}`)}</title><rect x="${x.toFixed(1)}" y="${y}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(1, bh)}" rx="3" fill="${d.highlight ? 'var(--ck-color-accent-strong)' : opts.color ?? 'var(--ck-color-primary)'}"/>${showLabel ? `<text x="${(x + bw * 0.35).toFixed(1)}" y="${h - 6}" text-anchor="middle" class="chart-label">${escapeHtml(d.label)}</text>` : ''}</g>`;
+      const bh = Math.round(((h - 26) * d.value) / max);
+      const x = i * 40 + 7;
+      const y = h - 4 - bh;
+      return `<g><title>${escapeHtml(`${d.label}: ${fmt(d.value)}`)}</title><rect x="${x}" y="${y}" width="26" height="${Math.max(1, bh)}" rx="3" fill="${d.highlight ? 'var(--ck-color-accent-strong)' : opts.color ?? 'var(--ck-color-primary)'}"/></g>`;
     })
     .join('');
-  return raw(`<figure class="chart"><svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(opts.title)}"><line x1="10" y1="${h - 20}" x2="${w - 10}" y2="${h - 20}" class="chart-axis"/>${bars}</svg><figcaption class="sr-only">${escapeHtml(opts.title)}: ${data.map((d) => `${d.label} ${fmt(d.value)}`).join(', ')}</figcaption></figure>`);
+  const values = data.map((d) => `<span>${d.value ? escapeHtml(fmt(d.value)) : ''}</span>`).join('');
+  const labels = data.map((d, i) => `<span>${i % every === 0 || i === n - 1 ? escapeHtml(d.label) : ''}</span>`).join('');
+  return raw(`<figure class="chart chart-bars" style="--n:${n}"><div class="chart-values" aria-hidden="true">${values}</div><svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(opts.title)}"><line x1="0" y1="${h - 4}" x2="${w}" y2="${h - 4}" class="chart-axis"/>${bars}</svg><div class="chart-xlabels" aria-hidden="true">${labels}</div><figcaption class="sr-only">${escapeHtml(opts.title)}: ${data.map((d) => `${d.label} ${fmt(d.value)}`).join(', ')}</figcaption></figure>`);
 }
 
 export function lineChart(series: { label: string; value: number }[], opts: { height?: number; title: string; format?: (n: number) => string }): SafeHtml {

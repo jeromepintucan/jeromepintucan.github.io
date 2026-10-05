@@ -216,7 +216,7 @@ describe('critical scenarios', () => {
     const today = localDate(h.store.now());
     const v = bgc();
     const cal = receptionist.api.read('GET /v1/businesses/{businessId}/calendar', { businessId: v.businessId, venueId: v.id, date: today });
-    assert.equal(cal.courts.length, 10); // 6 pickleball courts + 4 layouts of The Hall (full, two halves, volleyball)
+    assert.equal(cal.courts.length, 6);
     const kitchen = h.store.read((db) => db.find('businesses', (b) => b.tradeName === 'Kitchen Line Pickleball Club')!);
     await expectCode(() => receptionist.api.read('GET /v1/businesses/{businessId}/bookings', { businessId: kitchen.id }), 'NOT_FOUND');
     const alabang = h.store.read((db) => db.find('venues', (x) => x.slug === 'dink-district-alabang')!);

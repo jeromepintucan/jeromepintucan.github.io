@@ -350,7 +350,7 @@ The production 20-step plan (doc 19) gains matching work in steps for schema (un
 
 ---
 
-## 13. Implementation status (interactive demo, build `courtko-demo-2026.10.06-multisport`)
+## 13. Implementation status (interactive demo, build `courtko-demo-2026.10.06-gateway`)
 
 | Area | Demo implementation | Key files | Tests |
 |---|---|---|---|
@@ -367,7 +367,9 @@ The production 20-step plan (doc 19) gains matching work in steps for schema (un
 | Social profiles (§7, CR-D11/D12) | Usernames, search, suggestions, public-profile projection, follow with optional approval, followers/following lists, block (both directions, looks like "not found", doesn't touch bookings), report → moderation, privacy controls. Data export includes the social graph. Account deletion clears the username and ends follows | `services/social.ts`, `ui/views/social.ts`, `services/profile.ts`, `services/reviews.ts` | social suite |
 | My Sports dashboard (PLY-01 addition) | Per-sport sessions, hours, games, W–L, venues, upcoming games, self-declared level, pin/hide, interested sports. Visibility respected on the public profile | `services/social.ts` › `mySportsDashboard` | My Sports test |
 | Permissions (§6) | `openplay.view/manage/check_in/run/attendance.correct` (correct = MFA), `platform.sports.manage`. Role templates updated | `domain/rbac.ts` | desk & reversal tests |
-| Demo-only helpers | `GET /demo/open-play/{id}/sample-pass` and `POST /demo/open-play/live`, so presenters can show scans and a live desk at any time. **Not part of the production API** | `services/openplay.ts` | — |
+| Live status (player) | Always on from publication, not only during the session: phase (check-in opens / open / in progress / ended) with countdowns, how many registered players are already here, arrivals in the last 15 min, waiting / playing / not-here counts, per-court occupancy, and the viewer's own place in line with an estimated wait. Aggregates only, auto-refreshing (SSE in production) | `services/openplay.ts` (`playerLive`), `ui/views/openplay.ts` (`livePanel`) | live-status tests |
+| Publishing against a real calendar | A pre-publish court check lists every conflicting booking, hold, block, event, Open Play session and changeover gap per court, including dependent layouts. It suggests a set of free courts of the same sport and layout. Publish can switch to them, or cancel the conflicting bookings with full refunds (`bookings.cancel`, audited). Blocks and events are never cancelled from here. Draft editors mark each court "free" or "in use" | `services/openplay.ts` (`openPlayCourtCheck`, `publishOpenPlay`), `ui/views/business-openplay.ts` | publish-conflict test |
+| Demo-only helpers | `GET /demo/open-play/{id}/sample-pass`, `POST /demo/open-play/live` and `POST /demo/open-play/arrivals`, so presenters can show scans and a live desk at any time. **Not part of the production API** | `services/openplay.ts` | — |
 
 **Defaults used for open questions:**
 

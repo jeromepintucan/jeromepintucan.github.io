@@ -17,6 +17,7 @@ import * as catalog from './catalog.ts';
 import * as disputes from './disputes.ts';
 import * as events from './events.ts';
 import * as openplay from './openplay.ts';
+import * as exceptions from './exceptions.ts';
 import * as social from './social.ts';
 import * as sportsAdmin from './sportsAdmin.ts';
 import * as payments from './payments.ts';
@@ -93,6 +94,7 @@ const READ = {
   'GET /v1/businesses/{businessId}/promotions': (s: Svc, i: { businessId: string }) => pricing.listPromotions(s, i),
   'GET /v1/businesses/{businessId}/events': (s: Svc, i: { businessId: string }) => events.businessEvents(s, i),
   'GET /v1/businesses/{businessId}/open-play': (s: Svc, i: { businessId: string; venueId?: string }) => openplay.businessOpenPlay(s, i),
+  'GET /v1/businesses/{businessId}/open-play/{sessionId}/court-check': (s: Svc, i: { businessId: string; sessionId: string; courtIds?: string[] }) => openplay.openPlayCourtCheck(s, i),
   'GET /v1/businesses/{businessId}/open-play/{sessionId}/desk': (s: Svc, i: { businessId: string; sessionId: string }) => openplay.openPlayDesk(s, i),
   'GET /v1/businesses/{businessId}/open-play/{sessionId}/search': (s: Svc, i: { businessId: string; sessionId: string; q: string }) => openplay.openPlaySearch(s, i),
   'GET /v1/businesses/{businessId}/open-play/{sessionId}/rotation-suggestion': (s: Svc, i: { businessId: string; sessionId: string; courtId: string }) => openplay.rotationSuggestion(s, i),
@@ -122,6 +124,9 @@ const READ = {
   'GET /v1/admin/ledger/journals': (s: Svc, i: Parameters<typeof admin.adminJournals>[1]) => admin.adminJournals(s, i),
   'GET /v1/admin/ledger/totals': (s: Svc) => admin.ledgerTotals(s),
   'GET /v1/admin/reconciliation': (s: Svc) => payments.reconciliationReport(s),
+  'GET /v1/admin/payment-exceptions': (s: Svc) => exceptions.paymentExceptions(s, {}),
+  'GET /v1/businesses/{businessId}/payment-exceptions': (s: Svc, i: { businessId: string }) => exceptions.paymentExceptions(s, i),
+  'GET /v1/public/payment-status': (s: Svc) => exceptions.publicPaymentStatus(s),
   'GET /v1/admin/refunds': (s: Svc) => admin.adminRefunds(s),
   'GET /v1/admin/payouts': (s: Svc, i: { status?: string; limit?: number; cursor?: string }) => payouts.allPayouts(s, i),
   'GET /v1/admin/disputes': (s: Svc) => disputes.listDisputes(s),
@@ -151,6 +156,7 @@ const WRITE = {
   'POST /v1/auth/password-reset/confirm': (s: Svc, i: { verificationId: string; code: string; newPassword: string }) => auth.resetPassword(s, i),
   'POST /demo/sign-in': (s: Svc, i: { persona: string }) => auth.demoSignIn(s, i),
   'POST /demo/open-play/live': (s: Svc) => openplay.demoStartLiveOpenPlay(s),
+  'POST /demo/open-play/arrivals': (s: Svc, i: { sessionId?: string }) => openplay.demoSimulateArrivals(s, i ?? {}),
   'PATCH /v1/me/profile': (s: Svc, i: Parameters<typeof profile.updateProfile>[1]) => profile.updateProfile(s, i),
   'PUT /v1/me/preferences/notifications': (s: Svc, i: Parameters<typeof profile.updateNotificationPrefs>[1]) => profile.updateNotificationPrefs(s, i),
   'PUT /v1/me/preferences/location': (s: Svc, i: { consent: 'granted' | 'denied' }) => profile.setLocationConsent(s, i),
@@ -215,7 +221,7 @@ const WRITE = {
   'PUT /v1/businesses/{businessId}/venues/{venueId}/physical-courts': (s: Svc, i: Parameters<typeof venues.savePhysicalCourt>[1]) => venues.savePhysicalCourt(s, i),
   'PUT /v1/businesses/{businessId}/venues/{venueId}/sports': (s: Svc, i: Parameters<typeof venues.updateVenueSports>[1]) => venues.updateVenueSports(s, i),
   'PUT /v1/businesses/{businessId}/open-play': (s: Svc, i: openplay.SaveOpenPlayInput) => openplay.saveOpenPlay(s, i),
-  'POST /v1/businesses/{businessId}/open-play/{sessionId}/publish': (s: Svc, i: { businessId: string; sessionId: string }) => openplay.publishOpenPlay(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/publish': (s: Svc, i: Parameters<typeof openplay.publishOpenPlay>[1]) => openplay.publishOpenPlay(s, i),
   'POST /v1/businesses/{businessId}/open-play/{sessionId}/duplicate': (s: Svc, i: { businessId: string; sessionId: string; days?: number }) => openplay.duplicateOpenPlay(s, i),
   'POST /v1/businesses/{businessId}/open-play/{sessionId}/cancellation': (s: Svc, i: { businessId: string; sessionId: string; reason: string }) => openplay.cancelOpenPlay(s, i),
   'POST /v1/businesses/{businessId}/open-play/{sessionId}/check-ins': (s: Svc, i: Parameters<typeof openplay.openPlayCheckIn>[1]) => openplay.openPlayCheckIn(s, i),
@@ -274,6 +280,11 @@ const WRITE = {
   'POST /v1/admin/refunds/{refundId}/retry': (s: Svc, i: { refundId: string }) => refunds.retryRefund(s, i),
   'POST /v1/admin/payouts/{payoutId}/retry': (s: Svc, i: { payoutId: string }) => payouts.retryPayout(s, i),
   'POST /v1/admin/reconciliation/runs': (s: Svc) => payments.runReconciliation(s),
+  'POST /v1/admin/payment-exceptions/acknowledgements': (s: Svc, i: { key: string; note: string }) => exceptions.acknowledgeException(s, i),
+  'POST /v1/businesses/{businessId}/payment-exceptions/acknowledgements': (s: Svc, i: { businessId: string; key: string; note: string }) => exceptions.acknowledgeException(s, i),
+  'POST /v1/admin/payments/{paymentId}/review-resolution': (s: Svc, i: { paymentId: string; note: string }) => payments.resolveAmountMismatch(s, i),
+  'POST /v1/admin/refunds/{refundId}/manual-completion': (s: Svc, i: { refundId: string; reference: string; note?: string }) => refunds.recordManualRefund(s, i),
+  'POST /v1/businesses/{businessId}/refunds/{refundId}/manual-completion': (s: Svc, i: { businessId: string; refundId: string; reference: string; note?: string }) => refunds.recordManualRefund(s, i),
   'POST /v1/admin/reconciliation/payments/{paymentId}/heal': (s: Svc, i: { paymentId: string }) => payments.healPayment(s, i),
   'POST /v1/admin/disputes/{disputeId}/evidence': (s: Svc, i: { disputeId: string; note: string }) => disputes.submitEvidence(s, i),
   'POST /demo/disputes/{disputeId}/outcome': (s: Svc, i: { disputeId: string; outcome: 'WON' | 'LOST' }) => disputes.simulateDisputeOutcome(s, i),
@@ -354,6 +365,9 @@ export class ApiError extends Error {
   }
   get fields() {
     return this.problem.errors ?? [];
+  }
+  get details(): Record<string, unknown> {
+    return this.problem.details ?? {};
   }
 }
 

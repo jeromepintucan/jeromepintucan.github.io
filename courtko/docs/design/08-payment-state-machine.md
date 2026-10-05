@@ -310,6 +310,23 @@ reversing journals). Every auto-heal writes `reconciliation_exceptions.auto_heal
 | Refunds and payouts | Queued (`approved` / `scheduled`); `refunds.sync` and `payouts.sync` resume automatically; customers see "processing" |
 | Alerting | Breaker open > 5 min: P1 page. Webhook 4xx/5xx spike: P2. Reconcile lag > 30 min: P2 (doc 22) |
 
+### 8.1 Addendum (2026-10-06): failure catalog, retries and the exceptions center
+
+The interactive demo implements this section end to end (`domain/paymentFailures.ts`, `services/gateway.ts`, `services/exceptions.ts`; tests in `demo/tests/gateway.test.ts`).
+
+| Concern | Behaviour |
+|---|---|
+| Decline codes | Each provider failure code maps to a player title, a plain explanation ("you were not charged"), a next step (same method, another method, try later, contact your bank) and a staff note. Risk/fraud declines are shown to the player as a plain bank decline. Unknown codes fall back to a generic message and are flagged for the catalog |
+| Transient errors | Every provider call goes through `callProvider`: up to 3 attempts with backoff (250 ms, 500 ms, 1 s + jitter in production) and the **same idempotency key**. A timeout after the provider created the session returns that session on retry, so there is never a second session or charge |
+| Channel outage | One channel down (for example GCash) fails fast with `PAYMENT_METHOD_UNAVAILABLE`. The checkout greys out that method and shows a banner; other methods keep working |
+| Full outage | `PROVIDER_UNAVAILABLE` after the retry budget. No payment row is left behind and the hold is kept. Payouts are skipped for that run, and refunds stay queued and resubmit automatically |
+| Incidents | Every failed or recovered provider call is recorded, including when the request itself fails (written after the rollback). This feeds the public payment-status endpoint and the exceptions center |
+| Attempt limit | After 5 failed attempts on one checkout, payments are paused for it (card-testing guard) and a security event is raised |
+| Amount mismatch | Never fulfilled. The payment is put on review and the webhook is acknowledged (no retry storm). The player is told it is being checked. Platform finance refunds the provider payment in full (MFA, audited) |
+| Refund failures | Each code has a resolution: retry, automatic retry after settlement (insufficient balance), or the **bank-transfer route** for channels without API refunds. Staff record the transfer reference and the ledger posts the refund as usual. *Production:* post manual refunds to a "manual refunds payable" account that is reconciled against the platform bank statement |
+| Payout failures | Bank account not found, account name mismatch, bank temporarily unavailable. Funds are reversed to the venue balance until a successful retry |
+| Exceptions center | One queue per business (Payments → Payment issues) and for the platform (SuperAdmin → Payment exceptions). Covers stuck pending payments, late captures, duplicates, amount mismatches, failed refunds and payouts, open chargebacks, risk declines and provider incidents, plus failure-reason analytics and channel status. Acknowledgements are stored separately and never edit financial records. Nobody can mark a payment as paid by hand |
+
 ## 9. Refunds, disputes and chargebacks: status interplay
 
 | Event | `refunds.status` | `payments.status` | `bookings.status` | `disputes.status` |

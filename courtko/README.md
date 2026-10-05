@@ -4,7 +4,7 @@ CourtKo is a multi-tenant marketplace for **pickleball, basketball, volleyball a
 
 1. **`CourtKo-Demo.html`**: an interactive demo you can show to clients. It works end to end in one file and covers:
    - the public site and player app, with a sport picker, full and half courts, Open Play, social profiles and a My Sports dashboard;
-   - checkout with a sandbox payment provider;
+   - checkout with a sandbox payment provider, including declines, provider outages, retries and a payment exceptions center;
    - the business portal: courts & layouts, a calendar, the Open Play live desk, and staff roles;
    - the SuperAdmin console, including the sports catalog.
 
@@ -24,7 +24,7 @@ Requires Node.js 22.13 or newer. There are no dependencies to install.
 ```bash
 cd demo
 node scripts/build.mjs      # rebuilds dist/index.html and ../CourtKo-Demo.html
-npm test                    # 75 tests: domain, flows, multi-sport/Open Play/social, UI smoke tests
+npm test                    # 88 tests: domain, flows, multi-sport/Open Play/social, payment gateway, UI smoke tests and a full UI crawl
 ```
 
 `demo/src` is organised in three layers:
@@ -37,7 +37,8 @@ npm test                    # 75 tests: domain, flows, multi-sport/Open Play/soc
 
 | Real in the demo (same rules as production) | Simulated in the demo |
 |---|---|
-| Integer-centavo money, commission, fee gross-up, VAT, refunds from the original price snapshot | The payment provider (a Xendit-style sandbox with webhooks, split payments, refunds and payouts) |
+| Integer-centavo money, commission, fee gross-up, VAT, refunds from the original price snapshot | The payment provider (a Xendit-style sandbox with webhooks, split payments, refunds, payouts and switchable faults) |
+| Provider retries with idempotency keys, decline-code guidance, channel-outage handling, amount-mismatch review, refund/payout failure routes, exceptions center | Provider status (driven by the demo fault switches) |
 | Double-booking prevention per **space unit**: a full court blocks its halves, and a shared floor hosts one sport at a time with a changeover gap | The database (an in-browser store that enforces the same constraints) |
 | Signed, time-limited Open Play check-in passes; an append-only attendance log; rejected scans recorded | Camera QR scanning (staff paste a pass, or load a demo sample pass) |
 | Permission checks on every call, tenant isolation, MFA (TOTP), password hashing (PBKDF2) | Email, SMS and push (shown in an in-app outbox) |
