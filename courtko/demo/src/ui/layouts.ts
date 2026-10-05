@@ -26,6 +26,7 @@ function userChip(me: Me): SafeHtml {
 
 const PUBLIC_LINKS: [string, string][] = [
   ['#/courts', 'Find a court'],
+  ['#/open-play', 'Open Play'],
   ['#/events', 'Events'],
   ['#/how-it-works', 'How it works'],
   ['#/for-business', 'For venue owners'],
@@ -35,8 +36,8 @@ const PUBLIC_LINKS: [string, string][] = [
 
 export function publicFooter(): SafeHtml {
   return html`<footer class="pub-footer"><div class="container"><div class="footer-grid">
-    <div>${brand()}<p class="small" style="margin-top:10px">Book pickleball courts across the Philippines. Transparent prices, digital payments, instant confirmation.</p></div>
-    <div><h4>Players</h4><ul><li><a href="#/courts">Find a court</a></li><li><a href="#/events">Events & open play</a></li><li><a href="#/how-it-works">How it works</a></li><li><a href="#/help">Help center</a></li></ul></div>
+    <div>${brand()}<p class="small" style="margin-top:10px">Book pickleball, basketball, volleyball and tennis courts — and join Open Play — across the Philippines. Transparent prices, digital payments, instant confirmation.</p></div>
+    <div><h4>Players</h4><ul><li><a href="#/courts">Find a court</a></li><li><a href="#/open-play">Open Play</a></li><li><a href="#/events">Events</a></li><li><a href="#/how-it-works">How it works</a></li><li><a href="#/help">Help center</a></li></ul></div>
     <div><h4>Venues</h4><ul><li><a href="#/for-business">List your venue</a></li><li><a href="#/pricing">Commission & fees</a></li><li><a href="#/biz/onboarding">Register a business</a></li></ul></div>
     <div><h4>Company</h4><ul><li><a href="#/terms">Terms of Service</a></li><li><a href="#/privacy">Privacy Notice</a></li><li><a href="#/contact">Contact & support</a></li></ul></div>
   </div><p class="disclaimer">Interactive demo — all venues, people and transactions are fictional (synthetic data). Payments use a sandbox provider standing in for Xendit; no real money moves. Prices shown in Philippine pesos (₱); times in Manila time (UTC+08:00).</p></div></footer>`;
@@ -94,8 +95,10 @@ layout('player', (ctx, content) => {
   const items: NavItem[] = [
     { href: '#/app', label: 'Home', icon: 'home', match: '#/app/__' },
     { href: '#/app/discover', label: 'Discover', icon: 'search' },
+    { href: '#/app/open-play', label: 'Open Play', icon: 'users' },
     { href: '#/app/bookings', label: 'Bookings', icon: 'calendar' },
     { href: '#/app/events', label: 'Events', icon: 'trophy' },
+    { href: '#/app/players', label: 'Players', icon: 'userPlus', match: '#/app/players' },
     { href: '#/app/orders', label: 'Orders', icon: 'bag' },
     { href: '#/app/activity', label: 'Activity', icon: 'activity' },
     { href: '#/app/favorites', label: 'Favorites', icon: 'heart' },
@@ -105,7 +108,7 @@ layout('player', (ctx, content) => {
     { href: '#/app/settings', label: 'Settings', icon: 'settings' },
   ];
   const cur = `#${ctx.path}`;
-  const bottom: [string, string, string][] = [['#/app', 'Home', 'home'], ['#/app/discover', 'Discover', 'search'], ['#/app/bookings', 'Bookings', 'calendar'], ['#/app/events', 'Events', 'trophy'], ['#/app/profile', 'Me', 'user']];
+  const bottom: [string, string, string][] = [['#/app', 'Home', 'home'], ['#/app/discover', 'Discover', 'search'], ['#/app/open-play', 'Open Play', 'users'], ['#/app/bookings', 'Bookings', 'calendar'], ['#/app/profile', 'Me', 'user']];
   const biz = me?.memberships.length ? html`<a class="btn btn-ghost btn-sm" href="#/biz">${icon('building', 16)}<span>Business portal</span></a>` : '';
   const adminLink = me?.user.platformRole ? html`<a class="btn btn-ghost btn-sm" href="#/admin">${icon('shield', 16)}<span>Control center</span></a>` : '';
   return shell({
@@ -115,7 +118,7 @@ layout('player', (ctx, content) => {
     foot: html`<a href="#/courts">${icon('external', 14)} Public site</a>`,
     content,
     topbar: html`<div class="topbar-right">${biz}${adminLink}<a class="icon-btn" href="#/app/notifications" aria-label="Notifications (${unread} unread)">${icon('bell', 20)}${unread ? html`<span class="badge-dot" style="position:absolute;margin:-18px 0 0 16px">${unread}</span>` : ''}</a>${userChip(me)}</div>`,
-    bottom: html`<nav class="bottom-nav" aria-label="App">${bottom.map(([href, label, ic]) => html`<a href="${href}" class="${cur === href || (href !== '#/app' && cur.startsWith(href)) || (href === '#/app/profile' && ['#/app/settings', '#/app/payments', '#/app/activity', '#/app/favorites', '#/app/orders', '#/app/notifications'].some((p) => cur.startsWith(p))) ? 'active' : ''}">${icon(ic, 22)}<span>${label}</span></a>`)}</nav>`,
+    bottom: html`<nav class="bottom-nav" aria-label="App">${bottom.map(([href, label, ic]) => html`<a href="${href}" class="${cur === href || (href !== '#/app' && cur.startsWith(href)) || (href === '#/app/profile' && ['#/app/settings', '#/app/payments', '#/app/activity', '#/app/favorites', '#/app/orders', '#/app/notifications', '#/app/players', '#/app/follow-requests', '#/app/invites'].some((p) => cur.startsWith(p))) ? 'active' : ''}">${icon(ic, 22)}<span>${label}</span></a>`)}</nav>`,
   });
 });
 
@@ -169,9 +172,10 @@ layout('business', (ctx, content) => {
   const items: NavItem[] = [
     { href: '#/biz', label: 'Overview', icon: 'home', match: '#/biz/__' },
     ...(p('bookings.view') ? [{ href: '#/biz/calendar', label: 'Calendar', icon: 'calendar', group: 'Operations' }, { href: '#/biz/bookings', label: 'Bookings', icon: 'ticket' }] : []),
+    ...(p('openplay.view') ? [{ href: '#/biz/open-play', label: 'Open Play', icon: 'users', ...(p('bookings.view') ? {} : { group: 'Operations' }) }] : []),
     ...(p('bookings.create_walkin') ? [{ href: '#/biz/walk-in', label: 'Walk-in booking', icon: 'plus' }] : []),
     ...(p('orders.fulfill') ? [{ href: '#/biz/orders', label: 'Orders & pickup', icon: 'bag' }] : []),
-    ...(p('courts.manage') || p('courts.block') || p('venues.manage') ? [{ href: '#/biz/courts', label: 'Courts', icon: 'court', group: 'Setup' }] : []),
+    ...(p('courts.manage') || p('courts.block') || p('venues.manage') ? [{ href: '#/biz/courts', label: 'Courts & layouts', icon: 'court', group: 'Setup' }] : []),
     ...(p('venues.manage') || p('business.settings.manage') ? [{ href: '#/biz/venues', label: 'Venue settings', icon: 'building' }] : []),
     ...(p('pricing.manage') || p('promotions.manage') ? [{ href: '#/biz/pricing', label: 'Pricing', icon: 'tag' }] : []),
     ...(p('events.manage') || p('events.check_in') ? [{ href: '#/biz/events', label: 'Events', icon: 'trophy' }] : []),
@@ -223,7 +227,7 @@ layout('admin', (ctx, content) => {
     { href: '#/admin', label: 'Platform overview', icon: 'home', match: '#/admin/__' },
     ...(can('platform.businesses.view') ? [{ href: '#/admin/businesses', label: 'Businesses', icon: 'building', group: 'Marketplace' }, { href: '#/admin/venues', label: 'Venues', icon: 'court' }] : []),
     ...(can('platform.users.view') ? [{ href: '#/admin/users', label: 'Users', icon: 'users' }] : []),
-    ...(can('platform.bookings.view') ? [{ href: '#/admin/bookings', label: 'Bookings', icon: 'ticket' }, { href: '#/admin/events', label: 'Events', icon: 'trophy' }, { href: '#/admin/products', label: 'Products', icon: 'box' }] : []),
+    ...(can('platform.bookings.view') ? [{ href: '#/admin/bookings', label: 'Bookings', icon: 'ticket' }, { href: '#/admin/open-play', label: 'Open Play', icon: 'users' }, { href: '#/admin/events', label: 'Events', icon: 'trophy' }, { href: '#/admin/products', label: 'Products', icon: 'box' }] : []),
     ...(can('platform.transactions.view') ? [{ href: '#/admin/transactions', label: 'Transactions', icon: 'receipt', group: 'Money' }] : []),
     ...(can('platform.commissions.manage') ? [{ href: '#/admin/commissions', label: 'Commissions', icon: 'percent' }] : []),
     ...(can('platform.transactions.view') ? [{ href: '#/admin/payouts', label: 'Payouts', icon: 'wallet' }, { href: '#/admin/refunds', label: 'Refunds', icon: 'refresh' }] : []),
@@ -233,7 +237,8 @@ layout('admin', (ctx, content) => {
     ...(can('platform.support.impersonate') ? [{ href: '#/admin/support', label: 'Support', icon: 'headset' }] : []),
     ...(can('platform.security.view') ? [{ href: '#/admin/security', label: 'Security', icon: 'shield' }] : []),
     ...(can('platform.audit.view') ? [{ href: '#/admin/audit', label: 'Audit logs', icon: 'history' }] : []),
-    ...(can('platform.config.manage') ? [{ href: '#/admin/config', label: 'Platform config', icon: 'settings', group: 'System' }] : []),
+    ...(can('platform.sports.manage') ? [{ href: '#/admin/sports', label: 'Sports catalog', icon: 'layers', group: 'System' }] : []),
+    ...(can('platform.config.manage') ? [{ href: '#/admin/config', label: 'Platform config', icon: 'settings', ...(can('platform.sports.manage') ? {} : { group: 'System' }) }] : []),
   ];
   return shell({
     ctx,

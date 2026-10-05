@@ -12,8 +12,10 @@ import { VENUE_TRANSITIONS, transition } from '../domain/state.ts';
 import { formatDateShort, formatTimeRange, isLocalDate, localDate, localParts, MINUTE } from '../domain/time.ts';
 import { optionalText, requireInt, requireText } from '../domain/validation.ts';
 import type { BookingSettings, WeeklyHours } from '../domain/availability.ts';
-import { cancelCheckout, insertSlot, releaseSlot } from './checkout.ts';
-import type { Court, CourtBlock, Id, Venue } from './model.ts';
+import { cancelCheckout, insertSlot, releaseSlot, unitsOfCourt } from './checkout.ts';
+import { defaultLayouts, dependencyMap, layoutName, layoutRow } from './courts.ts';
+import { slotUnits, unitsIntersect } from './store.ts';
+import type { Court, CourtBlock, Id, PhysicalCourt, Venue } from './model.ts';
 import { venueCancelBooking } from './booking.ts';
 import { audit, notify, requireBusiness, settings, type Svc } from './svc.ts';
 
@@ -28,7 +30,14 @@ export function listBusinessVenues(s: Svc, input: { businessId: Id }) {
   return s.db
     .filter('venues', (v) => v.businessId === input.businessId && (!acc.member.venueIds || acc.member.venueIds.includes(v.id)))
     .sort((a, b) => a.createdAt - b.createdAt)
-    .map((v) => ({ venue: v, courts: s.db.filter('courts', (c) => c.venueId === v.id).sort((a, b) => a.sortOrder - b.sortOrder), specialHours: s.db.filter('specialHours', (x) => x.venueId === v.id).sort((a, b) => a.date.localeCompare(b.date)) }));
+    .map((v) => {
+      const courts = s.db.filter('courts', (c) => c.venueId === v.id).sort((a, b) => a.sortOrder - b.sortOrder);
+      const physical = s.db
+        .filter('physicalCourts', (p) => p.venueId === v.id)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((p) => ({ court: p, layouts: courts.filter((c) => c.physicalCourtId === p.id) }));
+      return { venue: v, courts, physical, dependencies: dependencyMap(courts.filter((c) => c.status === 'active')), specialHours: s.db.filter('specialHours', (x) => x.venueId === v.id).sort((a, b) => a.date.localeCompare(b.date)) };
+    });
 }
 
 export function createVenue(s: Svc, input: { businessId: Id; name: string; city: string; barangay: string; line1: string; province: string; lat: number; lng: number }) {
@@ -60,6 +69,7 @@ export function createVenue(s: Svc, input: { businessId: Id; name: string; city:
     parking: '',
     accessibility: '',
     rules: ['Non-marking court shoes only.', 'Please arrive 10 minutes early for check-in.'],
+    sports: ['pickleball'],
     status: 'draft',
     history: [],
     hours: { days: Array.from({ length: 7 }, () => ({ open: 6 * 60, close: 22 * 60 })) },
@@ -196,27 +206,130 @@ export function publishVenue(s: Svc, input: { businessId: Id; venueId: Id; publi
   return s.db.must('venues', v.id);
 }
 
-export function upsertCourt(s: Svc, input: { businessId: Id; venueId: Id; courtId?: Id; name: string; format: Court['format']; environment: Court['environment']; surface: string; status?: Court['status']; customTags?: string[] }) {
+const SURFACES = ['Cushioned acrylic (indoor)', 'Acrylic hard court', 'Sprung hardwood', 'Synthetic sports tile', 'Clay', 'Sand'];
+
+function activeSports(s: Svc): string[] {
+  return s.db.filter('sports', (x) => x.status === 'active').map((x) => x.code);
+}
+
+/** Venue sports (doc 24 VEN-01): subset of active catalog sports, at least one. */
+export function updateVenueSports(s: Svc, input: { businessId: Id; venueId: Id; sports: string[]; changeoverMinutes?: number }) {
+  requireBusiness(s, input.businessId, 'venues.manage', { venueId: input.venueId, write: true });
+  const v = ownVenue(s, input.businessId, input.venueId);
+  const allowed = new Set(activeSports(s));
+  const sports = [...new Set(input.sports)].filter((x) => allowed.has(x));
+  if (!sports.length) invalid([{ field: 'sports', message: 'Offer at least one sport.' }]);
+  if (input.sports.some((x) => !allowed.has(x))) fail('SPORT_NOT_SUPPORTED', 'Only sports enabled by CourtKo can be offered.');
+  const before = v.sports;
+  s.db.update('venues', v.id, (x) => {
+    x.sports = sports;
+    if (input.changeoverMinutes !== undefined) x.settings = { ...x.settings, changeoverMinutes: Math.max(0, Math.min(60, Math.round(input.changeoverMinutes))) };
+  });
+  audit(s, { action: 'venue.sports_changed', targetType: 'venue', targetId: v.id, businessId: v.businessId, summary: `Sports offered: ${sports.join(', ')}`, before, after: sports });
+  return s.db.must('venues', v.id);
+}
+
+function futureSlotsOn(s: Svc, physicalCourtId: Id): number {
+  const layouts = s.db.filter('courts', (c) => c.physicalCourtId === physicalCourtId).map((c) => c.id);
+  return s.db.count('slots', (x) => layouts.includes(x.courtId) && x.status === 'active' && x.occupiedEndMs > s.now && !(x.kind === 'hold' && x.expiresAt !== null && x.expiresAt <= s.now));
+}
+
+/**
+ * Create or update a physical court and keep its bookable layouts in sync. Layouts that disappear are
+ * deactivated (never deleted); space units can't be re-cut while future bookings exist, so the
+ * no-overlap guarantee always compares like with like.
+ */
+export function savePhysicalCourt(
+  s: Svc,
+  input: { businessId: Id; venueId: Id; physicalCourtId?: Id; name: string; sports: string[]; environment: PhysicalCourt['environment']; surface: string; split: boolean; capacity?: number; amenities?: string[]; equipment?: string[]; accessibility?: string; changeoverMinutes?: number; status?: PhysicalCourt['status']; notes?: string; maintenance?: PhysicalCourt['maintenance'] },
+) {
   requireBusiness(s, input.businessId, 'courts.manage', { venueId: input.venueId, write: true });
   const v = ownVenue(s, input.businessId, input.venueId);
   const errors: FieldError[] = [];
   const name = requireText(errors, 'name', input.name, 'Court name', { max: 40 });
-  if (!['full', 'half'].includes(input.format)) errors.push({ field: 'format', message: 'Choose full or half court.' });
+  const venueSports = v.sports?.length ? v.sports : ['pickleball'];
+  const sports = [...new Set(input.sports)];
+  if (!sports.length) errors.push({ field: 'sports', message: 'Choose at least one sport for this court.' });
+  for (const sp of sports) if (!venueSports.includes(sp)) errors.push({ field: 'sports', message: `Add ${sp} to the venue's sports first (Venue settings → Sports).` });
   if (!['indoor', 'outdoor', 'covered'].includes(input.environment)) errors.push({ field: 'environment', message: 'Choose indoor, outdoor or covered.' });
+  if (input.split && !sports.some((x) => x === 'basketball' || x === 'tennis')) errors.push({ field: 'split', message: 'Only basketball courts (halves) and tennis courts (pickleball overlays) can be split.' });
   if (errors.length) invalid(errors);
+  const unitNames = input.split ? ['A', 'B'] : ['main'];
+  const existing = input.physicalCourtId ? s.db.get('physicalCourts', input.physicalCourtId) : undefined;
+  if (input.physicalCourtId && (!existing || existing.venueId !== v.id)) fail('NOT_FOUND', 'Court not found.');
+  if (existing && existing.unitNames.join() !== unitNames.join() && futureSlotsOn(s, existing.id)) fail('CONFLICT', 'This court has upcoming bookings, blocks or sessions. Move or cancel them before splitting or merging the court.');
+  const base = {
+    name,
+    sports,
+    environment: input.environment,
+    surface: (input.surface || '').trim() || SURFACES[1]!,
+    capacity: Math.max(1, Math.min(60, Math.round(input.capacity ?? existing?.capacity ?? 12))),
+    amenities: (input.amenities ?? existing?.amenities ?? []).slice(0, 12),
+    equipment: (input.equipment ?? existing?.equipment ?? []).map((x) => x.trim()).filter(Boolean).slice(0, 12),
+    accessibility: (input.accessibility ?? existing?.accessibility ?? '').trim().slice(0, 300),
+    unitNames,
+    changeoverMinutes: Math.max(0, Math.min(60, Math.round(input.changeoverMinutes ?? existing?.changeoverMinutes ?? 15))),
+    maintenance: input.maintenance ?? existing?.maintenance ?? [],
+    notes: (input.notes ?? existing?.notes ?? '').slice(0, 300),
+    status: input.status ?? existing?.status ?? 'active',
+  } satisfies Partial<PhysicalCourt>;
+  let pc: PhysicalCourt;
+  if (existing) {
+    s.db.update('physicalCourts', existing.id, (x) => Object.assign(x, base));
+    pc = s.db.must('physicalCourts', existing.id);
+  } else {
+    pc = { id: newId('pcr'), businessId: v.businessId, venueId: v.id, ...base, art: { hue: 150 }, sortOrder: s.db.count('physicalCourts', (x) => x.venueId === v.id) + 1, createdAt: s.now };
+    s.db.insert('physicalCourts', pc);
+  }
+  // Sync layouts
+  const specs = defaultLayouts(pc, s.db.all('sports'));
+  const current = s.db.filter('courts', (c) => c.physicalCourtId === pc.id);
+  const kept = new Set<Id>();
+  let order = s.db.count('courts', (c) => c.venueId === v.id && c.physicalCourtId !== pc.id);
+  specs.forEach((spec) => {
+    const match = current.find((c) => c.sport === spec.sport && c.layout === spec.layout && c.layoutLabel === spec.label && !kept.has(c.id));
+    order += 1;
+    if (match) {
+      kept.add(match.id);
+      const row = layoutRow(pc, spec, specs.length, match.id, match.sortOrder);
+      s.db.update('courts', match.id, (x) => Object.assign(x, { ...row, customTags: x.customTags }));
+    } else {
+      const row = layoutRow(pc, spec, specs.length, newId('crt'), order);
+      s.db.insert('courts', row);
+      kept.add(row.id);
+    }
+  });
+  for (const c of current) {
+    if (kept.has(c.id) || c.status === 'inactive') continue;
+    if (s.db.count('slots', (x) => x.courtId === c.id && x.status === 'active' && x.occupiedEndMs > s.now)) fail('CONFLICT', `${c.name} has upcoming bookings. Move or cancel them before removing ${c.sport ?? 'this sport'} from the court.`);
+    s.db.update('courts', c.id, (x) => {
+      x.status = 'inactive';
+    });
+  }
+  audit(s, { action: existing ? 'court.updated' : 'court.created', targetType: 'court', targetId: pc.id, businessId: v.businessId, summary: `${existing ? 'Updated' : 'Added'} ${name} (${sports.join(', ')}; ${specs.length} layout${specs.length === 1 ? '' : 's'})` });
+  return { court: pc, layouts: s.db.filter('courts', (c) => c.physicalCourtId === pc.id) };
+}
+
+/** Legacy single-layout court endpoint (kept for compatibility): creates a one-sport physical court. */
+export function upsertCourt(s: Svc, input: { businessId: Id; venueId: Id; courtId?: Id; name: string; format: Court['format']; environment: Court['environment']; surface: string; status?: Court['status']; customTags?: string[]; sport?: string }) {
+  requireBusiness(s, input.businessId, 'courts.manage', { venueId: input.venueId, write: true });
+  const v = ownVenue(s, input.businessId, input.venueId);
   if (input.courtId) {
     const c = s.db.get('courts', input.courtId);
     if (!c || c.venueId !== v.id) fail('NOT_FOUND', 'Court not found.');
+    const errors: FieldError[] = [];
+    const name = requireText(errors, 'name', input.name, 'Court name', { max: 60 });
+    if (errors.length) invalid(errors);
     const before = { ...c };
-    s.db.update('courts', c.id, (x) => Object.assign(x, { name, format: input.format, environment: input.environment, surface: input.surface.trim(), status: input.status ?? x.status, customTags: (input.customTags ?? x.customTags).slice(0, 6) }));
+    s.db.update('courts', c.id, (x) => Object.assign(x, { name, status: input.status ?? x.status, customTags: (input.customTags ?? x.customTags).slice(0, 6) }));
     audit(s, { action: 'court.updated', targetType: 'court', targetId: c.id, businessId: v.businessId, summary: `Updated ${name}`, before, after: s.db.get('courts', c.id) });
     return s.db.must('courts', c.id);
   }
-  const court: Court = { id: newId('crt'), businessId: v.businessId, venueId: v.id, name, format: input.format, environment: input.environment, surface: input.surface.trim() || 'Acrylic hard court', customTags: (input.customTags ?? []).slice(0, 6), status: input.status ?? 'active', sortOrder: s.db.count('courts', (c) => c.venueId === v.id) + 1 };
-  s.db.insert('courts', court);
-  audit(s, { action: 'court.created', targetType: 'court', targetId: court.id, businessId: v.businessId, summary: `Added ${name} to ${v.name}` });
-  return court;
+  const res = savePhysicalCourt(s, { businessId: input.businessId, venueId: input.venueId, name: input.name, sports: [input.sport ?? (v.sports?.[0] ?? 'pickleball')], environment: input.environment, surface: input.surface, split: false });
+  return res.layouts[0]!;
 }
+
+void layoutName;
 
 export interface BlockConflict {
   kind: 'booking' | 'hold' | 'event' | 'block';
@@ -228,12 +341,15 @@ export interface BlockConflict {
 export function blockConflicts(s: Svc, courtId: Id, startMs: number, endMs: number): BlockConflict[] {
   const court = s.db.must('courts', courtId);
   const venue = s.db.must('venues', court.venueId);
+  const units = unitsOfCourt(court, court.id);
   return s.db
-    .filter('slots', (x) => x.courtId === courtId && x.status === 'active' && x.startMs < endMs && startMs < x.occupiedEndMs && !(x.kind === 'hold' && x.expiresAt !== null && x.expiresAt <= s.now))
+    .filter('slots', (x) => unitsIntersect(slotUnits(x), units) && x.status === 'active' && x.startMs < endMs && startMs < x.occupiedEndMs && !(x.kind === 'hold' && x.expiresAt !== null && x.expiresAt <= s.now))
     .map((x) => {
       const b = x.kind === 'booking' || x.kind === 'hold' ? s.db.get('bookings', x.sourceId) : undefined;
       const e = x.kind === 'event' ? s.db.get('events', x.sourceId) : undefined;
-      return { kind: x.kind, sourceId: x.sourceId, label: b ? `${b.code}${x.kind === 'hold' ? ' (checkout in progress)' : ''}` : e ? e.name : 'Existing block', when: formatTimeRange(x.startMs, x.endMs, venue.offsetMin) };
+      const op = x.kind === 'open_play' ? s.db.get('openPlaySessions', x.sourceId) : undefined;
+      const on = x.courtId !== courtId ? ` on ${s.db.get('courts', x.courtId)?.name ?? 'a related layout'}` : '';
+      return { kind: x.kind === 'open_play' ? 'event' : x.kind, sourceId: x.sourceId, label: b ? `${b.code}${x.kind === 'hold' ? ' (checkout in progress)' : ''}${on}` : e ? e.name : op ? `Open Play: ${op.title}` : 'Existing block', when: formatTimeRange(x.startMs, x.endMs, venue.offsetMin) };
     });
 }
 

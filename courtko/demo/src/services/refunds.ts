@@ -8,7 +8,7 @@ import { fail } from '../domain/errors.ts';
 import { computeRefund, refundJournal, type RefundComponents } from '../domain/ledger.ts';
 import { formatPHP } from '../domain/money.ts';
 import type { CancellationInitiator } from '../domain/policy.ts';
-import { BOOKING_TRANSITIONS, ORDER_TRANSITIONS, PAYMENT_TRANSITIONS, REFUND_TRANSITIONS, REGISTRATION_TRANSITIONS, transition } from '../domain/state.ts';
+import { BOOKING_TRANSITIONS, ORDER_TRANSITIONS, PAYMENT_TRANSITIONS, REFUND_TRANSITIONS, OP_REG_TRANSITIONS, REGISTRATION_TRANSITIONS, transition } from '../domain/state.ts';
 import { newId } from '../domain/ids.ts';
 import { postJournal } from './ledgerSvc.ts';
 import type { Id, Payment, Refund } from './model.ts';
@@ -40,6 +40,7 @@ export function createRefund(
     bookingId?: Id | null;
     orderId?: Id | null;
     registrationId?: Id | null;
+    openPlayRegistrationId?: Id | null;
     approvedByRequester?: boolean;
   },
 ): Refund | null {
@@ -62,6 +63,7 @@ export function createRefund(
     bookingId: input.bookingId ?? null,
     orderId: input.orderId ?? null,
     registrationId: input.registrationId ?? null,
+    openPlayRegistrationId: input.openPlayRegistrationId ?? null,
     amount: breakdown.toCustomer,
     breakdown,
     reason: input.reason,
@@ -156,6 +158,10 @@ export function onRefundSettled(s: Svc, refundId: Id, ok: boolean, failureCode: 
   if (refund.registrationId) {
     const r = s.db.get('registrations', refund.registrationId);
     if (r && (REGISTRATION_TRANSITIONS[r.status] as readonly string[]).includes('refunded')) s.db.update('registrations', r.id, (x) => transition(REGISTRATION_TRANSITIONS, x, 'refunded', s.now, 'provider', 'Refund completed', 'registration'));
+  }
+  if (refund.openPlayRegistrationId) {
+    const r = s.db.get('opRegistrations', refund.openPlayRegistrationId);
+    if (r && r.status === 'cancelled') s.db.update('opRegistrations', r.id, (x) => transition(OP_REG_TRANSITIONS, x, 'refunded', s.now, 'provider', 'Refund completed', 'Open Play registration'));
   }
   notify(s, refund.userId, 'payment_updates', {
     title: `Refund of ${formatPHP(refund.amount)} completed`,

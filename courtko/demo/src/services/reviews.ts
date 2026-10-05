@@ -91,6 +91,17 @@ export function actionReport(s: Svc, input: { reportId: Id; action: 'hide_conten
       recomputeRating(s, r.venueId);
     }
   }
+  if (report.targetType === 'profile' && input.action === 'hide_content') {
+    // Profiles are reported by username; moderation clears the public bio and removes the profile from discovery.
+    const p = s.db.find('profiles', (x) => (x.username ?? '').toLowerCase() === report.targetId.toLowerCase());
+    if (p) {
+      s.db.update('profiles', p.id, (x) => {
+        x.bio = '';
+        x.social = { ...x.social, discoverable: false };
+      });
+      notify(s, p.userId, 'account_security', { title: 'Your profile was updated by CourtKo', body: 'Part of your public profile was hidden after a review by our Trust & Safety team. You can contact support to appeal.', link: '#/app/profile' });
+    }
+  }
   s.db.update('contentReports', report.id, (x) => {
     x.status = input.action === 'hide_content' ? 'actioned' : 'dismissed';
     x.handledBy = admin.id;

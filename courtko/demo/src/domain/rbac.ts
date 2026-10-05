@@ -28,6 +28,11 @@ export const BUSINESS_PERMISSIONS = [
   { code: 'reports.export', label: 'Export reports', group: 'Reports', risk: 'medium' },
   { code: 'events.manage', label: 'Manage events, divisions and registrations', group: 'Events', risk: 'medium' },
   { code: 'events.check_in', label: 'Check in event participants', group: 'Events', risk: 'low' },
+  { code: 'openplay.view', label: 'View Open Play sessions and the live desk', group: 'Open Play', risk: 'low' },
+  { code: 'openplay.manage', label: 'Create, edit, publish and cancel Open Play sessions', group: 'Open Play', risk: 'medium' },
+  { code: 'openplay.check_in', label: 'Check in Open Play players (QR, search, manual with reason)', group: 'Open Play', risk: 'low' },
+  { code: 'openplay.run', label: 'Assign courts, run the rotation, start and finish games', group: 'Open Play', risk: 'low' },
+  { code: 'openplay.attendance.correct', label: 'Reverse or correct attendance (reason required)', group: 'Open Play', risk: 'medium' },
   { code: 'products.manage', label: 'Manage products and variants', group: 'Products', risk: 'medium' },
   { code: 'inventory.manage', label: 'Adjust stock', group: 'Products', risk: 'medium' },
   { code: 'orders.fulfill', label: 'Prepare and hand over orders', group: 'Products', risk: 'low' },
@@ -65,12 +70,12 @@ export const BUSINESS_ROLE_TEMPLATES: Record<BusinessRoleKey, { name: string; de
   receptionist: {
     name: 'Receptionist',
     description: 'Front desk: check-ins, walk-ins, no-shows and pickups.',
-    permissions: ['business.view', 'bookings.view', 'bookings.create_walkin', 'bookings.check_in', 'bookings.mark_no_show', 'payments.view', 'customers.view', 'orders.fulfill', 'events.check_in', 'restrictions.view'],
+    permissions: ['business.view', 'bookings.view', 'bookings.create_walkin', 'bookings.check_in', 'bookings.mark_no_show', 'payments.view', 'customers.view', 'orders.fulfill', 'events.check_in', 'restrictions.view', 'openplay.view', 'openplay.check_in', 'openplay.run'],
   },
   court_manager: {
     name: 'Court Manager',
     description: 'Courts, venue hours and maintenance blocks.',
-    permissions: ['business.view', 'bookings.view', 'courts.manage', 'courts.block', 'venues.manage'],
+    permissions: ['business.view', 'bookings.view', 'courts.manage', 'courts.block', 'venues.manage', 'openplay.view', 'openplay.run'],
   },
   finance_viewer: {
     name: 'Finance Viewer',
@@ -79,8 +84,8 @@ export const BUSINESS_ROLE_TEMPLATES: Record<BusinessRoleKey, { name: string; de
   },
   event_manager: {
     name: 'Event Manager',
-    description: 'Events, divisions, registrations and event check-in.',
-    permissions: ['business.view', 'bookings.view', 'events.manage', 'events.check_in', 'customers.view'],
+    description: 'Events, Open Play sessions, registrations and check-in.',
+    permissions: ['business.view', 'bookings.view', 'events.manage', 'events.check_in', 'customers.view', 'openplay.view', 'openplay.manage', 'openplay.check_in', 'openplay.run'],
   },
   inventory_manager: {
     name: 'Product / Inventory Manager',
@@ -97,6 +102,7 @@ export const MFA_REQUIRED_PERMISSIONS: BusinessPermission[] = [
   'roles.manage',
   'pricing.manage',
   'bookings.cancel',
+  'openplay.attendance.correct',
 ];
 
 /** Permissions only the Business Owner role may hold (cannot be placed in custom roles). */
@@ -127,6 +133,7 @@ export const PLATFORM_PERMISSIONS = [
   { code: 'platform.config.manage', label: 'Change platform configuration' },
   { code: 'platform.promotions.manage', label: 'Manage platform promotions' },
   { code: 'platform.privacy.requests', label: 'Handle data subject requests' },
+  { code: 'platform.sports.manage', label: 'Manage the sport catalog and format templates' },
 ] as const;
 
 export type PlatformPermission = (typeof PLATFORM_PERMISSIONS)[number]['code'];

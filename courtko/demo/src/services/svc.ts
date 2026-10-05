@@ -23,6 +23,7 @@ import type {
   Profile,
   SecurityEvent,
   Session,
+  SocialSettings,
   SupportSession,
   User,
 } from './model.ts';
@@ -187,6 +188,41 @@ export function isPlatformUser(u: User | null | undefined): boolean {
 
 export function profileOf(db: Db, userId: Id | null | undefined): Profile | undefined {
   return userId ? db.get('profiles', userId) : undefined;
+}
+
+// ---------------------------------------------------------------- usernames & social defaults (doc 24 SOC)
+
+export const DEFAULT_SOCIAL: SocialSettings = { discoverable: true, allowFollows: true, requireApproval: false, showFollowers: true, showFollowing: true, showSports: true };
+
+const RESERVED_USERNAMES = new Set(['admin', 'administrator', 'courtko', 'support', 'help', 'staff', 'system', 'root', 'security', 'official', 'moderator', 'superadmin', 'api', 'me', 'null', 'undefined']);
+
+export function usernameProblem(raw: string): string | null {
+  const u = raw.trim().toLowerCase();
+  if (!/^[a-z0-9](?:[a-z0-9._]{1,18})[a-z0-9]$/.test(u)) return 'Use 3–20 letters, numbers, dots or underscores (start and end with a letter or number).';
+  if (/[._]{2}/.test(u)) return 'Dots and underscores can’t be next to each other.';
+  if (RESERVED_USERNAMES.has(u) || u.startsWith('courtko')) return 'That username is reserved.';
+  if (/^\+?\d{10,}$/.test(u) || u.includes('@')) return 'Usernames can’t be phone numbers or emails.';
+  return null;
+}
+
+/** A unique, privacy-safe default handle from the name (never the email or phone). */
+export function suggestUsername(db: Db, first: string, last: string, salt = 0): string {
+  const base = `${first}.${last}`
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9.]+/g, '')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.|\.$/g, '')
+    .slice(0, 16) || 'player';
+  const taken = (u: string) => !!db.find('profiles', (p) => (p.username ?? '').toLowerCase() === u);
+  let candidate = base.length >= 3 ? base : `${base}player`;
+  let n = salt;
+  while (taken(candidate) || usernameProblem(candidate)) {
+    n += 1;
+    candidate = `${base.slice(0, 15)}${n}`;
+  }
+  return candidate;
 }
 
 export function displayName(db: Db, userId: Id | null | undefined): string {

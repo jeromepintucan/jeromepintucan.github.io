@@ -1219,3 +1219,13 @@ Additional tables required by the design brief or this design: `checkouts`, `che
 | CI validation | Spin up a PostgreSQL 16 + PostGIS container; apply `schema.sql` / migrations; run the verification queries in the `schema.sql` footer (RLS coverage, policy coverage, fail-closed check); run the RLS matrix and invariant test suites (doc 10 §12, doc 20) |
 | Data migrations | Run in `system` scope by the migrator; idempotent; batched; audited |
 | Environments | No production data in dev/staging; synthetic seed data only, labelled synthetic |
+
+---
+
+## Addendum CR-01 (2026-10-06): new and changed tables
+
+**New tables:** `sports`, `sport_formats`, `configuration_templates`, `space_units`, `court_configurations`, `court_configuration_units`, `court_conversion_rules`, `court_sports`, `court_media`, `court_equipment`, `court_maintenance_windows`, `venue_sports`, `open_play_sessions`, `open_play_staff`, `open_play_registrations`, `open_play_parties`, `party_invitations`, `attendance_events` (append-only), `open_play_games`, `open_play_queue`, `player_sport_profiles`, `follows`, `user_blocks`, `social_settings`.
+
+**Key change:** `booking_slots` gains `space_unit_id` (one row per occupied unit) and the exclusion constraint becomes `EXCLUDE USING gist (space_unit_id WITH =, occupied_range WITH &&) WHERE (status = 'active')`. The constraint swap uses `NOT VALID` → backfill → `VALIDATE`.
+
+Columns, constraints and the migration plan are in [doc 24 §4](24-change-impact-multisport.md).

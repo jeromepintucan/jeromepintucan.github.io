@@ -8,7 +8,7 @@ import { alertBox, btn, card, dl, empty, field, pageHeader, pill, priceBreakdown
 import { cls, html, type SafeHtml } from '../html.ts';
 import { icon } from '../icons.ts';
 import { bizRoute } from './business.ts';
-import { methodLogo } from './shared.ts';
+import { methodLogo, sportName } from './shared.ts';
 
 const today = () => localDate(app.store.now());
 
@@ -23,34 +23,49 @@ bizRoute('/biz/calendar', 'Calendar', (_ctx, b) => {
   const ROW = 28; // px per 30 min
   const rows = (close - open) / 30;
   const dayStart = localToInstant(date, 0);
-  const courtIdx = new Map(cal.courts.map((c, i) => [c.id, i]));
+  // Columns are PHYSICAL courts (doc 24 CR-D03): half-court bookings take half a column, full-court bookings the whole
+  // column, so staff can see at a glance why a layout is unavailable.
+  const cols = cal.physical.length
+    ? cal.physical.map((p) => ({ id: p.id, name: p.name, sub: `${p.sports.map((x) => sportName(x)).join(' · ')} · ${p.environment}`, units: p.units.map((u) => `${p.id}:${u}`), firstLayout: cal.courts.find((c) => c.physicalCourtId === p.id && c.status === 'active')?.id ?? '' }))
+    : cal.courts.map((c) => ({ id: c.id, name: c.name, sub: c.environment, units: [c.id], firstLayout: c.id }));
+  const colOfCourt = new Map(cal.courts.map((c) => [c.id, cols.findIndex((col) => col.id === (c.physicalCourtId ?? c.id))]));
+  const courtById = new Map(cal.courts.map((c) => [c.id, c]));
   const now = app.store.now();
   const nowTop = date === today() ? ((localParts(now).minute - open) / 30) * ROW : -1;
-  const gridCols = `60px repeat(${cal.courts.length}, minmax(140px, 1fr))`;
-  const counts = { total: cal.items.filter((i) => i.kind === 'booking').length, held: cal.items.filter((i) => i.kind === 'hold').length, blocks: cal.items.filter((i) => i.kind === 'block').length };
-  return html`${pageHeader('Calendar', { subtitle: `${formatDateLong(date)} · ${counts.total} bookings · ${counts.held} checkouts in progress · ${counts.blocks} blocks${cal.schedule.note ? ` · ${cal.schedule.note}` : ''}`, actions: html`<div class="row">${btn('', { action: 'cal.shift', data: { d: -1 }, variant: 'secondary', icon: 'chevronLeft', title: 'Previous day' })}<input type="date" value="${date}" data-change="cal.date" aria-label="Date" style="width:auto"/>${btn('', { action: 'cal.shift', data: { d: 1 }, variant: 'secondary', icon: 'chevronRight', title: 'Next day' })}${btn('Today', { action: 'cal.today', variant: 'ghost' })}</div>` })}
-  <div class="legend-row" style="margin:0 0 10px"><span><i style="background:var(--ck-color-success-bg);border-left:3px solid var(--ck-color-success)"></i>Confirmed</span><span><i style="background:var(--ck-color-info-bg)"></i>Checked in</span><span><i style="background:#FDE68A"></i>Checkout in progress</span><span><i style="background:var(--ck-slate-200)"></i>Completed / block</span><span><i style="background:var(--ck-color-event-bg)"></i>Event</span><span><i style="background:var(--ck-color-danger-bg)"></i>No-show</span></div>
+  const gridCols = `60px repeat(${cols.length}, minmax(150px, 1fr))`;
+  const counts = { total: cal.items.filter((i) => i.kind === 'booking').length, held: cal.items.filter((i) => i.kind === 'hold').length, blocks: cal.items.filter((i) => i.kind === 'block').length, openPlay: new Set(cal.items.filter((i) => i.kind === 'open_play').map((i) => i.sourceId)).size };
+  return html`${pageHeader('Calendar', { subtitle: `${formatDateLong(date)} · ${counts.total} bookings · ${counts.held} checkouts in progress · ${counts.blocks} blocks · ${counts.openPlay} Open Play${cal.schedule.note ? ` · ${cal.schedule.note}` : ''}`, actions: html`<div class="row">${btn('', { action: 'cal.shift', data: { d: -1 }, variant: 'secondary', icon: 'chevronLeft', title: 'Previous day' })}<input type="date" value="${date}" data-change="cal.date" aria-label="Date" style="width:auto"/>${btn('', { action: 'cal.shift', data: { d: 1 }, variant: 'secondary', icon: 'chevronRight', title: 'Next day' })}${btn('Today', { action: 'cal.today', variant: 'ghost' })}</div>` })}
+  <div class="legend-row" style="margin:0 0 10px"><span><i style="background:var(--ck-color-success-bg);border-left:3px solid var(--ck-color-success)"></i>Confirmed</span><span><i style="background:var(--ck-color-info-bg)"></i>Checked in</span><span><i style="background:#FDE68A"></i>Checkout in progress</span><span><i style="background:var(--ck-slate-200)"></i>Completed / block</span><span><i style="background:var(--ck-color-event-bg)"></i>Event</span><span><i style="background:#DCFCE7;border-left:3px solid #15803D"></i>Open Play</span><span><i style="background:var(--ck-color-danger-bg)"></i>No-show</span><span class="muted">Half-court bookings fill half a column</span></div>
   <div class="cal"><div class="cal-grid" style="grid-template-columns:${gridCols};grid-template-rows:auto repeat(${rows}, ${ROW}px)">
-    <div class="cal-col-head" style="position:sticky;left:0;z-index:4"></div>${cal.courts.map((c) => html`<div class="cal-col-head">${c.name}<div class="xs muted" style="font-weight:500">${c.environment}${c.status !== 'active' ? ' · inactive' : ''}</div></div>`)}
+    <div class="cal-col-head" style="position:sticky;left:0;z-index:4"></div>${cols.map((c) => html`<div class="cal-col-head">${c.name}<div class="xs muted" style="font-weight:500">${c.sub}${c.units.length > 1 ? ' · A | B' : ''}</div></div>`)}
     ${Array.from({ length: rows }, (_, r) => {
       const m = open + r * 30;
-      return html`<div class="cal-time" style="grid-column:1;grid-row:${r + 2}">${m % 60 === 0 ? formatMinuteOfDay(m).replace(':00', '') : ''}</div>${cal.courts.map((c, ci) => html`<div class="cal-cell" style="grid-column:${ci + 2};grid-row:${r + 2}" data-action="cal.slot" data-court="${c.id}" data-start="${dayStart + m * MINUTE}" aria-label="${c.name} ${formatMinuteOfDay(m)}"></div>`)}`;
+      return html`<div class="cal-time" style="grid-column:1;grid-row:${r + 2}">${m % 60 === 0 ? formatMinuteOfDay(m).replace(':00', '') : ''}</div>${cols.map((c, ci) => html`<div class="cal-cell" style="grid-column:${ci + 2};grid-row:${r + 2}" data-action="cal.slot" data-court="${c.firstLayout}" data-start="${dayStart + m * MINUTE}" aria-label="${c.name} ${formatMinuteOfDay(m)}"></div>`)}`;
     })}
     ${cal.items.map((it) => {
-      const ci = courtIdx.get(it.courtId);
-      if (ci === undefined) return '';
+      const ci = colOfCourt.get(it.courtId);
+      if (ci === undefined || ci < 0) return '';
+      const col = cols[ci]!;
+      const itUnits = (it.units ?? [it.courtId]).filter((u) => col.units.includes(u));
+      const partial = col.units.length > 1 && itUnits.length > 0 && itUnits.length < col.units.length;
+      const left = partial ? (col.units.indexOf(itUnits[0]!) / col.units.length) * 100 : 0;
+      const width = partial ? (itUnits.length / col.units.length) * 100 : 100;
+      const layout = courtById.get(it.courtId);
       const startMin = Math.max(open, (it.startMs - dayStart) / MINUTE);
       const endMin = Math.min(close, (it.endMs - dayStart) / MINUTE);
       if (endMin <= open || startMin >= close) return '';
       const top = ((startMin - open) / 30) * ROW;
       const height = ((endMin - startMin) / 30) * ROW - 3;
-      const status = it.kind === 'event' ? 'event' : it.kind === 'block' ? 'blocked' : it.status;
-      return html`<button class="${cls('cal-item', `cal-${status}`)}" style="grid-column:${ci + 2};grid-row:2 / span ${rows};margin-top:${top + 1}px;height:${Math.max(18, height)}px" ${it.bookingId ? html`data-action="bk.open" data-id="${it.bookingId}"` : it.kind === 'block' ? html`data-action="blk.open" data-slot="${it.id}"` : ''} title="${it.title}"><b>${it.title}</b>${formatTimeRange(it.startMs, it.endMs)}${it.code ? html` · ${it.code}` : ''}${it.source === 'walk_in' ? ' · walk-in' : ''}</button>`;
+      const status = it.kind === 'event' ? 'event' : it.kind === 'block' ? 'blocked' : it.kind === 'open_play' ? 'open_play' : it.status;
+      const layoutLabel = layout && (layout.layoutLabel ?? '') && cal.courts.filter((c) => c.physicalCourtId === layout.physicalCourtId && c.status === 'active').length > 1 ? `${layout.layoutLabel} · ` : '';
+      const opId = (it as { sessionId?: string | null }).sessionId;
+      return html`<button class="${cls('cal-item', `cal-${status}`, partial && 'cal-partial')}" style="grid-column:${ci + 2};grid-row:2 / span ${rows};margin-top:${top + 1}px;height:${Math.max(18, height)}px;left:calc(${left}% + 3px);right:auto;width:calc(${width}% - 6px)" ${it.bookingId ? html`data-action="bk.open" data-id="${it.bookingId}"` : it.kind === 'block' ? html`data-action="blk.open" data-slot="${it.id}"` : opId ? html`data-action="cal.op" data-id="${opId}"` : ''} title="${layoutLabel}${it.title}"><b>${it.title}</b>${layoutLabel ? html`<span class="cal-layout">${layoutLabel}</span>` : ''}${formatTimeRange(it.startMs, it.endMs)}${it.code ? html` · ${it.code}` : ''}${it.source === 'walk_in' ? ' · walk-in' : ''}</button>`;
     })}
     ${nowTop >= 0 && nowTop <= rows * ROW ? html`<div class="cal-now" style="grid-column:2 / -1;grid-row:2 / span ${rows};margin-top:${nowTop}px"></div>` : ''}
   </div></div><p class="small muted" style="margin-top:8px">Tap an empty slot to book a walk-in or block the court. Holds show players currently checking out — the slot frees automatically if they don't pay in time.</p>`;
 });
 onChange('cal.date', (el) => app.set('calDate', (el as HTMLInputElement).value));
+action('cal.op', (el) => app.navigate(`#/biz/open-play/${el.dataset.id}`));
 action('cal.shift', (el) => app.set('calDate', addDays(app.state<string>('calDate', today()), Number(el.dataset.d))));
 action('cal.today', () => app.set('calDate', today()));
 action('cal.slot', (el) => {

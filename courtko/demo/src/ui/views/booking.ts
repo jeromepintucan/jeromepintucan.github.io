@@ -8,7 +8,7 @@ import { productTile, venueCover } from '../art.ts';
 import { alertBox, btn, card, checkbox, countdown, dl, empty, field, pageHeader, pill, priceBreakdown, qrCode, stars, tabs, textarea, timeline } from '../components.ts';
 import { cls, html, type SafeHtml } from '../html.ts';
 import { icon } from '../icons.ts';
-import { methodLogo } from './shared.ts';
+import { methodLogo, sportName, sportPicker } from './shared.ts';
 
 interface Pick {
   venueId: string;
@@ -21,8 +21,11 @@ interface Pick {
 export function availabilityPanel(ctx: ViewCtx, v: Venue, inApp: boolean): SafeHtml {
   const today = localDate(app.store.now());
   const date = app.state<string>(`date:${v.id}`, ctx.query.get('date') && ctx.query.get('date')! >= today ? ctx.query.get('date')! : today);
-  const duration = app.state<number>(`dur:${v.id}`, v.settings.minDurationMinutes);
-  const av = app.api.read('GET /v1/public/venues/{venueId}/availability', { venueId: v.id, date, durationMinutes: duration });
+  const offered = (v.sports?.length ? v.sports : ['pickleball']);
+  const sport = app.state<string>(`sport:${v.id}`, ctx.query.get('sport') && offered.includes(ctx.query.get('sport')!) ? ctx.query.get('sport')! : offered[0]!);
+  const durKey = `dur:${v.id}:${sport}`;
+  const av = app.api.read('GET /v1/public/venues/{venueId}/availability', { venueId: v.id, date, sport, ...(app.ui[durKey] ? { durationMinutes: app.ui[durKey] as number } : {}) });
+  const duration = av.durationMinutes;
   const pick = app.ui.pick as Pick | undefined;
   const picked = pick && pick.venueId === v.id ? pick : null;
   const durations: number[] = [];
@@ -31,27 +34,32 @@ export function availabilityPanel(ctx: ViewCtx, v: Venue, inApp: boolean): SafeH
   const cols = av.courts[0]?.cells.map((c) => c.startMs) ?? [];
   const pickedCell = picked ? av.courts.find((c) => c.court.id === picked.courtId)?.cells.find((c) => c.startMs === picked.startMs) : null;
   const inRange = (courtId: string, startMs: number) => !!picked && picked.courtId === courtId && startMs > picked.startMs && startMs < picked.startMs + duration * 60_000;
-  return html`<div class="stack">
+  const layouts = [...new Set(av.courts.map((c) => c.court.layout ?? 'standard'))];
+  const layoutFilter = app.state<string>(`layout:${v.id}:${sport}`, '');
+  const shown = av.courts.filter((c) => !layoutFilter || (c.court.layout ?? 'standard') === layoutFilter);
+  return html`<div class="stack" data-venue-root="${v.id}">
+    ${av.sports.length > 1 ? html`<div><p class="label" style="margin-bottom:6px">What are you playing?</p>${sportPicker(sport, 'av.sport', { all: false, only: av.sports, data: { venue: v.id } })}</div>` : ''}
+    ${layouts.length > 1 ? html`<div class="row"><span class="label">Court</span><div class="seg" role="group" aria-label="Full or half court"><button class="${!layoutFilter ? 'active' : ''}" data-action="av.layout" data-venue="${v.id}" data-sport="${sport}" data-layout="">All</button>${layouts.map((l) => html`<button class="${layoutFilter === l ? 'active' : ''}" data-action="av.layout" data-venue="${v.id}" data-sport="${sport}" data-layout="${l}">${l === 'full' ? 'Full court' : l === 'half' ? 'Half court' : 'Standard'}</button>`)}</div><span class="xs muted">${icon('info', 12)} Full and half courts share the same floor — booking one blocks the other.</span></div>` : ''}
     ${av.restricted ? alertBox('warning', "Booking isn't available for your account at this venue", 'If you think this is a mistake, check your notifications to appeal or contact CourtKo Support.') : ''}
     ${!av.businessActive ? alertBox('warning', 'This venue is not taking bookings right now') : ''}
     <div class="date-chips" role="group" aria-label="Choose a date">${days.map((d) => {
       const p = localParts(Date.parse(`${d}T04:00:00Z`));
       return html`<button class="${cls('date-chip', d === date && 'active')}" data-action="av.date" data-venue="${v.id}" data-date="${d}" aria-pressed="${d === date ? 'true' : 'false'}"><small>${d === today ? 'Today' : DOW_SHORT[p.dow]}</small><b>${p.day}</b></button>`;
     })}</div>
-    <div class="row-between"><div class="row"><label for="dur" class="label">Duration</label><select id="dur" style="width:auto" data-change="av.duration" data-venue="${v.id}">${durations.map((d) => html`<option value="${d}"${d === duration ? html` selected` : ''}>${formatDuration(d)}</option>`)}</select></div>
+    <div class="row-between"><div class="row"><label for="dur" class="label">Duration</label><select id="dur" style="width:auto" data-change="av.duration" data-key="${durKey}">${durations.map((d) => html`<option value="${d}"${d === duration ? html` selected` : ''}>${formatDuration(d)}</option>`)}</select></div>
     <span class="small muted">${formatDateLong(date)} · ${av.schedule.closed ? 'Closed' : `${formatMinuteOfDay(av.schedule.open)} – ${formatMinuteOfDay(av.schedule.close)}`}${av.schedule.note ? ` · ${av.schedule.note}` : ''} · Manila time</span></div>
     ${av.schedule.closed ? empty('Closed on this date', av.schedule.note ?? 'Pick another date.', undefined, 'calendar') : html`<div class="avail" role="region" aria-label="Court availability"><div class="avail-grid">
       <div class="avail-row avail-head" style="grid-template-columns:128px repeat(${cols.length},58px)"><div class="avail-court">Court</div>${cols.map((c) => html`<div class="avail-time">${minuteLabelShort(localParts(c).minute)}${localParts(c).minute % 60 ? html`<span>:30</span>` : ''}</div>`)}</div>
-      ${av.courts.map((c) => html`<div class="avail-row" style="grid-template-columns:128px repeat(${cols.length},58px)"><div class="avail-court">${c.court.name}<small>${c.court.environment} · ${c.bookableStarts} open</small></div>${c.cells.map((cell) => {
+      ${shown.map((c) => html`<div class="avail-row" style="grid-template-columns:128px repeat(${cols.length},58px)"><div class="avail-court">${c.court.name}<small>${c.court.layout === 'half' ? 'Half court · ' : c.court.layout === 'full' && layouts.length > 1 ? 'Full court · ' : ''}${c.court.environment} · ${c.bookableStarts} open</small></div>${c.cells.map((cell) => {
         const sel = picked && picked.courtId === c.court.id && picked.startMs === cell.startMs;
         const state = cell.state === 'available' && !cell.bookable ? 'nofit' : cell.state;
-        const label = cell.bookable ? formatPHP(cell.price ?? 0, { compact: true }).replace('₱', '₱') : state === 'booked' ? 'Booked' : state === 'held' ? 'Held' : state === 'blocked' ? 'Closed' : state === 'event' ? 'Event' : state === 'nofit' ? '—' : '';
+        const label = cell.bookable ? formatPHP(cell.price ?? 0, { compact: true }).replace('₱', '₱') : state === 'booked' ? 'Booked' : state === 'held' ? 'Held' : state === 'blocked' ? 'Closed' : state === 'event' ? 'Event' : state === 'open_play' ? 'Open Play' : state === 'dependent' ? 'In use' : state === 'nofit' ? '—' : '';
         const aria = `${c.court.name} ${formatTime(cell.startMs)}: ${cell.bookable ? `available, ${formatPHP(cell.price ?? 0)} for ${formatDuration(duration)}` : (cell.reason ?? state)}`;
         return html`<button class="${cls('slot', state, sel && 'selected', inRange(c.court.id, cell.startMs) && 'in-range')}" ${cell.bookable && !av.restricted ? html`data-action="av.pick" data-venue="${v.id}" data-court="${c.court.id}" data-start="${cell.startMs}"` : html`disabled`} aria-label="${aria}" title="${aria}">${label}</button>`;
       })}</div>`)}
     </div></div>
-    <div class="legend-row"><span><i style="background:var(--ck-color-primary-50)"></i>Available (price for your duration)</span><span><i style="background:var(--ck-slate-200)"></i>Booked</span><span><i style="background:repeating-linear-gradient(45deg,#FEF3C7 0 4px,#FDE68A 4px 8px)"></i>Someone is checking out</span><span><i style="background:var(--ck-color-event-bg)"></i>Event</span><span><i style="background:repeating-linear-gradient(45deg,#F1F5F9 0 3px,#CBD5E1 3px 5px)"></i>Maintenance</span></div>`}
-    ${picked && pickedCell ? html`<div class="select-bar"><div><b>${av.courts.find((c) => c.court.id === picked.courtId)?.court.name} · ${formatDateShort(picked.startMs)} · ${formatTimeRange(picked.startMs, picked.startMs + duration * 60_000)}</b><div class="small muted">${formatDuration(duration)} · ${formatPHP(pickedCell.price ?? 0)} before add-ons and fees</div></div><div class="row">${btn('Clear', { action: 'av.clear', variant: 'ghost' })}${btn(ctx.me ? 'Continue to checkout' : 'Sign in to book', { action: 'av.hold', data: { venue: v.id, slug: v.slug, inapp: inApp ? '1' : '' }, variant: 'primary', icon: 'lock', size: 'lg' })}</div></div>` : html`<p class="small muted">Tap an available time to select it. We'll hold the court for ${v.settings.holdTtlMinutes} minutes while you check out.</p>`}
+    <div class="legend-row"><span><i style="background:var(--ck-color-primary-50)"></i>Available (price for your duration)</span><span><i style="background:var(--ck-slate-200)"></i>Booked</span><span><i style="background:repeating-linear-gradient(45deg,#FEF3C7 0 4px,#FDE68A 4px 8px)"></i>Someone is checking out</span><span><i style="background:var(--ck-color-event-bg)"></i>Event / Open Play</span>${layouts.length > 1 || av.sports.length > 1 ? html`<span><i style="background:repeating-linear-gradient(-45deg,#E0F2FE 0 4px,#BAE6FD 4px 8px)"></i>Shared space in use (e.g. full court booked)</span>` : ''}<span><i style="background:repeating-linear-gradient(45deg,#F1F5F9 0 3px,#CBD5E1 3px 5px)"></i>Maintenance</span></div>`}
+    ${picked && pickedCell ? html`<div class="select-bar"><div><b>${av.courts.find((c) => c.court.id === picked.courtId)?.court.name} · ${formatDateShort(picked.startMs)} · ${formatTimeRange(picked.startMs, picked.startMs + duration * 60_000)}</b><div class="small muted">${formatDuration(duration)} · ${formatPHP(pickedCell.price ?? 0)} before add-ons and fees</div></div><div class="row">${btn('Clear', { action: 'av.clear', variant: 'ghost' })}${btn(ctx.me ? 'Continue to checkout' : 'Sign in to book', { action: 'av.hold', data: { venue: v.id, slug: v.slug, inapp: inApp ? '1' : '', duration }, variant: 'primary', icon: 'lock', size: 'lg' })}</div></div>` : html`<p class="small muted">Tap an available time to select it. We'll hold the court for ${v.settings.holdTtlMinutes} minutes while you check out.</p>`}
   </div>`;
 }
 
@@ -59,9 +67,14 @@ action('av.date', (el) => {
   app.ui.pick = undefined;
   app.set(`date:${el.dataset.venue}`, el.dataset.date);
 });
+action('av.sport', (el) => {
+  app.ui.pick = undefined;
+  app.set(`sport:${el.dataset.venue}`, el.dataset.sport);
+});
+action('av.layout', (el) => app.set(`layout:${el.dataset.venue}:${el.dataset.sport}`, el.dataset.layout ?? ''));
 onChange('av.duration', (el) => {
   app.ui.pick = undefined;
-  app.set(`dur:${el.dataset.venue}`, Number((el as HTMLSelectElement).value));
+  app.set(el.dataset.key!, Number((el as HTMLSelectElement).value));
 });
 action('av.pick', (el) => app.set('pick', { venueId: el.dataset.venue!, courtId: el.dataset.court!, startMs: Number(el.dataset.start) }));
 action('av.clear', () => app.set('pick', undefined));
@@ -72,7 +85,7 @@ action('av.hold', async (el) => {
     app.toast('Sign in or create an account to book. Your selection is kept.', 'info');
     return app.navigate(`#/login?next=${encodeURIComponent(`/app/book/${el.dataset.slug}`)}`);
   }
-  const durationMinutes = app.state<number>(`dur:${pick.venueId}`, 60);
+  const durationMinutes = Number(el.dataset.duration) || 60;
   const r = await app.run(el, () => app.api.write('POST /v1/me/booking-holds', { venueId: pick.venueId, courtId: pick.courtId, startMs: pick.startMs, durationMinutes }, { idempotencyKey: app.idem() }));
   if (r) {
     app.ui.pick = undefined;
@@ -88,7 +101,7 @@ route('/app/checkout/:id', 'player', 'Checkout', (ctx) => {
   const latestPay = [...co.payments].sort((a, b) => b.createdAt - a.createdAt)[0];
   // Confirmed → go to booking/order/event
   if (c.status === 'completed') {
-    return html`<div class="container-narrow">${card(html`<div class="center stack">${icon('checkCircle', 48)}<h1>${c.kind === 'court_booking' ? "You're booked!" : c.kind === 'event_registration' ? "You're registered!" : 'Order placed!'}</h1><p class="muted">Payment verified with the provider${latestPay?.confirmedVia ? ` (via ${latestPay.confirmedVia.replace('_', ' ')})` : ''}. A receipt was sent to your inbox.</p>${co.booking ? btn('View booking & QR code', { href: `#/app/bookings/${co.booking.id}`, variant: 'primary', size: 'lg', icon: 'qr' }) : c.orderId ? btn('View order', { href: `#/app/orders/${c.orderId}`, variant: 'primary', size: 'lg' }) : btn('My events', { href: '#/app/events', variant: 'primary', size: 'lg' })}</div>`)}</div>`;
+    return html`<div class="container-narrow">${card(html`<div class="center stack">${icon('checkCircle', 48)}<h1>${c.kind === 'court_booking' ? "You're booked!" : c.kind === 'event_registration' || c.kind === 'open_play_registration' ? "You're registered!" : 'Order placed!'}</h1><p class="muted">Payment verified with the provider${latestPay?.confirmedVia ? ` (via ${latestPay.confirmedVia.replace('_', ' ')})` : ''}. A receipt was sent to your inbox.</p>${co.booking ? btn('View booking & QR code', { href: `#/app/bookings/${co.booking.id}`, variant: 'primary', size: 'lg', icon: 'qr' }) : co.openPlay ? btn('View my Open Play pass', { href: `#/app/open-play/registrations/${co.openPlay.registration.id}`, variant: 'primary', size: 'lg', icon: 'qr' }) : c.orderId ? btn('View order', { href: `#/app/orders/${c.orderId}`, variant: 'primary', size: 'lg' }) : btn('My events', { href: '#/app/events', variant: 'primary', size: 'lg' })}</div>`)}</div>`;
   }
   if (c.status === 'payment_pending' && latestPay?.status === 'pending') {
     const returned = ctx.query.get('return') === '1';
@@ -99,23 +112,23 @@ route('/app/checkout/:id', 'player', 'Checkout', (ctx) => {
   }
   if (c.status === 'expired' || c.status === 'cancelled' || c.status === 'failed') {
     const refund = co.payments.some((p) => ['captured', 'refunded', 'partially_refunded'].includes(p.status));
-    return html`<div class="container-narrow">${card(html`<div class="center stack">${icon('clock', 40)}<h1>${c.status === 'expired' ? 'Your hold expired' : c.status === 'failed' ? "This checkout couldn't be completed" : 'Checkout cancelled'}</h1><p class="muted">${refund ? 'Your payment arrived after the checkout ended, so it is being refunded in full, including fees.' : c.cancelReason ?? 'No payment was taken. The court is available to others again.'}</p>${btn('Pick another time', { href: `#/app/book/${co.venue.slug}`, variant: 'primary' })}</div>`)}</div>`;
+    return html`<div class="container-narrow">${card(html`<div class="center stack">${icon('clock', 40)}<h1>${c.status === 'expired' ? 'Your hold expired' : c.status === 'failed' ? "This checkout couldn't be completed" : 'Checkout cancelled'}</h1><p class="muted">${refund ? 'Your payment arrived after the checkout ended, so it is being refunded in full, including fees.' : c.cancelReason ?? 'No payment was taken. The court is available to others again.'}</p>${co.openPlay ? btn('Back to the session', { href: `#/app/open-play/${co.openPlay.session.id}`, variant: 'primary' }) : btn('Pick another time', { href: `#/app/book/${co.venue.slug}`, variant: 'primary' })}</div>`)}</div>`;
   }
   // open (or payment failed → back to open)
   const method = c.paymentMethod ?? (co.methods.find((m) => m.method === 'gcash') ?? co.methods[0])?.method ?? null;
   const failed = latestPay && latestPay.status === 'failed';
-  const addOnsAllowed = c.kind !== 'product_order';
+  const addOnsAllowed = c.kind !== 'product_order' && c.kind !== 'open_play_registration';
   const shop = addOnsAllowed ? app.api.read('GET /v1/public/venues/{venueId}/products', { venueId: c.venueId, purpose: c.kind === 'event_registration' ? 'event' : 'booking' }) : [];
   const qty = (pid: string) => c.addOns.find((a) => a.productId === pid)?.qty ?? 0;
   const q = co.snapshot.quote;
   if (!c.paymentMethod && method) queueMicrotask(() => void app.api.write('PATCH /v1/me/checkouts/{checkoutId}', { checkoutId: c.id, paymentMethod: method as never }, { silent: true }).catch(() => undefined));
-  return html`${pageHeader('Review & pay', { back: `#/app/book/${co.venue.slug}` })}
+  return html`${pageHeader('Review & pay', { back: co.openPlay ? `#/app/open-play/${co.openPlay.session.id}` : `#/app/book/${co.venue.slug}` })}
   <div class="hold-banner" role="status">${icon('lock', 20)}<div style="flex:1"><b>${co.court ? `${co.court.name} is held for you` : 'Your spot is held'}</b><div class="small">Complete payment before the timer ends — after that the ${co.court ? 'court' : 'spot'} is released to other players.</div></div><div class="row"><span class="countdown" data-countdown="${c.expiresAt}"></span>${c.expiresAt < c.maxExpiresAt ? btn('+5 min', { action: 'co.extend', data: { id: c.id }, variant: 'ghost', size: 'sm', title: 'Need more time? Extend the hold (up to 20 minutes total).' }) : ''}</div></div>
   ${failed ? alertBox('warning', 'The last payment attempt did not go through', `${latestPay!.failureReason ?? 'Payment failed'}. Your hold is still active — try again or choose another method.`) : ''}
   <div class="split" style="margin-top:16px"><div class="stack">
-    ${card(html`<div class="row" style="align-items:flex-start"><div style="width:120px;border-radius:12px;overflow:hidden;aspect-ratio:16/10;flex:none">${venueCover(co.venue.art)}</div><div><b>${co.venue.name}</b><div class="small muted">${co.venue.address.barangay}, ${co.venue.address.city}</div>${co.booking ? html`<div style="margin-top:6px"><b>${co.court?.name}</b> · ${formatDateLong(co.booking.startMs)}<br/>${formatTimeRange(co.booking.startMs, co.booking.endMs)} (${formatDuration(co.booking.durationMinutes)}) · Manila time</div>` : ''}${co.registration ? html`<div style="margin-top:6px">${q.items.find((i) => i.kind === 'event')?.label}<br/><span class="small muted">${q.items.find((i) => i.kind === 'event')?.detail}</span></div>` : ''}</div></div>`, { title: 'Your booking' })}
+    ${card(html`<div class="row" style="align-items:flex-start"><div style="width:120px;border-radius:12px;overflow:hidden;aspect-ratio:16/10;flex:none">${venueCover(co.venue.art)}</div><div><b>${co.venue.name}</b><div class="small muted">${co.venue.address.barangay}, ${co.venue.address.city}</div>${co.booking ? html`<div style="margin-top:6px"><b>${co.court?.name}</b> · ${formatDateLong(co.booking.startMs)}<br/>${formatTimeRange(co.booking.startMs, co.booking.endMs)} (${formatDuration(co.booking.durationMinutes)}) · Manila time</div>` : ''}${co.registration || co.openPlay ? html`<div style="margin-top:6px">${co.openPlay ? html`<span class="pill pill-success">Open Play · ${sportName(co.openPlay.session.sport)}</span><br/>` : ''}${q.items.find((i) => i.kind === 'event')?.label}<br/><span class="small muted">${q.items.find((i) => i.kind === 'event')?.detail}</span></div>` : ''}</div></div>`, { title: co.openPlay ? 'Your Open Play spot' : 'Your booking' })}
     ${addOnsAllowed && shop.length ? card(html`<div class="stack-sm">${shop.map((p) => html`<div class="row-between"><div class="row">${productTile(p.product.art, 40)}<div><b class="small">${p.product.name}</b><div class="xs muted">${formatPHP(p.product.price)} · ${p.available > 0 ? `${p.available} left` : 'Out of stock'}</div></div></div>${p.product.variants.length ? html`<span class="xs muted">Sizes at the counter</span>` : html`<div class="stepper-input"><button type="button" data-action="co.addon" data-id="${c.id}" data-product="${p.product.id}" data-delta="-1" aria-label="Remove one ${p.product.name}"${qty(p.product.id) ? '' : html` disabled`}>−</button><span aria-live="polite">${qty(p.product.id)}</span><button type="button" data-action="co.addon" data-id="${c.id}" data-product="${p.product.id}" data-delta="1" aria-label="Add one ${p.product.name}"${p.available > qty(p.product.id) && qty(p.product.id) < p.product.maxPerOrder ? '' : html` disabled`}>+</button></div>`}</div>`)}</div><p class="xs muted" style="margin-top:8px">Items are reserved now and ready at the counter. Unclaimed add-ons are refunded in full if you cancel.</p>`, { title: 'Add-ons for pickup', subtitle: 'Optional' }) : ''}
-    ${card(html`<form class="row" data-form="co.promo" data-id="${c.id}" style="align-items:flex-end"><div style="flex:1">${field({ name: 'promoCode', label: 'Promo code', value: c.promoCode ?? '', placeholder: 'e.g. WELCOME10', autocomplete: 'off' })}</div>${btn(c.promoCode ? 'Update' : 'Apply', { type: 'submit', variant: 'secondary' })}${c.promoCode ? btn('Remove', { action: 'co.promo.remove', data: { id: c.id }, variant: 'ghost' }) : ''}</form>${q.discount ? alertBox('success', `${q.discount.code} applied: −${formatPHP(q.discount.amount)}`, q.discount.label) : html`<p class="xs muted">Try <code>WELCOME10</code> (10% off court time, platform-funded) or <code>DINK50</code> (₱50 off at Dink District, venue-funded).</p>`}`, { title: 'Discount' })}
+    ${c.kind === 'open_play_registration' ? '' : card(html`<form class="row" data-form="co.promo" data-id="${c.id}" style="align-items:flex-end"><div style="flex:1">${field({ name: 'promoCode', label: 'Promo code', value: c.promoCode ?? '', placeholder: 'e.g. WELCOME10', autocomplete: 'off' })}</div>${btn(c.promoCode ? 'Update' : 'Apply', { type: 'submit', variant: 'secondary' })}${c.promoCode ? btn('Remove', { action: 'co.promo.remove', data: { id: c.id }, variant: 'ghost' }) : ''}</form>${q.discount ? alertBox('success', `${q.discount.code} applied: −${formatPHP(q.discount.amount)}`, q.discount.label) : html`<p class="xs muted">Try <code>WELCOME10</code> (10% off court time, platform-funded) or <code>DINK50</code> (₱50 off at Dink District, venue-funded).</p>`}`, { title: 'Discount' })}
     ${card(html`<div class="method-list" role="radiogroup" aria-label="Payment method">${co.methods.map((m) => html`<button type="button" class="${cls('method', m.method === method && 'active')}" role="radio" aria-checked="${m.method === method ? 'true' : 'false'}" data-action="co.method" data-id="${c.id}" data-method="${m.method}">${methodLogo(m.method)}<span class="method-body"><b>${m.label}</b><span class="method-fee block">${m.preview.fee ? `Processing fee ${formatPHP(m.preview.fee)}` : m.passThroughLockedReason ? 'No processing fee' : 'No processing fee'}</span></span><b class="money">${formatPHP(m.preview.total)}</b></button>`)}</div><p class="xs muted" style="margin-top:10px">${icon('lock', 12)} You'll finish on the payment provider's secure page. CourtKo never sees your card number, CVV, OTP or e-wallet PIN.</p>`, { title: 'Payment method' })}
   </div><div class="stack">
     ${card(html`${priceBreakdown(co.lines, q.total)}<p class="xs muted" style="margin-top:8px">Price locked until your hold ends${q.pricingRuleIds.length ? ' · rates applied: ' + q.courtSegments.map((s) => s.label).filter((x, i, a) => a.indexOf(x) === i).join(', ') : ''}. Snapshot <code>${co.snapshot.hash.slice(0, 12)}</code></p>`, { title: 'Price breakdown' })}
@@ -251,7 +264,7 @@ action('bk.issue', async (el) => {
 action('bk.ics', (el) => {
   const d = app.api.read('GET /v1/me/bookings/{bookingId}', { bookingId: el.dataset.id! });
   const fmt = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CourtKo//Demo//EN', 'BEGIN:VEVENT', `UID:${d.booking.id}@courtko.example`, `DTSTAMP:${fmt(app.store.now())}`, `DTSTART:${fmt(d.booking.startMs)}`, `DTEND:${fmt(d.booking.endMs)}`, `SUMMARY:Pickleball · ${d.venue.name} (${d.court.name})`, `LOCATION:${d.venue.address.line1}, ${d.venue.address.city}`, `DESCRIPTION:Booking code ${d.booking.code}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CourtKo//Demo//EN', 'BEGIN:VEVENT', `UID:${d.booking.id}@courtko.example`, `DTSTAMP:${fmt(app.store.now())}`, `DTSTART:${fmt(d.booking.startMs)}`, `DTEND:${fmt(d.booking.endMs)}`, `SUMMARY:${sportName(d.booking.sport ?? 'pickleball')} · ${d.venue.name} (${d.court.name})`, `LOCATION:${d.venue.address.line1}, ${d.venue.address.city}`, `DESCRIPTION:Booking code ${d.booking.code}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   download(`courtko-${d.booking.code}.ics`, ics, 'text/calendar');
 });
 

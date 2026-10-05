@@ -27,6 +27,22 @@ export type ErrorCode =
   | 'SUPPORT_MODE_READ_ONLY'
   | 'APPROVAL_REQUIRED'
   | 'ACCOUNT_LOCKED'
+  | 'SPORT_NOT_SUPPORTED'
+  | 'FORMAT_INCOMPATIBLE'
+  | 'CHANGEOVER_CONFLICT'
+  | 'SESSION_FULL'
+  | 'REGISTRATION_CLOSED'
+  | 'PARTNER_REQUIRED'
+  | 'INVITE_EXPIRED'
+  | 'CHECKIN_TOKEN_INVALID'
+  | 'CHECKIN_TOKEN_EXPIRED'
+  | 'CHECKIN_WRONG_SESSION'
+  | 'ALREADY_CHECKED_IN'
+  | 'CHECKIN_WINDOW_CLOSED'
+  | 'NOT_CHECKED_IN'
+  | 'SCORE_RECORDING_DISABLED'
+  | 'USERNAME_TAKEN'
+  | 'FOLLOW_NOT_ALLOWED'
   | 'INTERNAL';
 
 export const ERROR_STATUS: Record<ErrorCode, number> = {
@@ -54,6 +70,22 @@ export const ERROR_STATUS: Record<ErrorCode, number> = {
   SUPPORT_MODE_READ_ONLY: 403,
   APPROVAL_REQUIRED: 403,
   ACCOUNT_LOCKED: 423,
+  SPORT_NOT_SUPPORTED: 422,
+  FORMAT_INCOMPATIBLE: 422,
+  CHANGEOVER_CONFLICT: 409,
+  SESSION_FULL: 409,
+  REGISTRATION_CLOSED: 409,
+  PARTNER_REQUIRED: 422,
+  INVITE_EXPIRED: 410,
+  CHECKIN_TOKEN_INVALID: 422,
+  CHECKIN_TOKEN_EXPIRED: 410,
+  CHECKIN_WRONG_SESSION: 409,
+  ALREADY_CHECKED_IN: 409,
+  CHECKIN_WINDOW_CLOSED: 409,
+  NOT_CHECKED_IN: 409,
+  SCORE_RECORDING_DISABLED: 409,
+  USERNAME_TAKEN: 409,
+  FOLLOW_NOT_ALLOWED: 403,
   INTERNAL: 500,
 };
 
@@ -82,6 +114,22 @@ export const ERROR_TITLE: Record<ErrorCode, string> = {
   SUPPORT_MODE_READ_ONLY: 'Support mode is read-only',
   APPROVAL_REQUIRED: 'A second approval is required',
   ACCOUNT_LOCKED: 'Account temporarily locked',
+  SPORT_NOT_SUPPORTED: "That sport isn't offered here",
+  FORMAT_INCOMPATIBLE: "That format doesn't fit this sport",
+  CHANGEOVER_CONFLICT: 'The court needs changeover time',
+  SESSION_FULL: 'This session is full',
+  REGISTRATION_CLOSED: 'Registration is closed',
+  PARTNER_REQUIRED: 'A partner is required',
+  INVITE_EXPIRED: 'This invitation has expired',
+  CHECKIN_TOKEN_INVALID: "That check-in code isn't valid",
+  CHECKIN_TOKEN_EXPIRED: 'That check-in code has expired',
+  CHECKIN_WRONG_SESSION: 'That code is for a different session',
+  ALREADY_CHECKED_IN: 'Already checked in',
+  CHECKIN_WINDOW_CLOSED: 'Check-in is not open',
+  NOT_CHECKED_IN: 'Player is not checked in',
+  SCORE_RECORDING_DISABLED: 'Scores are not recorded for this session',
+  USERNAME_TAKEN: 'That username is taken',
+  FOLLOW_NOT_ALLOWED: "You can't follow this player",
   INTERNAL: 'Something went wrong',
 };
 

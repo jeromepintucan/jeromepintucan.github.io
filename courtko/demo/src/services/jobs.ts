@@ -7,6 +7,7 @@ import { localDate, localParts } from '../domain/time.ts';
 import { completeFinishedBookings, sendReminders } from './booking.ts';
 import { expireCheckout } from './checkout.ts';
 import { expireWaitlistOffers } from './events.ts';
+import { openPlayJobs } from './openplay.ts';
 import { handleProviderWebhook, reconcilePending, syncPayment } from './payments.ts';
 import { runPayouts } from './payouts.ts';
 import { processDeletions } from './profile.ts';
@@ -94,6 +95,7 @@ export async function runJobs(store: Store, onDelivery?: Parameters<typeof deliv
   reports.push(await run(store, 'bookings.complete', (s) => completeFinishedBookings(s)));
   reports.push(await run(store, 'bookings.remind', (s) => sendReminders(s)));
   reports.push(await run(store, 'events.waitlist_offers', (s) => expireWaitlistOffers(s)));
+  reports.push(await run(store, 'openplay.lifecycle', (s) => openPlayJobs(s)));
   reports.push(await run(store, 'restrictions.expire', (s) => expireRestrictions(s)));
   reports.push(await run(store, 'support.expire', (s) => expireSupportSessions(s)));
   reports.push(await run(store, 'privacy.erase', (s) => processDeletions(s)));

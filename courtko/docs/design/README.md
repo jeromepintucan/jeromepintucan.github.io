@@ -1,6 +1,6 @@
 # CourtKo design package
 
-These are the 23 design documents for the production build. They cover product, architecture, security, operations, and open decisions. All people, venues, amounts, and provider fee rates in them are **synthetic or placeholders**.
+These are the 24 design documents for the production build (doc 24 is change request CR-01: multi-sport, Open Play and social profiles). They cover product, architecture, security, operations, and open decisions. All people, venues, amounts, and provider fee rates in them are **synthetic or placeholders**.
 
 | # | Document | What it answers |
 |---|---|---|
@@ -27,6 +27,6 @@ These are the 23 design documents for the production build. They cover product, 
 | 21 | [Deployment architecture](21-deployment-architecture.md) | AWS Singapore (ap-southeast-1) |
 | 22 | [Operational monitoring](22-operational-monitoring.md) | SLOs, alerts, runbooks |
 | 23 | [Assumptions & decisions](23-assumptions-and-decisions.md) | Open items for legal, finance, and the product owner |
-| 24 | [Change impact: multi-sport, Open Play, social](24-change-impact-multisport.md) | CR-01 impact analysis: affected requirements, screens, entities, APIs, permissions, workflows, tests (draft, pre-implementation) |
+| 24 | [Change request CR-01: multi-sport, Open Play, social](24-change-impact-multisport.md) | Impact analysis, design decisions, implementation plan and demo implementation status (approved 2026-10-06) |
 
 The interactive demo (`../../CourtKo-Demo.html`, source in `../../demo`) implements the booking, payment, refund, ledger, permission, and audit rules described here. It does this in the browser, using a sandbox payment provider in place of Xendit.

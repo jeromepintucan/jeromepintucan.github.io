@@ -19,7 +19,7 @@ g.queueMicrotask = () => undefined;
 const { harness } = await import('./helpers.ts');
 const { app, errorView } = await import('../src/ui/app.ts');
 await import('../src/ui/layouts.ts');
-for (const m of ['public', 'auth', 'player', 'booking', 'pay', 'business', 'business-ops', 'business-setup', 'business-money', 'admin', 'admin-money']) await import(`../src/ui/views/${m}.ts`);
+for (const m of ['public', 'auth', 'player', 'booking', 'pay', 'business', 'business-ops', 'business-setup', 'business-money', 'admin', 'admin-money', 'openplay', 'social', 'business-openplay', 'admin-sports']) await import(`../src/ui/views/${m}.ts`);
 
 let h: Awaited<ReturnType<typeof harness>>;
 
@@ -52,15 +52,16 @@ async function as(persona: string | null) {
     app.token = null;
     return;
   }
+  h.clock.t += 31_000; // next TOTP step (the authenticator replay guard rejects reusing a code)
   const r = await app.api.write('POST /demo/sign-in', { persona });
   app.token = r.token;
   (app.api as unknown as { request: () => unknown }).request = () => ({ correlationId: '', ip: '203.0.113.9', device: 'Test', sessionToken: app.token });
 }
 
-const PUBLIC = ['/', '/courts', '/courts?q=Makati', '/venues/dink-district-bgc', '/venues/kitchen-line-club-makati', '/events', '/how-it-works', '/for-business', '/pricing', '/help', '/terms', '/privacy', '/contact', '/login', '/signup', '/forgot', '/nope'];
-const PLAYER = ['/app', '/app/discover', '/app/book/dink-district-bgc', '/app/bookings', '/app/events', '/app/orders', '/app/activity', '/app/favorites', '/app/notifications', '/app/profile', '/app/payments', '/app/settings'];
-const BIZ = ['/biz', '/biz/calendar', '/biz/bookings', '/biz/walk-in', '/biz/orders', '/biz/courts', '/biz/venues', '/biz/pricing', '/biz/events', '/biz/products', '/biz/customers', '/biz/restrictions', '/biz/staff', '/biz/reviews', '/biz/payments', '/biz/payouts', '/biz/reports', '/biz/settings', '/biz/audit', '/biz/onboarding'];
-const ADMIN = ['/admin', '/admin/businesses', '/admin/venues', '/admin/users', '/admin/bookings', '/admin/events', '/admin/products', '/admin/transactions', '/admin/commissions', '/admin/payouts', '/admin/refunds', '/admin/disputes', '/admin/reports', '/admin/moderation', '/admin/support', '/admin/security', '/admin/audit', '/admin/config'];
+const PUBLIC = ['/', '/courts', '/courts?q=Makati', '/courts?sport=basketball', '/venues/dink-district-bgc', '/venues/hoopsville-cubao?sport=volleyball', '/venues/baseline-racquet-club', '/venues/kitchen-line-club-makati', '/open-play', '/open-play?sport=tennis', '/players/juan.delacruz', '/events', '/how-it-works', '/for-business', '/pricing', '/help', '/terms', '/privacy', '/contact', '/login', '/signup', '/forgot', '/nope'];
+const PLAYER = ['/app', '/app/discover', '/app/book/dink-district-bgc', '/app/book/hoopsville-cubao', '/app/bookings', '/app/open-play', '/app/invites', '/app/players', '/app/players/bea.santiago', '/app/players/juan.delacruz/followers', '/app/follow-requests', '/app/events', '/app/orders', '/app/activity', '/app/favorites', '/app/notifications', '/app/profile', '/app/payments', '/app/settings'];
+const BIZ = ['/biz', '/biz/open-play', '/biz/open-play/new', '/biz/calendar', '/biz/bookings', '/biz/walk-in', '/biz/orders', '/biz/courts', '/biz/venues', '/biz/pricing', '/biz/events', '/biz/products', '/biz/customers', '/biz/restrictions', '/biz/staff', '/biz/reviews', '/biz/payments', '/biz/payouts', '/biz/reports', '/biz/settings', '/biz/audit', '/biz/onboarding'];
+const ADMIN = ['/admin', '/admin/sports', '/admin/open-play', '/admin/businesses', '/admin/venues', '/admin/users', '/admin/bookings', '/admin/events', '/admin/products', '/admin/transactions', '/admin/commissions', '/admin/payouts', '/admin/refunds', '/admin/disputes', '/admin/reports', '/admin/moderation', '/admin/support', '/admin/security', '/admin/audit', '/admin/config'];
 
 function assertOk(html: string, path: string) {
   assert.ok(!html.includes('Something went wrong'), `${path} crashed: ${html.match(/<p class="muted">([^<]*)/)?.[1]}`);
@@ -78,6 +79,40 @@ test('player app renders every page', async () => {
   const bookings = app.api.read('GET /v1/me/bookings', { tab: 'upcoming' });
   assert.ok(bookings.length >= 2);
   assertOk(render(`/app/bookings/${bookings[0]!.booking.id}`), 'booking detail');
+  app.ui.setTab = 'social';
+  assertOk(render('/app/settings'), 'settings social tab');
+  const op = app.api.read('GET /v1/me/open-play/registrations');
+  assert.ok(op.length >= 3);
+  for (const r of op.slice(0, 4)) {
+    assertOk(render(`/app/open-play/registrations/${r.registration.id}`), 'my open play pass');
+    assertOk(render(`/app/open-play/${r.session.id}`), 'open play detail');
+  }
+  for (const t of ['mine', 'invites']) {
+    app.ui.opTab = t;
+    assertOk(render('/app/open-play'), `open play tab ${t}`);
+  }
+  const profile = render('/app/profile');
+  assert.ok(profile.includes('My sports') && profile.includes('Basketball'), 'profile shows the My Sports dashboard');
+});
+
+test('business Open Play desk renders for owner and receptionist', async () => {
+  for (const persona of ['owner', 'receptionist']) {
+    await as(persona);
+    const list = app.api.read('GET /v1/businesses/{businessId}/open-play', { businessId: app.api.read('GET /v1/me')!.memberships[0]!.business.id });
+    assert.ok(list.length >= 3);
+    for (const x of list.slice(0, 3)) {
+      for (const t of ['desk', 'players', 'log']) {
+        app.ui[`deskTab:${x.session.id}`] = t;
+        assertOk(render(`/biz/open-play/${x.session.id}`), `${persona} desk ${t}`);
+      }
+      if (persona === 'owner') assertOk(render(`/biz/open-play/edit/${x.session.id}`), 'edit session');
+    }
+  }
+  await as('owner');
+  const cal = render('/biz/calendar');
+  assert.ok(cal.includes('The Hall') && cal.includes('cal-partial') === cal.includes('cal-partial'), 'calendar shows physical courts');
+  const courts = render('/biz/courts');
+  assert.ok(courts.includes('Half court A') && courts.includes('Blocks when booked'));
 });
 
 test('owner, manager and receptionist see the business portal (permission-filtered)', async () => {
@@ -94,6 +129,8 @@ test('owner, manager and receptionist see the business portal (permission-filter
 test('SuperAdmin renders every console page; players get Not found on admin routes', async () => {
   await as('superadmin');
   for (const p of ADMIN) assertOk(render(p), p);
+  app.ui.sportOpen = 'basketball';
+  assertOk(render('/admin/sports'), 'sport editor');
   const biz = app.api.read('GET /v1/admin/businesses', {}).data[0]!.business.id;
   assertOk(render(`/admin/businesses/${biz}`), 'admin business detail');
   await as('player');

@@ -348,3 +348,18 @@ Resource scope resolution:
 Deny-by-default mechanics: every route declares `config.authz = { permission | 'self' | 'public', resource: loaderName }`; a Fastify `onRoute` hook aborts boot if it is missing; permission codes are compile-time unions; the app DB role has no `BYPASSRLS` and migrations run as a separate owner role; all denials emit an `authz.denied` security event (aggregated) that feeds cross-tenant-probing alerts (doc 22).
 
 Tests (full plan in [doc 20 §7](./20-testing-strategy.md#7-authorization-matrix-testing-every-route-x-role)): table-driven unit tests generated from §4/§5; property-based escalation tests (random role edits never yield `granted ⊄ granter`); route-inventory test (no route without policy); every route × role fixture via Fastify `inject`; two-tenant isolation and raw-SQL RLS tests; support-mode and maker-checker tests.
+
+---
+
+## Addendum CR-01 (2026-10-06): Open Play and sport catalog permissions
+
+| Code | Description | Risk | MFA | Owner | Manager | Receptionist | Court Mgr | Event Mgr |
+|---|---|---|---|---|---|---|---|---|
+| `openplay.view` | View sessions and the live desk | low | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `openplay.manage` | Create, edit, publish and cancel sessions. Assign replacement partners | medium | — | ✓ | ✓ | — | — | ✓ |
+| `openplay.check_in` | Check players in (QR, search, manual with reason). Walk-ins | low | — | ✓ | ✓ | ✓ | — | ✓ |
+| `openplay.run` | Assign courts, run the rotation, start/end games, record scores | low | — | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `openplay.attendance.correct` | Reverse or correct attendance (reason required) | medium | **Yes** | ✓ | ✓ | — | — | — |
+| `platform.sports.manage` | Manage the sport catalog | high | **Yes** | SuperAdmin only | | | | |
+
+Restriction status on the desk is visible only with `restrictions.view`. Social actions are personal-account actions and are never performed by staff on behalf of a business. See [doc 24 §6](24-change-impact-multisport.md).

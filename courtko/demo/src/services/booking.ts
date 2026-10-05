@@ -24,6 +24,7 @@ import {
   insertSlot,
   releaseSlot,
   resolveAddOns,
+  unitsOfCourt,
   resolvePromo,
   saveSnapshot,
   startPayment,
@@ -41,6 +42,7 @@ import { createRefund } from './refunds.ts';
 import {
   audit,
   commissionTermsFor,
+  DEFAULT_SOCIAL,
   contactFor,
   displayName,
   notify,
@@ -52,7 +54,7 @@ import {
   settings,
   type Svc,
 } from './svc.ts';
-import type { Db } from './store.ts';
+import { slotUnits, type Db } from './store.ts';
 
 /** PLACEHOLDER signing key for booking QR tokens (production: per-environment secret in AWS Secrets Manager). */
 const QR_SIGNING_KEY = 'demo-qr-signing-key-rotate-in-production';
@@ -76,22 +78,50 @@ function verifyQrToken(db: Db, token: string): Booking | undefined {
 export function occupanciesFor(db: Db, venueId: Id, from: number, to: number, now: number): Occupancy[] {
   return db
     .filter('slots', (s) => s.venueId === venueId && s.status === 'active' && s.startMs < to && from < s.occupiedEndMs && !(s.kind === 'hold' && s.expiresAt !== null && s.expiresAt <= now))
-    .map((s) => ({ id: s.id, courtId: s.courtId, startMs: s.startMs, endMs: s.endMs, occupiedEndMs: s.occupiedEndMs, kind: s.kind, sourceId: s.sourceId }));
+    .map((s) => {
+      const court = db.get('courts', s.courtId);
+      const label = s.kind === 'booking' || s.kind === 'hold' ? `${court?.layoutLabel ?? court?.name ?? 'Court'} in use` : undefined;
+      return { id: s.id, courtId: s.courtId, startMs: s.startMs, endMs: s.endMs, occupiedEndMs: s.occupiedEndMs, kind: s.kind, sourceId: s.sourceId, units: slotUnits(s), ...(s.sport ? { sport: s.sport } : {}), ...(label ? { label } : {}) };
+    });
 }
 
-export function venueAvailability(s: Svc, input: { venueId: Id; date: string; durationMinutes?: number }) {
+/** Sports actually bookable at a venue (venue setting ∩ active catalog ∩ layouts that exist). */
+export function venueSports(db: Db, venue: Venue): string[] {
+  const active = new Set(db.filter('sports', (x) => x.status === 'active').map((x) => x.code));
+  const withCourts = new Set(db.filter('courts', (c) => c.venueId === venue.id && c.status === 'active').map((c) => c.sport ?? 'pickleball'));
+  return (venue.sports?.length ? venue.sports : ['pickleball']).filter((x) => active.has(x) && withCourts.has(x));
+}
+
+export function venueAvailability(s: Svc, input: { venueId: Id; date: string; durationMinutes?: number; sport?: string }) {
   const venue = s.db.get('venues', input.venueId);
   if (!venue || venue.status !== 'published') fail('NOT_FOUND', 'Venue not found.');
   const business = s.db.must('businesses', venue.businessId);
-  const courts = s.db.filter('courts', (c) => c.venueId === venue.id && c.status === 'active').sort((a, b) => a.sortOrder - b.sortOrder);
-  const duration = input.durationMinutes ?? venue.settings.minDurationMinutes;
+  const sports = venueSports(s.db, venue);
+  const sport = input.sport && sports.includes(input.sport) ? input.sport : sports[0] ?? 'pickleball';
+  if (input.sport && !sports.includes(input.sport)) fail('SPORT_NOT_SUPPORTED', `${venue.name} doesn't offer that sport.`);
+  const courts = s.db.filter('courts', (c) => c.venueId === venue.id && c.status === 'active' && (c.sport ?? 'pickleball') === sport).sort((a, b) => a.sortOrder - b.sortOrder);
+  const sportCfg = s.db.get('sports', sport);
+  const duration = input.durationMinutes ?? Math.max(venue.settings.minDurationMinutes, Math.min(venue.settings.maxDurationMinutes, sportCfg?.defaultDurationMinutes ?? venue.settings.minDurationMinutes));
   const schedule = scheduleFor(input.date, venue.hours, s.db.filter('specialHours', (x) => x.venueId === venue.id));
   const dayStart = localToInstant(input.date, 0, venue.offsetMin);
   const occ = occupanciesFor(s.db, venue.id, dayStart, dayStart + DAY, s.now);
-  const grid = computeAvailability({ date: input.date, offsetMin: venue.offsetMin, schedule, settings: venue.settings, courtIds: courts.map((c) => c.id), occupancies: occ, durationMinutes: duration, now: s.now });
+  const grid = computeAvailability({
+    date: input.date,
+    offsetMin: venue.offsetMin,
+    schedule,
+    settings: venue.settings,
+    courtIds: courts.map((c) => c.id),
+    courtUnits: Object.fromEntries(courts.map((c) => [c.id, unitsOfCourt(c, c.id)])),
+    courtSports: Object.fromEntries(courts.map((c) => [c.id, c.sport])),
+    occupancies: occ,
+    durationMinutes: duration,
+    now: s.now,
+  });
   const restricted = s.actor.user ? !!activeRestriction(s.db, s.actor.user.id, venue.businessId, venue.id, s.now) : false;
   return {
     venue,
+    sport,
+    sports,
     businessActive: business.status === 'active',
     schedule,
     durationMinutes: duration,
@@ -132,6 +162,9 @@ function createBookingHold(s: Svc, userId: Id, input: CreateHoldInput, opts: { s
   if (business.status !== 'active') fail('CONFLICT', 'This venue is not taking bookings right now.');
   const court = s.db.get('courts', input.courtId);
   if (!court || court.venueId !== venue.id || court.status !== 'active') fail('NOT_FOUND', 'Court not found.');
+  const sport = court.sport ?? 'pickleball';
+  const sportCfg = s.db.get('sports', sport);
+  if (!sportCfg || sportCfg.status !== 'active' || !venueSports(s.db, venue).includes(sport)) fail('SPORT_NOT_SUPPORTED', `${sportCfg?.name ?? 'This sport'} isn't available for booking here right now.`);
   assertNotRestricted(s, userId, venue.businessId, venue.id);
   const date = localDate(input.startMs, venue.offsetMin);
   const schedule = scheduleFor(date, venue.hours, s.db.filter('specialHours', (x) => x.venueId === venue.id));
@@ -178,6 +211,7 @@ function createBookingHold(s: Svc, userId: Id, input: CreateHoldInput, opts: { s
     businessId: business.id,
     venueId: venue.id,
     courtId: court.id,
+    sport,
     userId,
     checkoutId,
     startMs: input.startMs,
@@ -406,6 +440,11 @@ export function getMyCheckout(s: Svc, input: { checkoutId: Id }) {
     policy: { name: policy.name, version: policy.version, lines: describePolicy(policy) },
     order: checkout.orderId ? s.db.get('orders', checkout.orderId) ?? null : null,
     registration: checkout.registrationId ? s.db.get('registrations', checkout.registrationId) ?? null : null,
+    openPlay: (() => {
+      const r = checkout.openPlayRegistrationId ? s.db.get('opRegistrations', checkout.openPlayRegistrationId) : undefined;
+      const o = r ? s.db.get('openPlaySessions', r.sessionId) : undefined;
+      return r && o ? { registration: r, session: { id: o.id, title: o.title, sport: o.sport, startMs: o.startMs, endMs: o.endMs } } : null;
+    })(),
     methods: settings(s.db).feeSchedules.filter((f) => f.enabled && venue.acceptedMethods.includes(f.method)).map((f) => ({ ...f, preview: previewTotal(s, checkout, f.method) })),
   };
 }
@@ -645,7 +684,15 @@ export function calendar(s: Svc, input: { businessId: Id; venueId: Id; date: str
   const courts = s.db.filter('courts', (c) => c.venueId === venue.id).sort((a, b) => a.sortOrder - b.sortOrder);
   const dayStart = localToInstant(input.date, 0, venue.offsetMin);
   const schedule = scheduleFor(input.date, venue.hours, s.db.filter('specialHours', (x) => x.venueId === venue.id));
+  const physical = s.db
+    .filter('physicalCourts', (p) => p.venueId === venue.id && p.status === 'active')
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((p) => ({ id: p.id, name: p.name, sports: p.sports, units: p.unitNames, environment: p.environment, maintenance: p.maintenance }));
   const items = occupanciesFor(s.db, venue.id, dayStart, dayStart + DAY, s.now).map((o) => {
+    if (o.kind === 'open_play') {
+      const op = s.db.get('openPlaySessions', o.sourceId);
+      return { ...o, status: 'open_play', title: op?.title ?? 'Open Play', code: null, bookingId: null, source: 'open_play', sessionId: op?.id ?? null };
+    }
     if (o.kind === 'booking' || o.kind === 'hold') {
       const b = s.db.get('bookings', o.sourceId);
       return { ...o, status: b?.status ?? 'slot_held', title: b ? customerLabel(s, acc.perms, b.userId).name : 'Hold', code: b?.code ?? null, bookingId: b?.id ?? null, source: b?.source ?? 'online' };
@@ -658,7 +705,7 @@ export function calendar(s: Svc, input: { businessId: Id; venueId: Id; date: str
     return { ...o, status: 'blocked', title: blk ? `${blk.reason.replace('_', ' ')}${blk.note ? ` · ${blk.note}` : ''}` : 'Blocked', code: null, bookingId: null, source: 'block' };
   });
   // Completed / checked-in bookings whose slots remain active are included above; released ones are history.
-  return { venue, courts, schedule, items, perms: [...acc.perms] };
+  return { venue, courts, physical, schedule, items, perms: [...acc.perms] };
 }
 
 function findBookingForCheckIn(s: Svc, businessId: Id, codeOrToken: string): Booking {
@@ -754,7 +801,7 @@ export function createWalkIn(s: Svc, input: { businessId: Id; venueId: Id; court
       userId = newId('usr');
       const [first, ...rest] = name.split(/\s+/);
       s.db.insert('users', { id: userId, email: null, phone, passwordHash: null, status: 'active', emailVerifiedAt: null, phoneVerifiedAt: null, mfa: null, platformRole: null, createdAt: s.now, lastLoginAt: null, lockedUntil: null, invited: true, deletion: null });
-      s.db.insert('profiles', { id: userId, userId, firstName: first ?? name, lastName: rest.join(' '), displayName: name, city: '', skillSelf: null, bio: '', avatarHue: 140, visibility: { profile: 'private', activity: 'private', ratings: 'private' } });
+      s.db.insert('profiles', { id: userId, userId, firstName: first ?? name, lastName: rest.join(' '), displayName: name, city: '', skillSelf: null, bio: '', avatarHue: 140, visibility: { profile: 'private', activity: 'private', ratings: 'private' }, username: null, social: { ...DEFAULT_SOCIAL, discoverable: false, allowFollows: false } });
       s.db.insert('preferences', { ...defaultPreferences(userId), });
     }
   }

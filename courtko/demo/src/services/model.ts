@@ -15,6 +15,8 @@ import type {
   BusinessStatus,
   CheckoutStatus,
   DisputeStatus,
+  OpRegStatus,
+  OpSessionStatus,
   OrderStatus,
   PaymentStatus,
   PayoutStatus,
@@ -24,9 +26,10 @@ import type {
   VenueStatus,
 } from '../domain/state.ts';
 import type { LocalDate } from '../domain/time.ts';
+import type { LayoutKind, OpenPlayStyle, RegistrationMode, RotationStrategy, SportCode, SportConfig } from '../domain/sports.ts';
 
 export type Id = string;
-export type Visibility = 'private' | 'connections' | 'organizers' | 'public';
+export type Visibility = 'private' | 'followers' | 'organizers' | 'public';
 export type SkillLevel = 'beginner' | 'novice' | 'intermediate' | 'advanced' | 'expert';
 
 export interface User {
@@ -60,6 +63,23 @@ export interface Profile {
   bio: string;
   avatarHue: number;
   visibility: { profile: Visibility; activity: Visibility; ratings: Visibility };
+  /** Unique public handle (case-insensitive). Never an email or phone. */
+  username: string | null;
+  usernameChangedAt?: number | null;
+  /** Social privacy controls (doc 24 SOC). */
+  social: SocialSettings;
+}
+
+export interface SocialSettings {
+  /** Appear in player search and suggestions. */
+  discoverable: boolean;
+  allowFollows: boolean;
+  /** Follow requests need approval (pending → accepted / declined). */
+  requireApproval: boolean;
+  showFollowers: boolean;
+  showFollowing: boolean;
+  /** Show which sports I play on my public profile. */
+  showSports: boolean;
 }
 
 export type NotificationCategory =
@@ -71,6 +91,7 @@ export type NotificationCategory =
   | 'orders'
   | 'business_ops'
   | 'payouts'
+  | 'social'
   | 'marketing';
 
 export interface ChannelPrefs {
@@ -227,6 +248,8 @@ export interface Venue {
   parking: string;
   accessibility: string;
   rules: string[];
+  /** Sports offered at this venue (subset of active catalog sports). */
+  sports: SportCode[];
   status: VenueStatus;
   history: StatusChange<VenueStatus>[];
   hours: WeeklyHours;
@@ -244,10 +267,41 @@ export interface VenueSpecialHours extends SpecialHours {
   businessId: Id;
 }
 
+/** A physical court (doc 24 CR-D03): the real floor, with its space units and supported sports. */
+export interface PhysicalCourt {
+  id: Id;
+  businessId: Id;
+  venueId: Id;
+  name: string;
+  sports: SportCode[];
+  environment: 'indoor' | 'outdoor' | 'covered';
+  surface: string;
+  capacity: number;
+  amenities: string[];
+  equipment: string[];
+  accessibility: string;
+  /** Smallest separately bookable areas, e.g. ['A', 'B'] for two halves. */
+  unitNames: string[];
+  /** Changeover time when consecutive bookings use a different sport (net/line conversion). */
+  changeoverMinutes: number;
+  /** Recurring maintenance windows (shown on the calendar; staff create blocks from them). */
+  maintenance: { dow: number; startMinute: number; endMinute: number; note: string }[];
+  art: { hue: number };
+  notes: string;
+  status: 'active' | 'inactive';
+  sortOrder: number;
+  createdAt: number;
+}
+
+/**
+ * A bookable court layout ("court configuration"). Existing code keeps using `courts` for anything bookable;
+ * each row now belongs to a physical court, plays one sport, and occupies one or more space units.
+ */
 export interface Court {
   id: Id;
   businessId: Id;
   venueId: Id;
+  /** Display name, e.g. "Court 3" or "Main Hall · Half court A". */
   name: string;
   format: 'full' | 'half';
   environment: 'indoor' | 'outdoor' | 'covered';
@@ -255,6 +309,13 @@ export interface Court {
   customTags: string[];
   status: 'active' | 'inactive';
   sortOrder: number;
+  physicalCourtId?: Id;
+  sport?: SportCode;
+  layout?: LayoutKind;
+  layoutLabel?: string;
+  /** Fully-qualified space units (`${physicalCourtId}:${unit}`) this layout occupies. */
+  units?: string[];
+  capacity?: number;
 }
 
 export interface CourtBlock {
@@ -282,6 +343,9 @@ export interface BookingSlot {
   occupiedEndMs: number;
   kind: OccupancyKind;
   sourceId: Id;
+  /** Space units occupied (copied from the court layout at insert time). */
+  units?: string[];
+  sport?: SportCode;
   status: 'active' | 'released';
   expiresAt: number | null;
   createdAt: number;
@@ -291,7 +355,7 @@ export interface BookingSlot {
 
 export interface Checkout {
   id: Id;
-  kind: 'court_booking' | 'event_registration' | 'product_order';
+  kind: 'court_booking' | 'event_registration' | 'product_order' | 'open_play_registration';
   userId: Id;
   businessId: Id;
   venueId: Id;
@@ -305,6 +369,7 @@ export interface Checkout {
   paymentIds: Id[];
   bookingId?: Id;
   registrationId?: Id;
+  openPlayRegistrationId?: Id;
   orderId?: Id;
   promoCode?: string | null;
   redemptionId?: Id | null;
@@ -338,6 +403,8 @@ export interface Booking {
   businessId: Id;
   venueId: Id;
   courtId: Id;
+  /** Sport played (from the court layout); stored with the booking for history and reporting. */
+  sport?: SportCode;
   userId: Id;
   checkoutId: Id;
   startMs: number;
@@ -443,6 +510,7 @@ export interface Refund {
   bookingId: Id | null;
   orderId: Id | null;
   registrationId: Id | null;
+  openPlayRegistrationId?: Id | null;
   amount: Centavos;
   breakdown: RefundBreakdown;
   reason: string;
@@ -535,6 +603,7 @@ export interface CourtEvent {
   id: Id;
   businessId: Id;
   venueId: Id;
+  sport?: SportCode;
   type: EventType;
   name: string;
   description: string;
@@ -721,7 +790,7 @@ export interface Review {
 export interface ContentReport {
   id: Id;
   reporterId: Id;
-  targetType: 'review' | 'venue' | 'event' | 'product' | 'user' | 'issue';
+  targetType: 'review' | 'venue' | 'event' | 'product' | 'user' | 'issue' | 'profile';
   targetId: Id;
   businessId: Id | null;
   reason: string;
@@ -816,7 +885,8 @@ export interface SecurityEvent {
     | 'data_export'
     | 'reconciliation_healed'
     | 'payment_amount_mismatch'
-    | 'impersonation_blocked_action';
+    | 'impersonation_blocked_action'
+    | 'checkin_token_invalid';
   severity: 'info' | 'warning' | 'critical';
   userId: Id | null;
   businessId: Id | null;
@@ -1001,6 +1071,203 @@ export interface ProviderIdempotency {
   resultId: string;
 }
 
+// ---------------------------------------------------------------- Open Play (doc 24 OPP / ATT / ROT)
+
+export type OpenPlayStatus = OpSessionStatus;
+export type OpRegistrationStatus = OpRegStatus;
+/** Physical attendance — a separate axis from registration (CR-D07). */
+export type AttendanceStatus = 'not_arrived' | 'checked_in' | 'waiting' | 'on_court' | 'temp_off' | 'checked_out' | 'completed' | 'no_show';
+
+export interface OpenPlaySession {
+  id: Id;
+  businessId: Id;
+  venueId: Id;
+  sport: SportCode;
+  title: string;
+  description: string;
+  /** Bookable court layouts reserved for the session. */
+  courtIds: Id[];
+  startMs: number;
+  endMs: number;
+  registrationOpensAt: number;
+  registrationClosesAt: number;
+  checkInOpensAt: number;
+  lateCutoffAt: number;
+  minParticipants: number;
+  capacity: number;
+  capacityUnit: 'player' | 'team';
+  formatCode: string;
+  style: OpenPlayStyle;
+  customFormatLabel: string;
+  skillLevels: string[];
+  eligibility: string;
+  pricing: 'free' | 'per_player' | 'per_team';
+  price: Centavos;
+  registrationModes: RegistrationMode[];
+  teamSize: number;
+  walkInsAllowed: boolean;
+  waitlistEnabled: boolean;
+  equipmentIncluded: boolean;
+  equipmentNote: string;
+  policyKey: CancellationPolicy['key'];
+  refundNote: string;
+  noShowPolicy: string;
+  /** What happens if an invited partner declines or cancels. */
+  partnerFallback: 'keep_solo' | 'cancel_both';
+  instructions: string;
+  organizer: string;
+  staffMemberIds: Id[];
+  rotation: RotationStrategy;
+  autoQueueOnCheckIn: boolean;
+  scoreRecording: boolean;
+  gameMinutes: number;
+  visibility: 'public' | 'unlisted';
+  status: OpenPlayStatus;
+  history: StatusChange<OpenPlayStatus>[];
+  slotIds: Id[];
+  cancelReason: string | null;
+  createdAt: number;
+  createdBy: Id;
+  publishedAt: number | null;
+  updatedAt: number;
+}
+
+export interface OpenPlayRegistration {
+  id: Id;
+  sessionId: Id;
+  businessId: Id;
+  venueId: Id;
+  userId: Id;
+  partyId: Id | null;
+  role: 'individual' | 'captain' | 'partner' | 'member';
+  mode: RegistrationMode;
+  status: OpRegistrationStatus;
+  history: StatusChange<OpRegistrationStatus>[];
+  checkoutId: Id | null;
+  waitlistPosition: number | null;
+  offerExpiresAt: number | null;
+  holdExpiresAt: number | null;
+  attendance: AttendanceStatus;
+  checkedInAt: number | null;
+  checkedInBy: Id | null;
+  checkInMethod: 'qr' | 'registration_qr' | 'search' | 'manual' | 'walk_in' | null;
+  /** Position in the waiting rotation (time entered the queue). */
+  queueSince: number | null;
+  courtId: Id | null;
+  gamesPlayed: number;
+  /** SHA-256 of the random check-in reference; the reference itself is derived server-side and never stored. */
+  checkinRefHash: string;
+  checkinNonce: string;
+  needsPartner: boolean;
+  manuallyAdjusted: boolean;
+  walkIn: boolean;
+  skill: string | null;
+  createdAt: number;
+  confirmedAt: number | null;
+  cancelledAt: number | null;
+  createdBy: Id;
+}
+
+export interface OpenPlayParty {
+  id: Id;
+  sessionId: Id;
+  businessId: Id;
+  kind: 'pair' | 'team';
+  name: string;
+  captainUserId: Id;
+  size: number;
+  status: 'forming' | 'complete' | 'needs_member' | 'dissolved';
+  joinable: boolean;
+  /** Registered users the captain will invite once their own registration is confirmed. */
+  invitees: Id[];
+  createdAt: number;
+  createdBy: Id;
+}
+
+export interface PartyInvite {
+  id: Id;
+  partyId: Id;
+  sessionId: Id;
+  businessId: Id;
+  inviterId: Id;
+  inviteeId: Id;
+  status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled';
+  createdAt: number;
+  expiresAt: number;
+  respondedAt: number | null;
+}
+
+export type AttendanceEventType = 'check_in' | 'check_in_rejected' | 'to_waiting' | 'assign_court' | 'move_court' | 'start_game' | 'end_game' | 'temp_off' | 'check_out' | 'no_show' | 'completed' | 'correction' | 'reversal' | 'walk_in';
+
+/** Append-only attendance history (CR-D07). Corrections and reversals are new rows, never edits. */
+export interface AttendanceEvent {
+  id: Id;
+  seq: number;
+  sessionId: Id;
+  businessId: Id;
+  registrationId: Id | null;
+  type: AttendanceEventType;
+  method?: OpenPlayRegistration['checkInMethod'] | 'migration';
+  from?: AttendanceStatus;
+  to?: AttendanceStatus;
+  courtId?: Id | null;
+  gameId?: Id | null;
+  rejectCode?: string;
+  reason?: string;
+  reversesEventId?: Id;
+  actorUserId: Id | null;
+  actorLabel: string;
+  at: number;
+}
+
+export interface OpenPlayGame {
+  id: Id;
+  sessionId: Id;
+  businessId: Id;
+  courtId: Id;
+  sideA: Id[];
+  sideB: Id[];
+  status: 'in_progress' | 'completed' | 'abandoned';
+  startedAt: number;
+  endedAt: number | null;
+  score: { a: number; b: number } | null;
+  winner: 'a' | 'b' | null;
+  startedBy: Id;
+  recordedBy: Id | null;
+}
+
+// ---------------------------------------------------------------- social (doc 24 SOC)
+
+export interface Follow {
+  id: Id;
+  followerId: Id;
+  followeeId: Id;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled' | 'removed';
+  createdAt: number;
+  respondedAt: number | null;
+  endedAt: number | null;
+}
+
+export interface UserBlock {
+  id: Id;
+  blockerId: Id;
+  blockedId: Id;
+  createdAt: number;
+}
+
+/** Per-sport player profile: self-declared skill (labeled with its source), interest and display choices. */
+export interface SportProfile {
+  id: Id; // `${userId}:${sport}`
+  userId: Id;
+  sport: SportCode;
+  skill: string | null;
+  skillSource: 'self_declared' | 'venue_verified';
+  interested: boolean;
+  pinned: boolean;
+  hidden: boolean;
+  updatedAt: number;
+}
+
 export interface DbTables {
   users: Record<Id, User>;
   profiles: Record<Id, Profile>;
@@ -1062,6 +1329,17 @@ export interface DbTables {
   providerSubAccounts: Record<Id, ProviderSubAccount>;
   providerMaster: Record<Id, ProviderMasterBalance>;
   providerIdempotency: Record<Id, ProviderIdempotency>;
+  sports: Record<Id, SportConfig>;
+  physicalCourts: Record<Id, PhysicalCourt>;
+  openPlaySessions: Record<Id, OpenPlaySession>;
+  opRegistrations: Record<Id, OpenPlayRegistration>;
+  opParties: Record<Id, OpenPlayParty>;
+  opInvites: Record<Id, PartyInvite>;
+  attendanceEvents: Record<Id, AttendanceEvent>;
+  opGames: Record<Id, OpenPlayGame>;
+  follows: Record<Id, Follow>;
+  blocks: Record<Id, UserBlock>;
+  sportProfiles: Record<Id, SportProfile>;
 }
 
 export type TableName = keyof DbTables;
@@ -1094,6 +1372,8 @@ export const TABLES: TableName[] = [
   'notifications', 'outbound', 'supportSessions', 'audit', 'securityEvents', 'idempotency', 'approvals', 'favorites',
   'holidays', 'settings', 'providerSessions', 'providerPayments', 'providerRefunds', 'providerPayouts',
   'providerDeliveries', 'providerSubAccounts', 'providerMaster', 'providerIdempotency',
+  'sports', 'physicalCourts', 'openPlaySessions', 'opRegistrations', 'opParties', 'opInvites', 'attendanceEvents', 'opGames',
+  'follows', 'blocks', 'sportProfiles',
 ];
 
 export function emptyTables(): DbTables {

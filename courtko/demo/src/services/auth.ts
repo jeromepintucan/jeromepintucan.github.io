@@ -12,12 +12,14 @@ import type { Id, Preferences, Profile, Session, User } from './model.ts';
 import {
   ADMIN_IDLE_MS,
   audit,
+  DEFAULT_SOCIAL,
   notify,
   requireUser,
   requireWritable,
   securityEvent,
   SESSION_ABSOLUTE_MS,
   SESSION_IDLE_MS,
+  suggestUsername,
   userBusinessPermissions,
   type Svc,
 } from './svc.ts';
@@ -44,6 +46,7 @@ export function defaultPreferences(userId: Id, marketingOptIn = false): Preferen
       orders: { ...on },
       business_ops: { inApp: true, email: false, sms: false, push: false },
       payouts: { ...on },
+      social: { inApp: true, email: false, sms: false, push: true },
       marketing: { inApp: marketingOptIn, email: marketingOptIn, sms: false, push: false },
     },
     marketingOptIn,
@@ -196,6 +199,8 @@ export function register(
     bio: '',
     avatarHue: Math.floor(Math.random() * 360),
     visibility: { profile: 'public', activity: 'private', ratings: 'organizers' },
+    username: suggestUsername(s.db, firstName, lastName),
+    social: { ...DEFAULT_SOCIAL },
   };
   s.db.insert('profiles', profile);
   s.db.insert('preferences', defaultPreferences(userId, !!input.marketingOptIn));

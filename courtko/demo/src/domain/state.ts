@@ -128,6 +128,27 @@ export const REGISTRATION_TRANSITIONS: Machine<RegistrationStatus> = {
   refunded: [],
 };
 
+/** Open Play registration (commercial axis — separate from attendance, doc 24 CR-D07). */
+export type OpRegStatus = 'held' | 'pending_payment' | 'confirmed' | 'waitlisted' | 'offered' | 'cancelled' | 'refunded';
+export const OP_REG_TRANSITIONS: Machine<OpRegStatus> = {
+  held: ['pending_payment', 'confirmed', 'cancelled'],
+  pending_payment: ['held', 'confirmed', 'cancelled'],
+  waitlisted: ['offered', 'cancelled'],
+  offered: ['held', 'confirmed', 'cancelled'],
+  confirmed: ['cancelled'],
+  cancelled: ['refunded', 'pending_payment'],
+  refunded: [],
+};
+
+export type OpSessionStatus = 'draft' | 'published' | 'in_progress' | 'completed' | 'cancelled';
+export const OP_SESSION_TRANSITIONS: Machine<OpSessionStatus> = {
+  draft: ['published', 'cancelled'],
+  published: ['in_progress', 'cancelled', 'completed'],
+  in_progress: ['completed', 'cancelled'],
+  completed: [],
+  cancelled: [],
+};
+
 export const BUSINESS_TRANSITIONS: Machine<BusinessStatus> = {
   draft: ['pending_verification'],
   pending_verification: ['active', 'rejected', 'draft'],

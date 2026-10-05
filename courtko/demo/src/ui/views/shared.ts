@@ -6,7 +6,7 @@ import { formatDateShort, formatTime, formatTimeRange, localDate } from '../../d
 import type { ReadResult } from '../../services/api.ts';
 import { action, app } from '../app.ts';
 import { venueCover } from '../art.ts';
-import { btn, pill, stars, tag } from '../components.ts';
+import { btn, dataAttrs, pill, stars, tag } from '../components.ts';
 import { escapeHtml, html, raw, type SafeHtml } from '../html.ts';
 import { icon } from '../icons.ts';
 
@@ -16,18 +16,50 @@ export type EventRow = ReadResult<'GET /v1/public/events'>[number];
 export const ENV_LABEL: Record<string, string> = { indoor: 'Indoor', outdoor: 'Outdoor', covered: 'Covered' };
 export const DEMO_LOCATION: LatLng = { lat: 14.5515, lng: 121.0475 }; // BGC, Taguig (demo)
 
-export function venueCard(r: SearchRow, base = '#/venues'): SafeHtml {
+// ---------------------------------------------------------------- sports (read from the SuperAdmin catalog — never hard-coded)
+
+export type SportRow = ReadResult<'GET /v1/public/sports'>[number];
+
+export function sportsCatalog(): SportRow[] {
+  return app.api.read('GET /v1/public/sports');
+}
+
+export function sportName(code: string | null | undefined): string {
+  return sportsCatalog().find((x) => x.code === code)?.name ?? (code ? code.replace(/^\w/, (c) => c.toUpperCase()) : 'Any sport');
+}
+
+export function sportIcon(code: string | null | undefined, size = 16): SafeHtml {
+  const sp = sportsCatalog().find((x) => x.code === code);
+  return icon(sp?.icon ?? 'ball', size);
+}
+
+export function sportTag(code: string, opts: { small?: boolean } = {}): SafeHtml {
+  const sp = sportsCatalog().find((x) => x.code === code);
+  return html`<span class="sport-tag${opts.small ? ' sm' : ''}" style="--sport-hue:${sp?.hue ?? 150}">${icon(sp?.icon ?? 'ball', opts.small ? 12 : 14)}<span>${sp?.name ?? code}</span></span>`;
+}
+
+/** Sport picker chips. `current` '' = all sports. */
+export function sportPicker(current: string, actionName: string, opts: { all?: boolean; only?: string[]; label?: string; data?: Record<string, string> } = {}): SafeHtml {
+  const list = sportsCatalog().filter((x) => !opts.only || opts.only.includes(x.code));
+  const extra = dataAttrs(opts.data);
+  return html`<div class="sport-picker" role="group" aria-label="${opts.label ?? 'Sport'}">${opts.all !== false ? html`<button class="sport-chip${!current ? ' active' : ''}" data-action="${actionName}" data-sport=""${extra} aria-pressed="${!current ? 'true' : 'false'}">${icon('layers', 18)}<span>All sports</span></button>` : ''}${list.map((x) => html`<button class="sport-chip${current === x.code ? ' active' : ''}" style="--sport-hue:${x.hue}" data-action="${actionName}" data-sport="${x.code}"${extra} aria-pressed="${current === x.code ? 'true' : 'false'}">${icon(x.icon, 18)}<span>${x.name}</span></button>`)}</div>`;
+}
+
+export function venueCard(r: SearchRow, base = '#/venues', sport = ''): SafeHtml {
   const v = r.venue;
   const next = r.next;
   const today = localDate(app.store.now());
   const nextText = next ? `${localDate(next.startMs) === today ? 'Today' : formatDateShort(next.startMs)} ${formatTime(next.startMs)}` : 'Fully booked for now';
+  const coverSport = sport || r.sports[0] || 'pickleball';
+  const href = `${base}/${v.slug}${sport ? `?sport=${sport}` : ''}`;
   return html`<article class="venue-card card">
     ${app.me() ? html`<button class="${r.favorite ? 'fav-btn on' : 'fav-btn'}" data-action="fav.toggle" data-venue="${v.id}" aria-label="${r.favorite ? 'Remove from favorites' : 'Save to favorites'}" aria-pressed="${r.favorite ? 'true' : 'false'}">${icon('heart', 18)}</button>` : ''}
-    <a href="${base}/${v.slug}" class="vc-cover" aria-label="${v.name}">${venueCover(v.art, { label: v.name })}${r.eventsCount ? html`<span class="pill pill-event">${icon('trophy', 12)} ${r.eventsCount} event${r.eventsCount > 1 ? 's' : ''}</span>` : ''}</a>
+    <a href="${href}" class="vc-cover" aria-label="${v.name}">${venueCover(v.art, { label: v.name, sport: coverSport })}<span class="vc-badges">${r.openPlayCount ? html`<span class="pill pill-success">${icon('users', 12)} ${r.openPlayCount} Open Play</span>` : ''}${r.eventsCount ? html`<span class="pill pill-event">${icon('trophy', 12)} ${r.eventsCount} event${r.eventsCount > 1 ? 's' : ''}</span>` : ''}</span></a>
     <div class="vc-body">
-      <a class="vc-title" href="${base}/${v.slug}" style="text-decoration:none">${v.name}</a>
+      <div class="vc-sports">${r.sports.map((x) => sportTag(x, { small: true }))}</div>
+      <a class="vc-title" href="${href}" style="text-decoration:none">${v.name}</a>
       <div class="vc-meta"><span>${icon('pin', 14)} ${v.address.barangay}, ${v.address.city}</span>${r.distanceKm !== null ? html`<span><b>${formatDistance(r.distanceKm)}</b> away</span>` : ''}</div>
-      <div class="vc-meta">${stars(v.ratingAvg, v.ratingCount)}<span>${icon('court', 14)} ${r.courts} courts</span>${r.environments.map((e) => html`<span>${e === 'outdoor' ? icon('sun', 14) : e === 'covered' ? icon('roof', 14) : icon('building', 14)} ${ENV_LABEL[e]}</span>`)}</div>
+      <div class="vc-meta">${stars(v.ratingAvg, v.ratingCount)}<span>${icon('court', 14)} ${r.courts} court${r.courts === 1 ? '' : 's'}</span>${r.hasPartial ? html`<span>${icon('grid', 14)} Half courts</span>` : ''}${r.environments.map((e) => html`<span>${e === 'outdoor' ? icon('sun', 14) : e === 'covered' ? icon('roof', 14) : icon('building', 14)} ${ENV_LABEL[e]}</span>`)}</div>
       <div class="vc-foot"><div class="vc-price">${r.fromRate ? html`<span class="muted small">from</span> <b>${formatPHP(r.fromRate, { compact: true })}</b><span class="muted small">/hr</span>` : ''}</div><div class="vc-next">${next ? icon('clock', 14) : ''} ${nextText}</div></div>
     </div>
   </article>`;
@@ -74,6 +106,23 @@ export function eventCard(e: EventRow, base = '#/events'): SafeHtml {
       <h3 style="margin:6px 0 2px">${ev.name}</h3><p class="small muted" style="margin:0">${e.venue.name} · ${formatTimeRange(ev.startMs, ev.endMs)}</p><p class="small" style="margin:6px 0 0"><b>${formatPHP(fee, { compact: true })}</b> ${ev.teamBased ? 'per team' : 'per player'}</p></div>
     </div>
     <div style="padding:0 16px 14px"><div class="bar-inline" aria-label="${taken} of ${cap} spots taken"><span style="width:${Math.min(100, Math.round((taken / Math.max(1, cap)) * 100))}%"></span></div></div>
+  </a>`;
+}
+
+export type OpenPlayRow = ReadResult<'GET /v1/public/open-play'>[number];
+
+export function openPlayCard(o: OpenPlayRow, base = '#/open-play'): SafeHtml {
+  const s = o.session;
+  const pct = Math.min(100, Math.round((o.used / Math.max(1, s.capacity)) * 100));
+  const day = new Date(s.startMs + 8 * 3_600_000);
+  return html`<a class="card op-card" href="${base}/${s.id}" style="--sport-hue:${sportsCatalog().find((x) => x.code === s.sport)?.hue ?? 150}">
+    <div class="op-card-top">
+      <div class="op-date"><div class="xs">${formatDateShort(s.startMs).split(',')[0]}</div><div class="d">${day.getUTCDate()}</div><div class="xs">${formatDateShort(s.startMs).split(' ')[1]}</div></div>
+      <div style="min-width:0;flex:1"><div class="row" style="gap:6px">${sportTag(s.sport, { small: true })}${o.live ? html`<span class="pill pill-danger live-dot">${icon('live', 12)} Live now</span>` : ''}${o.remaining > 0 ? tag(`${o.remaining} ${s.capacityUnit === 'team' ? 'team' : 'spot'}${o.remaining === 1 ? '' : 's'} left`, 'success') : tag(s.waitlistEnabled ? 'Waitlist' : 'Full', 'warning')}</div>
+      <h3 style="margin:6px 0 2px">${s.title}</h3><p class="small muted" style="margin:0">${o.venue.name} · ${formatTimeRange(s.startMs, s.endMs)}</p>
+      <p class="small" style="margin:6px 0 0"><b>${o.priceLabel}</b> · ${o.formatLabel} · ${o.levelLabel}</p></div>
+    </div>
+    <div style="padding:0 16px 14px"><div class="bar-inline" aria-label="${o.used} of ${s.capacity} taken"><span style="width:${pct}%"></span></div><div class="row-between xs muted" style="margin-top:4px"><span>${o.registered} registered${o.live ? ` · ${o.checkedIn} here · ${o.playing} playing` : ''}</span><span>${o.capacityLabel}</span></div></div>
   </a>`;
 }
 

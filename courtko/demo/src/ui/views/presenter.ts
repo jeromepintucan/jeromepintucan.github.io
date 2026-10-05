@@ -34,7 +34,7 @@ function panel(): string {
       <div class="pres-sec"><h4>Presentation</h4>${toggle({ label: 'Phone frame (mobile preview)', checked: document.body.classList.contains('phone-frame'), action: 'pres.phone' })}${toggle({ label: 'Fast API (no simulated latency)', checked: demo.latency === 'fast', action: 'pres.latency' })}</div>` : ''}
     ${tab === 'sim' ? html`<div class="pres-sec"><h4>Payment provider (sandbox)</h4><label class="xs" for="whm">Webhook delivery</label><select id="whm" data-change="pres.webhook" style="width:100%;margin:4px 0 8px">${[['normal', 'Normal (~2.5 s delay)'], ['slow', 'Slow (~25 s delay)'], ['duplicate', 'Send every webhook twice'], ['drop', 'Drop payment webhooks (reconciliation heals)'], ['fail_first', 'Our endpoint fails first try (provider retries)']].map(([v, l]) => html`<option value="${v}"${demo.webhookMode === v ? html` selected` : ''}>${l}</option>`)}</select>
       ${toggle({ label: 'Provider outage (payments unavailable)', checked: demo.providerOutage, action: 'pres.flag', data: { k: 'providerOutage' } })}${toggle({ label: 'Fail the next refund', checked: demo.failNextRefund, action: 'pres.flag', data: { k: 'failNextRefund' } })}${toggle({ label: 'Fail the next payout', checked: demo.failNextPayout, action: 'pres.flag', data: { k: 'failNextPayout' } })}</div>
-      <div class="pres-sec"><h4>Scenarios</h4><div class="stack-sm">${btn('Two players grab the same slot', { action: 'pres.race', variant: 'secondary', icon: 'users', block: true })}${btn('Send a forged webhook', { action: 'pres.forged', variant: 'secondary', icon: 'shield', block: true })}${btn('Run background jobs now', { action: 'pres.jobs', variant: 'secondary', icon: 'refresh', block: true })}${btn('Run payouts now', { action: 'pres.payouts', variant: 'secondary', icon: 'wallet', block: true })}</div></div>
+      <div class="pres-sec"><h4>Scenarios</h4><div class="stack-sm">${btn('Two players grab the same slot', { action: 'pres.race', variant: 'secondary', icon: 'users', block: true })}${btn('Full court vs half court race', { action: 'pres.halfrace', variant: 'secondary', icon: 'grid', block: true })}${btn('Start a live Open Play now', { action: 'pres.liveop', variant: 'secondary', icon: 'live', block: true })}${btn('Send a forged webhook', { action: 'pres.forged', variant: 'secondary', icon: 'shield', block: true })}${btn('Run background jobs now', { action: 'pres.jobs', variant: 'secondary', icon: 'refresh', block: true })}${btn('Run payouts now', { action: 'pres.payouts', variant: 'secondary', icon: 'wallet', block: true })}</div></div>
       <div class="pres-sec"><h4>Data</h4><p class="xs" style="color:#94A3B8">Synthetic data · ${(app.store.storageBytes() / 1024).toFixed(0)} KB of demo changes stored in this browser${app.store.driver.persistent ? '' : ' (not persistent in this viewer)'}.</p>${btn('Reset demo data', { action: 'pres.reset', variant: 'danger', icon: 'refresh' })}</div>` : ''}
     ${tab === 'api' ? html`<div class="pres-sec"><h4>API calls (this tab)</h4><ul class="api-log list">${log.map((e) => html`<li><span class="m">${e.method}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${e.path}">${e.path}</span><span class="s${String(e.status)[0]}">${e.status}</span>${e.code || e.note || e.idempotencyKey ? html`<span class="n">${e.code ?? ''} ${e.note ?? ''} ${e.idempotencyKey ? `Idempotency-Key ${e.idempotencyKey.slice(0, 14)}…` : ''}</span>` : ''}</li>`)}</ul><p class="xs" style="color:#94A3B8">Each call runs through the same authorization, validation, idempotency and transaction layer the production API is designed to have (design doc 13).</p></div>` : ''}
     ${tab === 'feed' ? html`<div class="pres-sec"><h4>Provider & job events</h4><ul class="feed list">${app.feed.map((f) => html`<li><span class="t">${formatTime(f.at)}</span>${f.text}</li>`)}</ul>${app.feed.length ? '' : html`<p class="xs" style="color:#94A3B8">Webhook deliveries and scenario results appear here.</p>`}</div>` : ''}
@@ -138,6 +138,51 @@ action('pres.forged', async (el) => {
     app.toast(`Forged webhook rejected (HTTP ${r.status}). See Control Center → Security.`, 'warning');
   }
 });
+action('pres.liveop', async (el) => {
+  const r = await app.run(el, () => app.api.write('POST /demo/open-play/live', undefined as never));
+  if (!r) return;
+  app.pushFeed('Started a live pop-up Open Play at Dink District BGC (6 players checked in)', 'success');
+  app.toast('Live Open Play started. Sign in as Paolo or Maria to run the desk; Juan and Bea are registered.', 'success');
+  const me = app.me();
+  if (me?.memberships.some((m) => m.business.tradeName === 'Dink District')) app.navigate(`#/biz/open-play/${r.sessionId}`);
+  else app.navigate(`#/open-play/${r.sessionId}`);
+});
+action('pres.halfrace', async (el) => {
+  await app.run(el, async () => {
+    const venue = app.store.read((db) => db.find('venues', (v) => v.slug === 'dink-district-bgc')!);
+    const [full, half] = app.store.read((db) => [db.find('courts', (c) => c.venueId === venue.id && c.layout === 'full' && c.sport === 'basketball')!, db.find('courts', (c) => c.venueId === venue.id && c.layout === 'half' && c.sport === 'basketball')!]);
+    const tokens: string[] = [];
+    const mk = () => {
+      const i = tokens.length;
+      return new Api(app.store, () => ({ correlationId: '', ip: `203.0.113.${210 + i}`, device: `Phone ${i + 1}`, sessionToken: tokens[i] ?? null }), { latency: false });
+    };
+    const a = mk();
+    tokens.push((await a.write('POST /demo/sign-in', { persona: 'player' }, { silent: true })).token);
+    const b = mk();
+    tokens.push((await b.write('POST /demo/sign-in', { persona: 'player2' }, { silent: true })).token);
+    let startMs = 0;
+    for (let d = 1; d < 8 && !startMs; d++) {
+      const date = addDays(localDate(app.store.now()), d);
+      const av = a.read('GET /v1/public/venues/{venueId}/availability', { venueId: venue.id, date, durationMinutes: 60, sport: 'basketball' });
+      const fullCells = av.courts.find((x) => x.court.id === full.id)?.cells ?? [];
+      const halfCells = av.courts.find((x) => x.court.id === half.id)?.cells ?? [];
+      startMs = fullCells.find((c) => c.bookable && c.startMs > localToInstant(date, 9 * 60) && halfCells.find((h) => h.startMs === c.startMs)?.bookable)?.startMs ?? 0;
+    }
+    const results = await Promise.allSettled([
+      a.write('POST /v1/me/booking-holds', { venueId: venue.id, courtId: full.id, startMs, durationMinutes: 60 }),
+      b.write('POST /v1/me/booking-holds', { venueId: venue.id, courtId: half.id, startMs, durationMinutes: 60 }),
+    ]);
+    const lines = results.map((r, i) => `${i === 0 ? `Juan (${full.layoutLabel})` : `Bea (${half.layoutLabel})`}: ${r.status === 'fulfilled' ? 'hold created ✓' : `rejected — ${(r.reason as Error).message}`}`);
+    for (const [i, r] of results.entries()) if (r.status === 'fulfilled') await (i === 0 ? a : b).write('DELETE /v1/me/checkouts/{checkoutId}', { checkoutId: r.value.checkoutId }, { silent: true });
+    await a.write('POST /v1/auth/logout', undefined as never, { silent: true });
+    await b.write('POST /v1/auth/logout', undefined as never, { silent: true });
+    app.pushFeed(`Full vs half race on The Hall ${formatDateTime(startMs)} → ${lines.join(' · ')}`, 'info');
+    app.modal({
+      title: 'Full court vs half court',
+      body: html`<p>At <b>${formatDateTime(startMs)}</b>, Juan tried to hold the <b>full basketball court</b> while Bea tried to hold <b>half court A</b> on the same floor.</p><ul class="bullets">${lines.map((l) => html`<li>${l}</li>`)}</ul><p class="small muted">The full court occupies spaces A and B; the half court occupies space A. Because the no-overlap rule is keyed on <b>space units</b>, only one of them can win — the same rule stops a basketball and a volleyball booking on a shared floor. The test hold was released again.</p>`,
+    });
+  });
+});
 action('pres.race', async (el) => {
   await app.run(el, async () => {
     const venue = app.store.read((db) => db.find('venues', (v) => v.slug === 'dink-district-bgc')!);
@@ -169,7 +214,7 @@ action('pres.race', async (el) => {
     app.pushFeed(`Race on ${court.name} ${formatDateTime(startMs)} → ${lines.join(' · ')}`, 'info');
     app.modal({
       title: 'Two players, one slot',
-      body: html`<p>Two sessions tried to hold <b>${court.name}</b> at <b>${formatDateTime(startMs)}</b> at the same instant.</p><ul class="bullets">${lines.map((l) => html`<li>${l}</li>`)}</ul><p class="small muted">The store enforces the same rule as the production PostgreSQL exclusion constraint (<code>EXCLUDE USING gist (court_id WITH =, occupied_range WITH &&)</code>): overlapping active slots can never both exist, no matter how requests interleave. The rejected attempt is logged as a security event. The winning test hold was released again.</p>`,
+      body: html`<p>Two sessions tried to hold <b>${court.name}</b> at <b>${formatDateTime(startMs)}</b> at the same instant.</p><ul class="bullets">${lines.map((l) => html`<li>${l}</li>`)}</ul><p class="small muted">The store enforces the same rule as the production PostgreSQL exclusion constraint (<code>EXCLUDE USING gist (space_unit_id WITH =, occupied_range WITH &&)</code>): overlapping active slots can never both exist, no matter how requests interleave. The rejected attempt is logged as a security event. The winning test hold was released again.</p>`,
     });
   });
 });

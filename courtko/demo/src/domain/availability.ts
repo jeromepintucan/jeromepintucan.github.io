@@ -34,6 +34,8 @@ export interface BookingSettings {
   checkInWindowMinutesBefore: number;
   noShowGraceMinutes: number;
   requireCheckIn: boolean;
+  /** Changeover between different sports on the same space (net/line conversion). Default 15 min. */
+  changeoverMinutes?: number;
 }
 
 export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
@@ -68,7 +70,7 @@ export function scheduleFor(date: LocalDate, weekly: WeeklyHours, special: reado
   return { closed: false, open: d.open, close: d.close, note: null };
 }
 
-export type OccupancyKind = 'hold' | 'booking' | 'block' | 'event';
+export type OccupancyKind = 'hold' | 'booking' | 'block' | 'event' | 'open_play';
 
 export interface Occupancy {
   id: string;
@@ -81,9 +83,16 @@ export interface Occupancy {
   kind: OccupancyKind;
   sourceId: string;
   label?: string;
+  /** Space units occupied (CR-D03). Defaults to the whole court. */
+  units?: string[];
+  sport?: string;
 }
 
-export type CellState = 'available' | 'booked' | 'held' | 'blocked' | 'event' | 'past' | 'closed' | 'beyond_window';
+/**
+ * `dependent` = this layout is free itself, but a related layout sharing the same space is in use
+ * (e.g. a half court while the full court is booked).
+ */
+export type CellState = 'available' | 'booked' | 'held' | 'blocked' | 'event' | 'open_play' | 'dependent' | 'past' | 'closed' | 'beyond_window';
 
 export interface AvailabilityCell {
   startMs: number;
@@ -101,23 +110,38 @@ export interface CourtAvailability {
   bookableStarts: number;
 }
 
+export function occupancyUnits(o: Pick<Occupancy, 'units' | 'courtId'>): string[] {
+  return o.units?.length ? o.units : [o.courtId];
+}
+
+/**
+ * Server-side availability per bookable layout. A layout is occupied by any occupancy that shares at least one
+ * space unit (full court ↔ halves, multi-use floors). Different-sport neighbours also need the changeover gap.
+ */
 export function computeAvailability(input: {
   date: LocalDate;
   offsetMin: number;
   schedule: DaySchedule;
   settings: BookingSettings;
   courtIds: readonly string[];
+  /** Space units per layout; defaults to the layout id itself. */
+  courtUnits?: Readonly<Record<string, readonly string[]>>;
+  courtSports?: Readonly<Record<string, string | undefined>>;
   occupancies: readonly Occupancy[];
   durationMinutes: number;
   now: number;
 }): CourtAvailability[] {
   const { schedule, settings } = input;
   const step = settings.incrementMinutes;
+  const changeover = (settings.changeoverMinutes ?? 15) * MINUTE;
   const dayStart = localToInstant(input.date, 0, input.offsetMin);
   const lastDate = localDate(input.now + settings.advanceBookingDays * DAY, input.offsetMin);
   const beyond = input.date > lastDate;
   return input.courtIds.map((courtId) => {
-    const occ = input.occupancies.filter((o) => o.courtId === courtId);
+    const units = input.courtUnits?.[courtId] ?? [courtId];
+    const sport = input.courtSports?.[courtId];
+    const occ = input.occupancies.filter((o) => occupancyUnits(o).some((u) => units.includes(u)));
+    const gapFor = (o: Occupancy) => (sport && o.sport && o.sport !== sport ? changeover : 0);
     const cells: AvailabilityCell[] = [];
     let bookableStarts = 0;
     if (schedule.closed) return { courtId, cells, bookableStarts };
@@ -126,16 +150,26 @@ export function computeAvailability(input: {
       const endMs = startMs + step * MINUTE;
       const hit = occ.find((o) => o.startMs < endMs && startMs < o.endMs);
       let state: CellState = 'available';
-      if (hit) state = hit.kind === 'hold' ? 'held' : hit.kind === 'booking' ? 'booked' : hit.kind === 'event' ? 'event' : 'blocked';
-      else if (startMs < input.now + settings.minLeadMinutes * MINUTE) state = 'past';
+      let reason: string | undefined;
+      if (hit) {
+        const own = hit.courtId === courtId;
+        if (hit.kind === 'block') state = 'blocked';
+        else if (hit.kind === 'event') state = 'event';
+        else if (hit.kind === 'open_play') state = 'open_play';
+        else if (!own) {
+          state = 'dependent';
+          reason = hit.label ?? 'Shared space in use';
+        } else state = hit.kind === 'hold' ? 'held' : 'booked';
+      } else if (startMs < input.now + settings.minLeadMinutes * MINUTE) state = 'past';
       else if (beyond) state = 'beyond_window';
       let bookable = false;
-      let reason: string | undefined;
       if (state === 'available') {
         const bookEnd = startMs + input.durationMinutes * MINUTE;
         const protectedEnd = bookEnd + settings.bufferMinutes * MINUTE;
+        const conflict = occ.find((o) => o.startMs - gapFor(o) < protectedEnd && startMs < o.occupiedEndMs + gapFor(o));
         if (m + input.durationMinutes > schedule.close) reason = `Not enough time before closing for ${formatDuration(input.durationMinutes)}`;
-        else if (occ.some((o) => o.startMs < protectedEnd && startMs < o.occupiedEndMs)) reason = `Not enough free time for ${formatDuration(input.durationMinutes)}`;
+        else if (conflict && gapFor(conflict) && !(conflict.startMs < protectedEnd && startMs < conflict.occupiedEndMs)) reason = `Court changeover needs ${Math.round(gapFor(conflict) / MINUTE)} min between different sports`;
+        else if (conflict) reason = `Not enough free time for ${formatDuration(input.durationMinutes)}`;
         else bookable = true;
       }
       if (bookable) bookableStarts++;

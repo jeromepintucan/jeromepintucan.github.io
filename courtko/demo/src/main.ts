@@ -16,6 +16,10 @@ import './ui/views/business-setup.ts';
 import './ui/views/business-money.ts';
 import './ui/views/admin.ts';
 import './ui/views/admin-money.ts';
+import './ui/views/openplay.ts';
+import './ui/views/social.ts';
+import './ui/views/business-openplay.ts';
+import './ui/views/admin-sports.ts';
 import { mountPresenter } from './ui/views/presenter.ts';
 
 async function main(): Promise<void> {

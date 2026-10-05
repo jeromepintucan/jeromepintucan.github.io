@@ -60,6 +60,8 @@ export interface PricingRule {
   businessId: string;
   venueId: string;
   courtIds: string[] | null;
+  /** Sport-specific rate (doc 24 CR-D05). null = every sport. */
+  sports?: string[] | null;
   name: string;
   kind: RuleKind;
   effect: RuleEffect;
@@ -92,9 +94,10 @@ function inTimeWindow(minute: number, start?: number, end?: number): boolean {
   return minute >= s || minute < e; // wraps past midnight
 }
 
-export function ruleMatches(rule: PricingRule, courtId: string, ctx: SliceContext): boolean {
+export function ruleMatches(rule: PricingRule, courtId: string, ctx: SliceContext, sport?: string): boolean {
   if (rule.status !== 'active') return false;
   if (rule.courtIds && !rule.courtIds.includes(courtId)) return false;
+  if (rule.sports?.length && (!sport || !rule.sports.includes(sport))) return false;
   const c = rule.conditions;
   if (c.daysOfWeek && c.daysOfWeek.length && !c.daysOfWeek.includes(ctx.dow)) return false;
   if (!inTimeWindow(ctx.minute, c.startMinute, c.endMinute)) return false;
@@ -105,10 +108,15 @@ export function ruleMatches(rule: PricingRule, courtId: string, ctx: SliceContex
   return true;
 }
 
+/** Specificity: court-specific > sport-specific > venue-wide. */
+export function ruleSpecificity(r: PricingRule): number {
+  return r.courtIds ? 2 : r.sports?.length ? 1 : 0;
+}
+
 function outranks(a: PricingRule, b: PricingRule): boolean {
   if (a.priority !== b.priority) return a.priority > b.priority;
-  const sa = a.courtIds ? 1 : 0;
-  const sb = b.courtIds ? 1 : 0;
+  const sa = ruleSpecificity(a);
+  const sb = ruleSpecificity(b);
   if (sa !== sb) return sa > sb;
   if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt;
   return a.id < b.id;
@@ -161,6 +169,7 @@ export function priceCourtTime(input: {
   offsetMin: number;
   holidays: ReadonlySet<LocalDate>;
   segment?: 'standard' | 'member';
+  sport?: string;
 }): CourtPricing {
   const SLICE = 15;
   if (input.endMs <= input.startMs) throw new PricingError('end must be after start');
@@ -172,9 +181,9 @@ export function priceCourtTime(input: {
   for (let t = input.startMs; t < input.endMs; t += SLICE * MINUTE) {
     const p = localParts(t, input.offsetMin);
     const ctx: SliceContext = { date: p.date, dow: p.dow, minute: p.minute, isHoliday: input.holidays.has(p.date), segment: input.segment ?? 'standard' };
-    const rateRule = pickWinner(rateRules.filter((r) => ruleMatches(r, input.courtId, ctx)));
+    const rateRule = pickWinner(rateRules.filter((r) => ruleMatches(r, input.courtId, ctx, input.sport)));
     if (!rateRule) throw new PricingError(`No rate is configured for ${input.courtName} at ${formatMinuteOfDay(p.minute)} on ${p.date}.`);
-    const adjust = pickWinner(adjustRules.filter((r) => ruleMatches(r, input.courtId, ctx)));
+    const adjust = pickWinner(adjustRules.filter((r) => ruleMatches(r, input.courtId, ctx, input.sport)));
     raw.push({ startMs: t, endMs: t + SLICE * MINUTE, rate: effectiveRate(rateRule, adjust), rateRule, adjust });
   }
   // merge contiguous slices with identical pricing
@@ -229,8 +238,9 @@ export function findRuleConflict(candidate: PricingRule, existing: readonly Pric
   const cw = windowSet(candidate.conditions);
   for (const r of existing) {
     if (r.id === candidate.id || r.status !== 'active' || r.venueId !== candidate.venueId || !sameClass(r)) continue;
-    if (r.priority !== candidate.priority || (r.courtIds ? 1 : 0) !== (candidate.courtIds ? 1 : 0)) continue;
+    if (r.priority !== candidate.priority || ruleSpecificity(r) !== ruleSpecificity(candidate)) continue;
     if (!overlapsCourts(r.courtIds, candidate.courtIds)) continue;
+    if (!overlapsCourts(r.sports?.length ? r.sports : null, candidate.sports?.length ? candidate.sports : null)) continue;
     if (!overlapsDays(r.conditions.daysOfWeek, candidate.conditions.daysOfWeek)) continue;
     if (!overlapsDates(r.conditions, candidate.conditions)) continue;
     if ((r.conditions.holidaysOnly ?? false) !== (candidate.conditions.holidaysOnly ?? false)) continue;

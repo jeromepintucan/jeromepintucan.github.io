@@ -6,8 +6,8 @@ import { DEMO_PASSWORD } from './auth.ts';
 import { generateSeed } from './seed.ts';
 import { Store, type Clock, type StorageDriver } from './store.ts';
 
-export const BUILD_ID = 'courtko-demo-2026.09.30-r1';
-export const SCHEMA_VERSION = 3;
+export const BUILD_ID = 'courtko-demo-2026.10.06-multisport';
+export const SCHEMA_VERSION = 4;
 
 export function openStore(driver: StorageDriver, opts: { clock?: Clock; passwordIterations?: number } = {}): Promise<Store> {
   return Store.open(driver, {

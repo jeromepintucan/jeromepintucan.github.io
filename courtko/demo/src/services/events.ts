@@ -223,7 +223,7 @@ export function businessEvents(s: Svc, input: { businessId: Id }) {
 
 export function saveEvent(
   s: Svc,
-  input: { businessId: Id; eventId?: Id; venueId: Id; type: EventType; name: string; description: string; startMs: number; endMs: number; courtIds: Id[]; organizer: string; fee: number; divisions: { id?: Id; name: string; skill: string; capacity: number; format: Division['format']; fee?: number | null }[]; registrationOpensAt: number; registrationClosesAt: number; waitlistEnabled: boolean; visibility: CourtEvent['visibility']; rules: string; prizes: string; format: string; teamBased: boolean; ageNote?: string },
+  input: { businessId: Id; eventId?: Id; venueId: Id; sport?: string; type: EventType; name: string; description: string; startMs: number; endMs: number; courtIds: Id[]; organizer: string; fee: number; divisions: { id?: Id; name: string; skill: string; capacity: number; format: Division['format']; fee?: number | null }[]; registrationOpensAt: number; registrationClosesAt: number; waitlistEnabled: boolean; visibility: CourtEvent['visibility']; rules: string; prizes: string; format: string; teamBased: boolean; ageNote?: string },
 ) {
   const acc = requireBusiness(s, input.businessId, 'events.manage', { venueId: input.venueId, write: true });
   const venue = s.db.get('venues', input.venueId);
@@ -236,7 +236,10 @@ export function saveEvent(
   if (!input.divisions.length) errors.push({ field: 'divisions', message: 'Add at least one division.' });
   for (const d of input.divisions) if (!d.name.trim() || !(d.capacity >= 2 && d.capacity <= 256)) errors.push({ field: 'divisions', message: 'Each division needs a name and capacity between 2 and 256.' });
   if (input.fee < 0 || input.fee > pesos(20_000)) errors.push({ field: 'fee', message: 'Fee must be between ₱0 and ₱20,000.' });
-  const courtIds = input.courtIds.filter((c) => s.db.get('courts', c)?.venueId === venue.id);
+  const sport = input.sport ?? venue.sports?.[0] ?? 'pickleball';
+  if (!(venue.sports?.length ? venue.sports : ['pickleball']).includes(sport)) errors.push({ field: 'sport', message: 'Choose a sport this venue offers.' });
+  if ((input.type as string) === 'open_play') errors.push({ field: 'type', message: 'Open Play now has its own section (Open Play → New session).' });
+  const courtIds = input.courtIds.filter((c) => s.db.get('courts', c)?.venueId === venue.id && (s.db.get('courts', c)?.sport ?? 'pickleball') === sport);
   if (errors.length) invalid(errors);
   const existing = input.eventId ? s.db.get('events', input.eventId) : undefined;
   if (input.eventId && (!existing || existing.businessId !== input.businessId)) fail('NOT_FOUND', 'Event not found.');
@@ -250,6 +253,7 @@ export function saveEvent(
     id: existing?.id ?? newId('evt'),
     businessId: input.businessId,
     venueId: venue.id,
+    sport,
     type: input.type,
     name: input.name.trim(),
     description: input.description.trim(),

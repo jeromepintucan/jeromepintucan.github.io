@@ -17,8 +17,12 @@ import type { PlatformRoleKey } from '../domain/rbac.ts';
 import type { BookingStatus, StatusChange } from '../domain/state.ts';
 import { addDays, DAY, HOUR, localDate, localParts, localToInstant, MINUTE } from '../domain/time.ts';
 import { defaultPreferences } from './auth.ts';
+import { defaultSports } from '../domain/sports.ts';
+import { defaultLayouts, layoutRow } from './courts.ts';
+import { DEFAULT_SOCIAL } from './svc.ts';
+import { planOpenPlay, seedOpenPlayAndSocial, type SeedCtx } from './seedOpenPlay.ts';
 import { seedSystemRoles } from './businesses.ts';
-import { emptyTables, type AuditEntry, type Booking, type Business, type Court, type CourtEvent, type DbTables, type Id, type LedgerJournal, type PlatformSettings, type Product, type User, type Venue } from './model.ts';
+import { emptyTables, type AuditEntry, type Booking, type Business, type Court, type CourtEvent, type DbTables, type Id, type LedgerJournal, type PhysicalCourt, type PlatformSettings, type Product, type User, type Venue } from './model.ts';
 import { METHOD_LABEL } from './provider.ts';
 import type { GeneratedBase } from './store.ts';
 
@@ -65,6 +69,12 @@ interface VenueSpec {
   lat: number;
   lng: number;
   courts: { name: string; env: Court['environment']; format?: Court['format'] }[];
+  /** Multi-sport physical courts (doc 24 CR-D03). */
+  halls?: { name: string; env: Court['environment']; surface: string; sports: string[]; split: boolean; changeover?: number; capacity?: number; equipment?: string[] }[];
+  /** Sports offered (default: pickleball). */
+  sports?: string[];
+  /** Sport-specific rates per hour (full court). */
+  sportRates?: Record<string, { base: number; peak: number; weekend: number }>;
   base: number;
   peak: number;
   weekend: number;
@@ -79,7 +89,7 @@ interface VenueSpec {
 }
 
 const V: VenueSpec[] = [
-  { key: 'bgc', business: 'Dink District', legal: 'Dink District Sports Inc.', name: 'Dink District BGC', tagline: 'Six tournament-grade courts in the heart of BGC', city: 'Taguig', barangay: 'Fort Bonifacio', province: 'Metro Manila', landmark: 'Near Bonifacio High Street', line1: '28th St. cor. 9th Ave.', lat: 14.5507, lng: 121.0494, courts: [{ name: 'Court 1', env: 'indoor' }, { name: 'Court 2', env: 'indoor' }, { name: 'Court 3', env: 'indoor' }, { name: 'Court 4', env: 'indoor' }, { name: 'Court 5', env: 'covered' }, { name: 'Court 6', env: 'covered' }], base: 400, peak: 600, weekend: 550, amenities: ['parking', 'showers', 'lockers', 'pro_shop', 'cafe', 'paddle_rental', 'lights', 'aircon', 'wifi', 'first_aid', 'pwd_access', 'coaching'], popularity: 9, vat: true, hue: 158, pattern: 'lines', settings: { bufferMinutes: 10 } },
+  { key: 'bgc', business: 'Dink District', legal: 'Dink District Sports Inc.', name: 'Dink District BGC', tagline: 'Six pickleball courts and a multi-sport hall in the heart of BGC', sports: ['pickleball', 'basketball', 'volleyball'], halls: [{ name: 'The Hall', env: 'indoor', surface: 'Sprung hardwood', sports: ['basketball', 'volleyball'], split: true, changeover: 15, capacity: 30, equipment: ['Basketballs', 'Volleyballs', 'Volleyball net & antennae', 'Scoreboard', 'Team bibs'] }], sportRates: { basketball: { base: 1600, peak: 2200, weekend: 2000 }, volleyball: { base: 1500, peak: 2000, weekend: 1800 } }, city: 'Taguig', barangay: 'Fort Bonifacio', province: 'Metro Manila', landmark: 'Near Bonifacio High Street', line1: '28th St. cor. 9th Ave.', lat: 14.5507, lng: 121.0494, courts: [{ name: 'Court 1', env: 'indoor' }, { name: 'Court 2', env: 'indoor' }, { name: 'Court 3', env: 'indoor' }, { name: 'Court 4', env: 'indoor' }, { name: 'Court 5', env: 'covered' }, { name: 'Court 6', env: 'covered' }], base: 400, peak: 600, weekend: 550, amenities: ['parking', 'showers', 'lockers', 'pro_shop', 'cafe', 'paddle_rental', 'lights', 'aircon', 'wifi', 'first_aid', 'pwd_access', 'coaching'], popularity: 9, vat: true, hue: 158, pattern: 'lines', settings: { bufferMinutes: 10 } },
   { key: 'alabang', business: 'Dink District', legal: 'Dink District Sports Inc.', name: 'Dink District Alabang', tagline: 'South-side courts with a family-friendly lounge', city: 'Muntinlupa', barangay: 'Alabang', province: 'Metro Manila', landmark: 'Near Festival Mall', line1: 'Commerce Ave.', lat: 14.4195, lng: 121.0391, courts: [{ name: 'Court A', env: 'indoor' }, { name: 'Court B', env: 'indoor' }, { name: 'Court C', env: 'covered' }, { name: 'Court D', env: 'covered' }], base: 380, peak: 520, weekend: 480, amenities: ['parking', 'showers', 'cafe', 'paddle_rental', 'lights', 'aircon', 'pwd_access'], popularity: 6, vat: true, hue: 190, pattern: 'waves' },
   { key: 'makati', business: 'Kitchen Line Pickleball Club', legal: 'Kitchen Line Pickleball Club Corp.', name: 'Kitchen Line Club Makati', tagline: 'Members-style club, open to everyone', city: 'Makati', barangay: 'Poblacion', province: 'Metro Manila', landmark: 'Near Rockwell', line1: 'P. Burgos St.', lat: 14.5649, lng: 121.0317, courts: [{ name: 'Center Court', env: 'indoor' }, { name: 'Court 2', env: 'indoor' }, { name: 'Court 3', env: 'indoor' }, { name: 'Court 4', env: 'indoor' }], base: 450, peak: 650, weekend: 600, amenities: ['showers', 'lockers', 'pro_shop', 'cafe', 'aircon', 'wifi', 'coaching', 'seating'], popularity: 8, vat: true, hue: 18, pattern: 'dots', settings: { incrementMinutes: 60 } },
   { key: 'ortigas', business: 'Ortigas Paddle House', legal: 'Ortigas Paddle House (Sole Proprietorship)', name: 'Ortigas Paddle House', tagline: 'Affordable covered courts near the business district', city: 'Pasig', barangay: 'San Antonio', province: 'Metro Manila', landmark: 'Near Ortigas Center', line1: 'Meralco Ave.', lat: 14.5869, lng: 121.0614, courts: [{ name: 'Court 1', env: 'covered' }, { name: 'Court 2', env: 'covered' }, { name: 'Court 3', env: 'covered' }, { name: 'Court 4', env: 'outdoor' }, { name: 'Court 5', env: 'outdoor' }], base: 300, peak: 450, weekend: 400, amenities: ['parking', 'paddle_rental', 'lights', 'first_aid'], popularity: 7, vat: false, hue: 210, pattern: 'lines' },
@@ -87,15 +97,18 @@ const V: VenueSpec[] = [
   { key: 'cebu', business: 'Cebu IT Park Pickle Hub', legal: 'Cebu Pickle Hub Inc.', name: 'Cebu IT Park Pickle Hub', tagline: "Cebu's after-work pickleball spot", city: 'Cebu City', barangay: 'Apas', province: 'Cebu', landmark: 'Inside Cebu IT Park', line1: 'Jose Ma. del Mar St.', lat: 10.3304, lng: 123.906, courts: [{ name: 'Court 1', env: 'indoor' }, { name: 'Court 2', env: 'indoor' }, { name: 'Court 3', env: 'covered' }, { name: 'Court 4', env: 'covered' }], base: 350, peak: 500, weekend: 450, amenities: ['parking', 'showers', 'cafe', 'lights', 'aircon', 'wifi'], popularity: 6, vat: true, hue: 265, pattern: 'waves' },
   { key: 'davao', business: 'Davao Rally Courts', legal: 'Davao Rally Courts Co.', name: 'Davao Rally Courts', tagline: 'Covered courts with mountain views', city: 'Davao City', barangay: 'Lanang', province: 'Davao del Sur', landmark: 'Near SM Lanang', line1: 'J.P. Laurel Ave.', lat: 7.0985, lng: 125.6312, courts: [{ name: 'Court 1', env: 'covered' }, { name: 'Court 2', env: 'covered' }, { name: 'Court 3', env: 'outdoor' }], base: 280, peak: 400, weekend: 350, amenities: ['parking', 'lights', 'paddle_rental', 'first_aid'], popularity: 4, vat: false, hue: 40, pattern: 'lines' },
   { key: 'clark', business: 'Clark Pickle Yard', legal: 'Clark Pickle Yard Corp.', name: 'Clark Pickle Yard', tagline: 'Six outdoor courts and a weekend league', city: 'Mabalacat', barangay: 'Clark Freeport Zone', province: 'Pampanga', landmark: 'Near Clark Global City', line1: 'Manuel A. Roxas Hwy.', lat: 15.185, lng: 120.546, courts: [1, 2, 3, 4, 5, 6].map((n) => ({ name: `Court ${n}`, env: 'outdoor' as const })), base: 300, peak: 420, weekend: 380, amenities: ['parking', 'lights', 'seating', 'ev_charging', 'first_aid'], popularity: 5, vat: true, hue: 120, pattern: 'dots' },
+  { key: 'hoops', business: 'Hoopsville Sports Center', legal: 'Hoopsville Sports Center Inc.', name: 'Hoopsville Cubao', tagline: 'Two indoor gyms for full-court runs, half-court 3x3 and volleyball', city: 'Quezon City', barangay: 'Socorro', province: 'Metro Manila', landmark: 'Near Araneta City', line1: 'Gen. Romulo Ave.', lat: 14.6205, lng: 121.0548, courts: [], sports: ['basketball', 'volleyball'], halls: [{ name: 'Gym 1', env: 'indoor', surface: 'Sprung hardwood', sports: ['basketball'], split: true, capacity: 30, equipment: ['Basketballs', 'Scoreboard & shot clock', 'Team bibs'] }, { name: 'Gym 2', env: 'indoor', surface: 'Synthetic sports tile', sports: ['basketball', 'volleyball'], split: true, changeover: 20, capacity: 30, equipment: ['Basketballs', 'Volleyballs', 'Volleyball net & antennae', 'Team bibs'] }], sportRates: { basketball: { base: 1400, peak: 2000, weekend: 1800 }, volleyball: { base: 1300, peak: 1800, weekend: 1600 } }, base: 1400, peak: 2000, weekend: 1800, amenities: ['parking', 'showers', 'lockers', 'lights', 'aircon', 'first_aid', 'seating', 'pwd_access'], popularity: 7, vat: true, hue: 22, pattern: 'lines', settings: { minDurationMinutes: 60, maxDurationMinutes: 240 } },
+  { key: 'baseline', business: 'Baseline Racquet Club', legal: 'Baseline Racquet Club Corp.', name: 'Baseline Racquet Club', tagline: 'Hard and clay tennis courts — two convert to pickleball on weekday mornings', city: 'Pasig', barangay: 'Kapitolyo', province: 'Metro Manila', landmark: 'Near Capitol Commons', line1: 'United St.', lat: 14.5741, lng: 121.0601, courts: [], sports: ['tennis', 'pickleball'], halls: [{ name: 'Court 1', env: 'outdoor', surface: 'Acrylic hard court', sports: ['tennis', 'pickleball'], split: true, changeover: 15, capacity: 8, equipment: ['Ball machine (on request)', 'Portable pickleball nets'] }, { name: 'Court 2', env: 'covered', surface: 'Acrylic hard court', sports: ['tennis', 'pickleball'], split: true, changeover: 15, capacity: 8, equipment: ['Portable pickleball nets'] }, { name: 'Court 3', env: 'outdoor', surface: 'Clay', sports: ['tennis'], split: false, capacity: 4 }], sportRates: { tennis: { base: 500, peak: 750, weekend: 700 }, pickleball: { base: 300, peak: 420, weekend: 400 } }, base: 500, peak: 750, weekend: 700, amenities: ['parking', 'showers', 'lockers', 'pro_shop', 'lights', 'ball_machine', 'coaching', 'cafe'], popularity: 6, vat: true, hue: 75, pattern: 'dots' },
+  { key: 'spike', business: 'Spikehouse Volleyball Arena', legal: 'Spikehouse Sports Co.', name: 'Spikehouse Mandaue', tagline: "Cebu's volleyball home — three indoor courts and weekly open play", city: 'Mandaue City', barangay: 'Subangdaku', province: 'Cebu', landmark: 'Near the Mandaue Sports Complex', line1: 'A.S. Fortuna St.', lat: 10.3389, lng: 123.9218, courts: [], sports: ['volleyball'], halls: [{ name: 'Court 1', env: 'indoor', surface: 'Synthetic sports tile', sports: ['volleyball'], split: false, capacity: 18 }, { name: 'Court 2', env: 'indoor', surface: 'Synthetic sports tile', sports: ['volleyball'], split: false, capacity: 18 }, { name: 'Court 3', env: 'covered', surface: 'Sprung hardwood', sports: ['volleyball'], split: false, capacity: 18 }], sportRates: { volleyball: { base: 900, peak: 1300, weekend: 1200 } }, base: 900, peak: 1300, weekend: 1200, amenities: ['parking', 'showers', 'lights', 'first_aid', 'seating'], popularity: 5, vat: false, hue: 205, pattern: 'waves', settings: { maxDurationMinutes: 240 } },
   { key: 'tagaytay', business: 'Tagaytay Ridge Pickleball', legal: 'Tagaytay Ridge Leisure Inc.', name: 'Tagaytay Ridge Pickleball', tagline: 'Cool-weather courts overlooking Taal', city: 'Tagaytay', barangay: 'Kaybagal South', province: 'Cavite', landmark: 'Along Aguinaldo Hwy.', line1: 'Aguinaldo Hwy.', lat: 14.1153, lng: 120.9621, courts: [{ name: 'Ridge Court', env: 'outdoor' }, { name: 'Lake Court', env: 'covered' }], base: 350, peak: 450, weekend: 500, amenities: ['parking', 'cafe', 'seating'], popularity: 3, vat: true, hue: 175, pattern: 'waves', policy: 'strict' },
 ];
 
 export const PERSONAS: { key: string; first: string; last: string; email: string; phone: string; role?: PlatformRoleKey; mfa: boolean; label: string; description: string }[] = [
-  { key: 'player', first: 'Juan', last: 'dela Cruz', email: 'juan.delacruz@example.com', phone: '+639170000001', mfa: false, label: 'Player', description: 'Regular player in Metro Manila' },
-  { key: 'player2', first: 'Bea', last: 'Santiago', email: 'bea.santiago@example.com', phone: '+639170000002', mfa: false, label: 'Player 2', description: 'Second player for side-by-side demos' },
-  { key: 'owner', first: 'Maria', last: 'Santos', email: 'maria.santos@example.com', phone: '+639170000010', mfa: true, label: 'Business Owner', description: 'Owns Dink District (BGC & Alabang)' },
+  { key: 'player', first: 'Juan', last: 'dela Cruz', email: 'juan.delacruz@example.com', phone: '+639170000001', mfa: false, label: 'Player', description: 'Plays pickleball, basketball & tennis in Metro Manila' },
+  { key: 'player2', first: 'Bea', last: 'Santiago', email: 'bea.santiago@example.com', phone: '+639170000002', mfa: false, label: 'Player 2', description: 'Second player — pickleball & tennis (has a partner invite)' },
+  { key: 'owner', first: 'Maria', last: 'Santos', email: 'maria.santos@example.com', phone: '+639170000010', mfa: true, label: 'Business Owner', description: 'Owns Dink District — pickleball courts + a basketball/volleyball hall' },
   { key: 'manager', first: 'Ramon', last: 'Cruz', email: 'ramon.cruz@example.com', phone: '+639170000011', mfa: true, label: 'Business Manager', description: 'Runs operations at Dink District' },
-  { key: 'receptionist', first: 'Paolo', last: 'Reyes', email: 'paolo.reyes@example.com', phone: '+639170000012', mfa: false, label: 'Receptionist', description: 'Front desk at Dink District BGC only' },
+  { key: 'receptionist', first: 'Paolo', last: 'Reyes', email: 'paolo.reyes@example.com', phone: '+639170000012', mfa: false, label: 'Receptionist', description: 'Front desk at Dink District BGC — runs the Open Play desk' },
   { key: 'applicant', first: 'Rafael', last: 'Lim', email: 'rafael.lim@example.com', phone: '+639170000020', mfa: true, label: 'New Business Owner', description: 'Registered Iloilo Esplanade Pickleball — awaiting approval' },
   { key: 'superadmin', first: 'Andrea', last: 'Villanueva', email: 'andrea.admin@example.com', phone: '+639170000090', role: 'superadmin', mfa: true, label: 'SuperAdmin', description: 'Platform owner / operator' },
   { key: 'finance', first: 'Carla', last: 'Mendoza', email: 'carla.finance@example.com', phone: '+639170000091', role: 'platform_finance', mfa: true, label: 'Finance Ops', description: 'Second approver for commission changes' },
@@ -177,18 +190,30 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
     amenities: AMENITIES,
     eventTypes: [
       { code: 'tournament', label: 'Tournament' }, { code: 'league', label: 'League' }, { code: 'clinic', label: 'Clinic' }, { code: 'training', label: 'Training session' },
-      { code: 'open_play', label: 'Open play' }, { code: 'social', label: 'Social event' }, { code: 'private', label: 'Private event' },
+      { code: 'social', label: 'Social event' }, { code: 'private', label: 'Private event' },
     ],
     demo: { webhookMode: 'normal', providerOutage: false, failNextPayout: false, failNextRefund: false, latency: 'realistic' },
     updatedAt: longAgo,
     updatedBy: null,
   };
   t.settings.platform = settingsRow;
+  // Sport catalog (doc 24 CR-D01): exactly the four launch sports, all active.
+  const sportCfgs = defaultSports(longAgo, null);
+  for (const sp of sportCfgs) t.sports[sp.code] = sp;
   for (const [date, name, type] of HOLIDAYS) t.holidays[date] = { id: date, date, name, type };
   t.providerMaster.master = { id: 'master', balance: 0 };
 
   // ---------------------------------------------------------------- people
   const users: User[] = [];
+  const usernames = new Set<string>();
+  const uname = (first: string, last: string): string => {
+    const base = `${first}.${last}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9.]+/g, '').replace(/\.{2,}/g, '.').replace(/^\.|\.$/g, '').slice(0, 16) || 'player';
+    let u = base;
+    let n = 1;
+    while (usernames.has(u)) u = `${base.slice(0, 15)}${++n}`;
+    usernames.add(u);
+    return u;
+  };
   const mkUser = (first: string, last: string, email: string | null, phone: string | null, opts: { persona?: string; role?: PlatformRoleKey; mfa?: boolean; createdAt?: number; skill?: 'beginner' | 'novice' | 'intermediate' | 'advanced' | 'expert'; city?: string } = {}): User => {
     const id = g.id('usr');
     const secretBytes = new Uint8Array(20).map(() => Math.floor(g.rng() * 256));
@@ -209,7 +234,7 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       deletion: null,
     };
     t.users[id] = u;
-    t.profiles[id] = { id, userId: id, firstName: first, lastName: last, displayName: `${first} ${last.split(' ').pop()!.slice(0, 1)}.`, city: opts.city ?? 'Metro Manila', skillSelf: opts.skill ?? null, bio: '', avatarHue: g.int(0, 359), visibility: { profile: 'public', activity: 'connections', ratings: 'organizers' } };
+    t.profiles[id] = { id, userId: id, firstName: first, lastName: last, displayName: `${first} ${last.split(' ').pop()!.slice(0, 1)}.`, city: opts.city ?? 'Metro Manila', skillSelf: opts.skill ?? null, bio: '', avatarHue: g.int(0, 359), visibility: { profile: 'public', activity: 'followers', ratings: 'organizers' }, username: uname(first, last), social: { ...DEFAULT_SOCIAL } };
     t.preferences[id] = defaultPreferences(id, g.chance(0.3));
     t.consents[`cns_${id}_t`] = { id: `cns_${id}_t`, userId: id, kind: 'terms', version: '2026-07', granted: true, at: u.createdAt };
     t.consents[`cns_${id}_p`] = { id: `cns_${id}_p`, userId: id, kind: 'privacy', version: '2026-07', granted: true, at: u.createdAt };
@@ -277,6 +302,14 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
     return b;
   };
 
+  const productTemplatesTeam: [string, Product['category'], number, string, Partial<Product['fulfillment']>, string[]?][] = [
+    ['Bottled water (500 ml)', 'drinks', 40, 'Chilled at the front desk', { bookingAddOn: true, eventAddOn: true, standalone: true }],
+    ['Electrolyte drink', 'drinks', 85, 'Chilled at the front desk', { bookingAddOn: true, eventAddOn: true, standalone: true }],
+    ['Ball rental (per session)', 'rental', 100, 'Collect at the front desk; return after your game', { bookingAddOn: true, eventAddOn: true }],
+    ['Team bib set (10 pcs)', 'rental', 150, 'Front desk', { bookingAddOn: true }],
+    ['Towel rental', 'rental', 50, 'Front desk', { bookingAddOn: true }],
+    ['Club jersey', 'merch', 750, 'Pick up at the front desk', { standalone: true }, ['S', 'M', 'L', 'XL']],
+  ];
   const productTemplates: [string, Product['category'], number, string, Partial<Product['fulfillment']>, string[]?][] = [
     ['Bottled water (500 ml)', 'drinks', 40, 'Chilled at the front desk', { bookingAddOn: true, eventAddOn: true, standalone: true }],
     ['Electrolyte drink', 'drinks', 85, 'Chilled at the front desk', { bookingAddOn: true, eventAddOn: true, standalone: true }],
@@ -302,7 +335,9 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       name: spec.name,
       slug: spec.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
       tagline: spec.tagline,
-      description: `${spec.tagline}. ${spec.courts.length} ${spec.courts.every((c) => c.env === 'outdoor') ? 'outdoor' : spec.courts.every((c) => c.env === 'indoor') ? 'indoor' : 'indoor and covered'} courts with professional nets and non-slip acrylic surfaces. Walk-ins welcome when courts are free; book ahead for evenings and weekends.`,
+      description: spec.courts.length
+        ? `${spec.tagline}. ${spec.courts.length} ${spec.courts.every((c) => c.env === 'outdoor') ? 'outdoor' : spec.courts.every((c) => c.env === 'indoor') ? 'indoor' : 'indoor and covered'} pickleball courts with professional nets and non-slip acrylic surfaces${spec.halls?.length ? `, plus ${spec.halls.map((h) => h.name).join(' and ')} for ${[...new Set(spec.halls.flatMap((h) => h.sports))].join(' and ')}` : ''}. Walk-ins welcome when courts are free; book ahead for evenings and weekends.`
+        : `${spec.tagline}. ${spec.halls!.length} courts for ${(spec.sports ?? []).join(' and ')}, with changing rooms and equipment at the front desk. Book a full court, a half court where available, or join an Open Play session.`,
       address: { line1: spec.line1, barangay: spec.barangay, city: spec.city, province: spec.province, region: '', postalCode: '', landmark: spec.landmark },
       geo: { lat: spec.lat, lng: spec.lng },
       timezone: 'Asia/Manila',
@@ -312,7 +347,8 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       amenities: spec.amenities,
       parking: spec.amenities.includes('parking') ? 'Free parking for players (first 3 hours).' : 'Street parking and nearby pay parking.',
       accessibility: spec.amenities.includes('pwd_access') ? 'Ramp access, accessible restroom, and courtside seating.' : 'Ground-floor courts; please call ahead for assistance.',
-      rules: ['Non-marking court shoes only.', 'Please arrive 10 minutes early for check-in.', 'Maximum 8 players per court booking.', 'Clean up after your game — the next players will thank you.'],
+      rules: ['Non-marking court shoes only.', 'Please arrive 10 minutes early for check-in.', 'Respect the posted player limit for each court layout.', 'Clean up after your game — the next players will thank you.'],
+      sports: spec.sports ?? ['pickleball'],
       status: 'published',
       history: [],
       hours,
@@ -326,10 +362,22 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       publishedAt: business.createdAt + 5 * DAY,
     };
     t.venues[venue.id] = venue;
-    const courts = spec.courts.map((c, i) => {
-      const court: Court = { id: g.id('crt'), businessId: business.id, venueId: venue.id, name: c.name, format: c.format ?? 'full', environment: c.env, surface: c.env === 'indoor' ? 'Cushioned acrylic (indoor)' : 'Acrylic hard court', customTags: i === 0 && spec.key === 'makati' ? ['Show court'] : [], status: 'active', sortOrder: i + 1 };
-      t.courts[court.id] = court;
-      return court;
+    // Physical courts → bookable layouts (doc 24 CR-D03). Pickleball-only courts get one layout each.
+    const physicalSpecs = [
+      ...spec.courts.map((c) => ({ name: c.name, env: c.env, surface: c.env === 'indoor' ? 'Cushioned acrylic (indoor)' : 'Acrylic hard court', sports: ['pickleball'], split: false, changeover: 15, capacity: 8, equipment: ['Net & posts', 'Paddle rental at the desk'] })),
+      ...(spec.halls ?? []).map((h) => ({ ...h, changeover: h.changeover ?? 15, capacity: h.capacity ?? 20, equipment: h.equipment ?? [] })),
+    ];
+    const courts: Court[] = [];
+    physicalSpecs.forEach((ps, i) => {
+      const pc: PhysicalCourt = { id: g.id('pcr'), businessId: business.id, venueId: venue.id, name: ps.name, sports: ps.sports, environment: ps.env, surface: ps.surface, capacity: ps.capacity, amenities: [], equipment: ps.equipment, accessibility: venue.amenities.includes('pwd_access') ? 'Step-free access from the lobby; courtside wheelchair space.' : 'Ground-level court; call ahead for assistance.', unitNames: ps.split ? ['A', 'B'] : ['main'], changeoverMinutes: ps.changeover, maintenance: i === 0 ? [{ dow: 1, startMinute: 6 * 60, endMinute: 7 * 60, note: 'Weekly surface cleaning' }] : [], art: { hue: (spec.hue + i * 12) % 360 }, notes: '', status: 'active', sortOrder: i + 1, createdAt: venue.createdAt };
+      t.physicalCourts[pc.id] = pc;
+      const specsL = defaultLayouts(pc, sportCfgs);
+      for (const l of specsL) {
+        const row = layoutRow(pc, l, specsL.length, g.id('crt'), courts.length + 1);
+        if (i === 0 && spec.key === 'makati') row.customTags = ['Show court'];
+        t.courts[row.id] = row;
+        courts.push(row);
+      }
     });
     const mkRule = (name: string, kind: PricingRule['kind'], effect: PricingRule['effect'], conditions: PricingRule['conditions'], priority: number, extra: Partial<PricingRule> = {}): PricingRule => {
       const r: PricingRule = { id: g.id('prl'), businessId: business.id, venueId: venue.id, courtIds: null, name, kind, effect, conditions, priority, status: 'active', version: 1, createdAt: venue.createdAt, createdBy: owner!.id, updatedAt: venue.createdAt, updatedBy: owner!.id, ...extra };
@@ -337,6 +385,11 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       t.ruleHistory[`rlh_${r.id}`] = { id: `rlh_${r.id}`, ruleId: r.id, businessId: r.businessId, version: 1, change: 'created', snapshot: r, changedBy: owner!.id, changedAt: r.createdAt };
       return r;
     };
+    const sportRule = (sport: string, r: { base: number; peak: number; weekend: number }) => [
+      mkRule(`${sportCfgs.find((x) => x.code === sport)!.name} rate`, 'base', { type: 'rate', ratePerHour: pesos(r.base) }, {}, 0, { sports: [sport] }),
+      mkRule(`${sportCfgs.find((x) => x.code === sport)!.name} weekday peak`, 'peak', { type: 'rate', ratePerHour: pesos(r.peak) }, { daysOfWeek: [1, 2, 3, 4, 5], startMinute: 17 * 60, endMinute: 22 * 60 }, 20, { sports: [sport] }),
+      mkRule(`${sportCfgs.find((x) => x.code === sport)!.name} weekend`, 'weekend', { type: 'rate', ratePerHour: pesos(r.weekend) }, { daysOfWeek: [0, 6] }, 10, { sports: [sport] }),
+    ];
     const rules = [
       mkRule('Standard rate', 'base', { type: 'rate', ratePerHour: pesos(spec.base) }, {}, 0, { minChargeCentavos: pesos(spec.base) }),
       mkRule('Weekday peak', 'peak', { type: 'rate', ratePerHour: pesos(spec.peak) }, { daysOfWeek: [1, 2, 3, 4, 5], startMinute: 17 * 60, endMinute: 22 * 60 }, 20),
@@ -345,9 +398,12 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
       mkRule('Holiday rate', 'holiday', { type: 'rate', ratePerHour: pesos(spec.peak + 50) }, { holidaysOnly: true }, 30),
     ];
     if (spec.key === 'makati') rules.push(mkRule('Center Court premium', 'custom', { type: 'adjust_amount', amountPerHour: pesos(100) }, {}, 15, { courtIds: [courts[0]!.id] }));
+    for (const [sport, r] of Object.entries(spec.sportRates ?? {})) if ((spec.sports ?? []).includes(sport) && (sport !== 'pickleball' || !spec.courts.length)) rules.push(...sportRule(sport, r));
+    const halves = courts.filter((c) => c.layout === 'half').map((c) => c.id);
+    if (halves.length) rules.push(mkRule('Half-court rate', 'custom', { type: 'adjust_percent', percentPpm: -450_000 }, {}, 15, { courtIds: halves }));
     g.audit(venue.createdAt + HOUR, owner.id, t.profiles[owner.id]!.displayName, 'pricing.rule_created', 'pricing_rule', rules[1]!.id, business.id, `Created "Weekday peak" ₱${spec.peak}/hr (priority 20)`);
     const products: Product[] = [];
-    productTemplates.forEach(([name, category, price, pickup, ful, variants], i) => {
+    (spec.courts.length ? productTemplates : productTemplatesTeam).forEach(([name, category, price, pickup, ful, variants], i) => {
       if (spec.popularity < 5 && i > 3) return;
       const p: Product = { id: g.id('prd'), businessId: business.id, venueId: venue.id, name, description: '', category, price: pesos(price), variants: (variants ?? []).map((v) => ({ id: g.id('var'), name: v, price: null })), maxPerOrder: category === 'merch' ? 3 : 8, fulfillment: { pickup: true, bookingAddOn: false, eventAddOn: false, standalone: false, ...ful }, pickupInstructions: pickup, taxable: true, status: 'active', art: { hue: (spec.hue + i * 40) % 360, glyph: category }, createdAt: venue.createdAt };
       t.products[p.id] = p;
@@ -406,7 +462,7 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
   const methods: PaymentMethodCode[] = ['gcash', 'gcash', 'gcash', 'maya', 'maya', 'grabpay', 'card', 'qrph', 'online_banking'];
   const feeFor = (m: PaymentMethodCode) => settingsRow.feeSchedules.find((f) => f.method === m)!;
 
-  const capture = (o: { business: Business; venue: Venue; userId: Id; quote: Quote; method: PaymentMethodCode; at: number; kind: 'court_booking' | 'event_registration' | 'product_order'; bookingId?: Id; registrationId?: Id; orderId?: Id; settle: boolean }) => {
+  const capture = (o: { business: Business; venue: Venue; userId: Id; quote: Quote; method: PaymentMethodCode; at: number; kind: 'court_booking' | 'event_registration' | 'product_order' | 'open_play_registration'; bookingId?: Id; registrationId?: Id; orderId?: Id; settle: boolean }) => {
     const checkoutId = g.id('chk');
     const snapId = g.id('snp');
     t.snapshots[snapId] = { id: snapId, businessId: o.business.id, quote: o.quote, hash: sha256Hex(canonicalJson(o.quote)), createdAt: o.at - 4 * MINUTE, lockedUntil: o.at + 6 * MINUTE };
@@ -460,9 +516,9 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
     let slotId: Id | null = null;
     if (o.slot) {
       slotId = g.id('slt');
-      t.slots[slotId] = { id: slotId, businessId: o.business.id, venueId: o.venue.id, courtId: o.court.id, startMs: o.startMs, endMs, occupiedEndMs: endMs + o.venue.settings.bufferMinutes * MINUTE, kind: 'booking', sourceId: id, status: ['cancelled', 'refunded', 'partially_refunded', 'refund_pending'].includes(o.status) ? 'released' : 'active', expiresAt: null, createdAt: o.createdAt, releasedAt: null };
+      t.slots[slotId] = { id: slotId, businessId: o.business.id, venueId: o.venue.id, courtId: o.court.id, startMs: o.startMs, endMs, occupiedEndMs: endMs + o.venue.settings.bufferMinutes * MINUTE, kind: 'booking', sourceId: id, units: o.court.units ?? [o.court.id], sport: o.court.sport ?? 'pickleball', status: ['cancelled', 'refunded', 'partially_refunded', 'refund_pending'].includes(o.status) ? 'released' : 'active', expiresAt: null, createdAt: o.createdAt, releasedAt: null };
     }
-    const b: Booking = { id, code, businessId: o.business.id, venueId: o.venue.id, courtId: o.court.id, userId: o.userId, checkoutId: o.checkoutId, startMs: o.startMs, endMs, durationMinutes: o.minutes, status: o.status, history: o.history, snapshotId: o.snapId, policy: { key: o.venue.policyKey, version: POLICY_LIBRARY[o.venue.policyKey].version, name: POLICY_LIBRARY[o.venue.policyKey].name, acceptedAt: o.createdAt }, participants: [], addOnOrderId: null, source: o.source ?? 'online', createdAt: o.createdAt, confirmedAt: o.createdAt + 2 * MINUTE, checkedInAt: o.status === 'completed' || o.status === 'checked_in' ? o.startMs - 10 * MINUTE : null, checkedInBy: null, completedAt: o.status === 'completed' ? endMs : null, cancelledAt: null, cancelledBy: null, cancelReason: null, noShowAt: o.status === 'no_show' ? o.startMs + 20 * MINUTE : null, rescheduleCount: 0, slotId, lateRecovery: false, qrNonce: g.id('q').slice(2, 14) };
+    const b: Booking = { id, code, businessId: o.business.id, venueId: o.venue.id, courtId: o.court.id, sport: o.court.sport ?? 'pickleball', userId: o.userId, checkoutId: o.checkoutId, startMs: o.startMs, endMs, durationMinutes: o.minutes, status: o.status, history: o.history, snapshotId: o.snapId, policy: { key: o.venue.policyKey, version: POLICY_LIBRARY[o.venue.policyKey].version, name: POLICY_LIBRARY[o.venue.policyKey].name, acceptedAt: o.createdAt }, participants: [], addOnOrderId: null, source: o.source ?? 'online', createdAt: o.createdAt, confirmedAt: o.createdAt + 2 * MINUTE, checkedInAt: o.status === 'completed' || o.status === 'checked_in' ? o.startMs - 10 * MINUTE : null, checkedInBy: null, completedAt: o.status === 'completed' ? endMs : null, cancelledAt: null, cancelledBy: null, cancelReason: null, noShowAt: o.status === 'no_show' ? o.startMs + 20 * MINUTE : null, rescheduleCount: 0, slotId, lateRecovery: false, qrNonce: g.id('q').slice(2, 14) };
     t.bookings[id] = b;
     const cko = t.checkouts[o.checkoutId];
     if (cko) cko.bookingId = id;
@@ -470,16 +526,25 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
   };
 
   const quoteFor = (vv: (typeof venues)[number], court: Court, startMs: number, minutes: number, method: PaymentMethodCode | null, business: Business, addOns: { p: Product; qty: number }[] = []) => {
-    const pricing = priceCourtTime({ rules: vv.rules, courtId: court.id, courtName: court.name, startMs, endMs: startMs + minutes * MINUTE, offsetMin: 480, holidays: g.holidays });
+    const pricing = priceCourtTime({ rules: vv.rules, courtId: court.id, courtName: court.name, startMs, endMs: startMs + minutes * MINUTE, offsetMin: 480, holidays: g.holidays, ...(court.sport ? { sport: court.sport } : {}) });
     return buildQuote({ court: { pricing, ref: 'court', label: `${court.name} · ${minutes / 60 === 1 ? '1 hr' : `${minutes / 60} hrs`}` }, addOns: addOns.map((a) => ({ ref: `addon:${a.p.id}:-`, productId: a.p.id, label: a.qty > 1 ? `${a.p.name} × ${a.qty}` : a.p.name, unitAmount: a.p.price, qty: a.qty, taxable: true })), tax: tax(business), fee: method ? feeFor(method) : null, commission: commission(business, startMs) });
   };
 
-  const taken = new Map<Id, { s: number; e: number }[]>();
-  const isFree = (courtId: Id, s: number, e: number) => !(taken.get(courtId) ?? []).some((x) => x.s < e && s < x.e);
+  // Occupancy is tracked per space unit, so generated history never double-books a full court and its halves.
+  const taken = new Map<string, { s: number; e: number; sport: string }[]>();
+  const unitsOf = (courtId: Id) => t.courts[courtId]?.units ?? [courtId];
+  const isFree = (courtId: Id, s: number, e: number) => {
+    const sport = t.courts[courtId]?.sport ?? 'pickleball';
+    const gap = 15 * MINUTE;
+    return unitsOf(courtId).every((u) => !(taken.get(u) ?? []).some((x) => (x.sport === sport ? x.s < e && s < x.e : x.s - gap < e && s < x.e + gap)));
+  };
   const take = (courtId: Id, s: number, e: number) => {
-    const list = taken.get(courtId) ?? [];
-    list.push({ s, e });
-    taken.set(courtId, list);
+    const sport = t.courts[courtId]?.sport ?? 'pickleball';
+    for (const u of unitsOf(courtId)) {
+      const list = taken.get(u) ?? [];
+      list.push({ s, e, sport });
+      taken.set(u, list);
+    }
   };
 
   const reviewsText = [
@@ -521,6 +586,25 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
   for (const i of [2, 3]) take(cebuSpec.courts[i]!.id, g.at(5, 17), g.at(5, 22));
   const clarkSpec = venues.find((v) => v.spec.key === 'clark')!;
   for (const i of [0, 1]) take(clarkSpec.courts[i]!.id, g.at(-6, 7), g.at(-6, 13));
+  // Open Play sessions reserve their courts first (doc 24) so generated history never overlaps them.
+  const opCtx: SeedCtx = {
+    t,
+    id: (p) => g.id(p),
+    int: (a, b) => g.int(a, b),
+    pick: (arr) => g.pick(arr),
+    chance: (p) => g.chance(p),
+    at: (d, h, m) => g.at(d, h, m),
+    now: seededAt,
+    persona,
+    players,
+    venues,
+    take,
+    capture: (o) => capture({ ...o, settle: o.settle }),
+    tax,
+    commission,
+    fee: (m) => feeFor(m),
+  };
+  const opPlan = planOpenPlay(opCtx, { fri: scripted.fri, sat: scripted.sat });
 
   // Historical & upcoming bookings
   for (const vv of venues) {
@@ -662,10 +746,10 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
   // ---------------------------------------------------------------- events
   const mkEvent = (vv: (typeof venues)[number], e: Partial<CourtEvent> & Pick<CourtEvent, 'type' | 'name' | 'description' | 'startMs' | 'endMs' | 'fee' | 'divisions'>, courtIdx: number[], fill: number[], waitlist = 0) => {
     const business = t.businesses[vv.venue.businessId]!;
-    const ev: CourtEvent = { id: g.id('evt'), businessId: business.id, venueId: vv.venue.id, courtIds: courtIdx.map((i) => vv.courts[i]!.id), organizer: vv.venue.name, registrationOpensAt: now - 14 * DAY, registrationClosesAt: e.startMs - 2 * HOUR, waitlistEnabled: true, policyKey: 'standard', rules: 'Rally scoring to 11, win by 2. Bring your own paddle or rent one at the desk.', prizes: '', format: '', visibility: 'public', status: 'published', checkInRequired: true, teamBased: false, ageNote: 'Open to players 18 and above. Minors need a parent or guardian’s consent.', slotIds: [], createdAt: now - 15 * DAY, createdBy: business.ownerUserId, ...e };
+    const ev: CourtEvent = { id: g.id('evt'), businessId: business.id, venueId: vv.venue.id, sport: vv.courts[courtIdx[0] ?? 0]?.sport ?? 'pickleball', courtIds: courtIdx.map((i) => vv.courts[i]!.id), organizer: vv.venue.name, registrationOpensAt: now - 14 * DAY, registrationClosesAt: e.startMs - 2 * HOUR, waitlistEnabled: true, policyKey: 'standard', rules: 'Rally scoring to 11, win by 2. Bring your own paddle or rent one at the desk.', prizes: '', format: '', visibility: 'public', status: 'published', checkInRequired: true, teamBased: false, ageNote: 'Open to players 18 and above. Minors need a parent or guardian’s consent.', slotIds: [], createdAt: now - 15 * DAY, createdBy: business.ownerUserId, ...e };
     for (const cid of ev.courtIds) {
       const sid = g.id('slt');
-      t.slots[sid] = { id: sid, businessId: business.id, venueId: vv.venue.id, courtId: cid, startMs: ev.startMs, endMs: ev.endMs, occupiedEndMs: ev.endMs, kind: 'event', sourceId: ev.id, status: 'active', expiresAt: null, createdAt: ev.createdAt, releasedAt: null };
+      t.slots[sid] = { id: sid, businessId: business.id, venueId: vv.venue.id, courtId: cid, startMs: ev.startMs, endMs: ev.endMs, occupiedEndMs: ev.endMs, kind: 'event', sourceId: ev.id, units: t.courts[cid]!.units ?? [cid], sport: t.courts[cid]!.sport ?? 'pickleball', status: 'active', expiresAt: null, createdAt: ev.createdAt, releasedAt: null };
       ev.slotIds.push(sid);
     }
     t.events[ev.id] = ev;
@@ -688,7 +772,7 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
     return ev;
   };
   const fri = scripted.fri;
-  mkEvent(bgc, { type: 'open_play', name: 'Friday Night Open Play', description: 'Rotate in, meet new players and play as many games as you like. Skill-balanced courts; perfect after work.', startMs: g.at(fri, 19), endMs: g.at(fri, 22), fee: pesos(250), divisions: [{ id: g.id('div'), name: 'All levels', skill: '2.5 – 4.0', capacity: 24, format: 'open', fee: null }] }, [4, 5], [21]);
+  void fri; // Friday Night Open Play moved to the dedicated Open Play feature (doc 24 CR-D06) — see seedOpenPlay.ts
   const sat = scripted.sat;
   mkEvent(bgc, { type: 'clinic', name: 'Beginner Clinic with Coach Ana', description: 'Two hours of fundamentals: grip, serve, return, the kitchen and the third-shot drop. Paddles provided.', startMs: g.at(sat, 9), endMs: g.at(sat, 11), fee: pesos(800), organizer: 'Coach Ana R.', divisions: [{ id: g.id('div'), name: 'Beginners', skill: 'New to 2.5', capacity: 12, format: 'open', fee: null }] }, [3], [12], 2);
   mkEvent(mk, { type: 'tournament', name: 'Makati Doubles Cup', description: 'One-day doubles tournament with pool play and single-elimination playoffs. Medals for the top 3 teams per division.', startMs: g.at(12, 8), endMs: g.at(12, 18), fee: pesos(1_500), teamBased: true, prizes: 'Medals and pro-shop vouchers for the top 3 teams', format: 'Pool play → single elimination, games to 11', divisions: [{ id: g.id('div'), name: 'Men’s / Mixed 3.0', skill: '3.0', capacity: 16, format: 'doubles', fee: null }, { id: g.id('div'), name: 'Open 3.5+', skill: '3.5+', capacity: 16, format: 'doubles', fee: pesos(1_800) }] }, [0, 1, 2, 3], [11, 6]);
@@ -712,6 +796,9 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
   const r3 = g.id('rtg');
   t.ratings[r3] = { id: r3, userId: persona.player!.id, source: 'platform_recreational', value: 3.42, label: 'CourtKo recreational rating (beta)', verifiedByBusinessId: null, updatedAt: g.at(-6, 13), history: [{ at: g.at(-90, 9), value: 3.05 }, { at: g.at(-60, 9), value: 3.18 }, { at: g.at(-30, 9), value: 3.3 }, { at: g.at(-6, 13), value: 3.42 }] };
 
+  // Open Play sessions, attendance, partners/teams, social graph and sport profiles (doc 24)
+  seedOpenPlayAndSocial(opCtx, opPlan);
+
   // Promotions: one platform-funded, one venue-funded (funding source drives commission & ledger)
   t.promotions.prm_welcome10 = { id: 'prm_welcome10', code: 'WELCOME10', name: '10% off your first court booking', businessId: null, venueIds: null, type: 'percent', value: 100_000, maxDiscount: pesos(100), fundedBy: 'platform', appliesTo: 'court', validFrom: g.at(-60, 0), validTo: g.at(90, 0), usageLimit: 500, perUserLimit: 1, usedCount: 37, status: 'active', createdBy: persona.superadmin!.id, createdAt: g.at(-60, 9) };
   t.promotions.prm_dink50 = { id: 'prm_dink50', code: 'DINK50', name: '₱50 off at Dink District', businessId: dink.id, venueIds: null, type: 'fixed', value: pesos(50), minSpend: pesos(400), fundedBy: 'venue', appliesTo: 'court', validFrom: g.at(-30, 0), validTo: g.at(60, 0), usageLimit: 200, perUserLimit: 3, usedCount: 12, status: 'active', createdBy: persona.owner!.id, createdAt: g.at(-30, 9) };
@@ -734,7 +821,7 @@ export function generateSeed(seed: number, seedDate: string, seededAt: number): 
     t.notifications[id] = { id, userId, category, title, body, link, createdAt: at, readAt: null, channels: { email: 'sent', sms: 'n/a', push: 'suppressed' }, dedupeKey: null };
   };
   note(persona.player!.id, 'booking_updates', `Booking confirmed · ${juanTomorrow.code}`, 'Dink District BGC · Court 1 · tomorrow 7:00 PM. Show your QR code at the front desk.', `#/app/bookings/${juanTomorrow.id}`, juanTomorrow.createdAt + 3 * MINUTE);
-  note(persona.player!.id, 'events', 'New event near you', 'Friday Night Open Play at Dink District BGC — 3 spots left.', '#/events', now - 5 * HOUR);
+  note(persona.player!.id, 'events', 'Open Play near you', 'Friday Night Open Play at Dink District BGC — 3 spots left.', '#/open-play', now - 5 * HOUR);
   note(persona.owner!.id, 'business_ops', 'Refund awaiting your approval', 'Ramon requested a goodwill refund. Approve or reject it in Payments.', '#/biz/payments', now - 3 * HOUR);
   note(persona.owner!.id, 'payouts', 'Payout sent', 'Your latest payout was sent to your bank account.', '#/biz/payouts', now - DAY);
   note(persona.applicant!.id, 'account_security', 'Verification submitted', 'CourtKo usually reviews documents within 1–2 business days.', '#/biz', g.at(-2, 10));

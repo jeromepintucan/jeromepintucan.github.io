@@ -52,7 +52,7 @@ export function describeRule(r: PricingRule): string {
 
 export function savePricingRule(
   s: Svc,
-  input: { businessId: Id; venueId: Id; ruleId?: Id; name: string; kind: RuleKind; courtIds: Id[] | null; effect: RuleEffect; conditions: RuleConditions; priority: number; minChargeCentavos?: number; nonRefundable?: boolean },
+  input: { businessId: Id; venueId: Id; ruleId?: Id; name: string; kind: RuleKind; courtIds: Id[] | null; sports?: string[] | null; effect: RuleEffect; conditions: RuleConditions; priority: number; minChargeCentavos?: number; nonRefundable?: boolean },
 ) {
   const acc = requireBusiness(s, input.businessId, 'pricing.manage', { venueId: input.venueId, write: true });
   const venue = s.db.get('venues', input.venueId);
@@ -63,6 +63,7 @@ export function savePricingRule(
     const valid = new Set(s.db.filter('courts', (c) => c.venueId === venue.id).map((c) => c.id));
     if (!input.courtIds.length || input.courtIds.some((c) => !valid.has(c))) errors.push({ field: 'courtIds', message: 'Choose courts from this venue.' });
   }
+  if (input.sports?.length && input.sports.some((x) => !(venue.sports ?? ['pickleball']).includes(x))) errors.push({ field: 'sports', message: 'Choose sports this venue offers.' });
   if (errors.length) invalid(errors);
   const existing = input.ruleId ? s.db.get('pricingRules', input.ruleId) : undefined;
   if (input.ruleId && (!existing || existing.venueId !== venue.id)) fail('NOT_FOUND', 'Rule not found.');
@@ -71,6 +72,7 @@ export function savePricingRule(
     businessId: input.businessId,
     venueId: venue.id,
     courtIds: input.courtIds && input.courtIds.length ? input.courtIds : null,
+    sports: input.sports && input.sports.length ? input.sports : null,
     name: input.name.trim(),
     kind: input.kind,
     effect: input.effect,

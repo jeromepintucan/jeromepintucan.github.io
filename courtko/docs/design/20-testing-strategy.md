@@ -208,3 +208,13 @@ flowchart LR
 | S4 Low | Cosmetic or minor | Copy typo; minor spacing | Backlog | Does not block |
 
 Severity is set by QA and confirmed by the engineering lead; security findings use the higher of the scanner severity and the doc 14 residual-risk rating. Every S1/S2 gets a regression test before closure.
+
+---
+
+## Addendum CR-01 (2026-10-06)
+
+Add the test cases in [doc 24 §8](24-change-impact-multisport.md). The interactive demo already runs them in `demo/tests/multisport.test.ts` (22 tests) and extends `ui-smoke.test.ts` to render every new route for each role. Production adds:
+
+- property tests: counts rebuilt from attendance events equal the live counters;
+- concurrency tests at the database constraint level for overlapping layouts;
+- a static check that no shared component contains a sport literal.

@@ -9,44 +9,53 @@ import { alertBox, btn, card, dl, empty, field, pageHeader, priceBreakdown, sele
 import { html, type SafeHtml } from '../html.ts';
 import { icon } from '../icons.ts';
 import { availabilityPanel } from './booking.ts';
-import { currentLocation, eventCard, locationBar, mapView, venueCard, ENV_LABEL } from './shared.ts';
+import { currentLocation, eventCard, locationBar, mapView, openPlayCard, sportPicker, sportsCatalog, sportTag, venueCard, ENV_LABEL } from './shared.ts';
 
 // ---------------------------------------------------------------- home
 
-route('/', 'public', 'Book pickleball courts in the Philippines', () => {
-  const featured = app.api.read('GET /v1/public/venues', { sort: 'recommended' }).rows.slice(0, 6);
-  const events = app.api.read('GET /v1/public/events', {}).slice(0, 3);
+route('/', 'public', 'Book courts and join Open Play in the Philippines', () => {
+  const sport = app.state<string>('homeSport', '');
+  const sports = sportsCatalog();
+  const featured = app.api.read('GET /v1/public/venues', { sort: 'recommended', sport }).rows.slice(0, 6);
+  const openPlay = app.api.read('GET /v1/public/open-play', { sport }).slice(0, 4);
+  const events = app.api.read('GET /v1/public/events', {}).filter((e) => !sport || (e.event.sport ?? 'pickleball') === sport).slice(0, 3);
   const venuesCount = app.api.read('GET /v1/public/venues', {}).rows.length;
   return html`<section class="hero"><div class="hero-inner">
     <div>
-      <p class="eyebrow" style="color:var(--ck-color-accent)">Pickleball, sa isang tap</p>
+      <p class="eyebrow" style="color:var(--ck-color-accent)">${sports.map((x) => x.name).join(' · ')}</p>
       <h1>Find a court. <em>Book it in seconds.</em> Just play.</h1>
-      <p class="lead">Real-time availability at pickleball venues across the Philippines — transparent prices, GCash, Maya and cards, and instant confirmation with a QR check-in.</p>
+      <p class="lead">Real-time availability at sports venues across the Philippines — book a full court, a half court or a single court, or join an Open Play session. Transparent prices, GCash, Maya and cards, and instant QR check-in.</p>
       <form class="search-card" data-form="home.search" role="search" aria-label="Find a court">
+        ${select({ name: 'sport', label: 'Sport', value: sport, options: [{ value: '', label: 'Any sport' }, ...sports.map((x) => ({ value: x.code, label: x.name }))] })}
         ${field({ name: 'q', label: 'City, barangay or venue', placeholder: 'e.g. Makati, BGC, Cebu', autocomplete: 'off' })}
         ${field({ name: 'date', label: 'Date', type: 'date', value: todayStr() })}
         ${btn('Search courts', { type: 'submit', variant: 'primary', icon: 'search', size: 'lg' })}
       </form>
-      <div class="hero-stats"><div><b>${venuesCount}</b><span>venues live</span></div><div><b>6</b><span>payment options</span></div><div><b>0</b><span>hidden charges</span></div></div>
+      <div class="hero-stats"><div><b>${sports.length}</b><span>sports</span></div><div><b>${venuesCount}</b><span>venues live</span></div><div><b>0</b><span>hidden charges</span></div></div>
     </div>
     <div class="hero-art"><div class="phone-mock"><div class="screen">${heroPhone()}</div></div></div>
   </div></section>
+  <section class="section-sm" style="padding-bottom:0"><div class="container"><p class="eyebrow">What do you want to play?</p>${sportPicker(sport, 'home.sport')}</div></section>
   <section class="section"><div class="container">
-    <div class="row-between"><div><p class="eyebrow">Popular right now</p><h2>Courts players love</h2></div>${btn('See all courts', { href: '#/courts', variant: 'secondary', icon: 'chevronRight' })}</div>
-    <div class="venue-grid" style="margin-top:16px">${featured.map((r) => venueCard(r))}</div>
+    <div class="row-between"><div><p class="eyebrow">Popular right now</p><h2>${sport ? `${sports.find((x) => x.code === sport)?.name ?? ''} venues players love` : 'Courts players love'}</h2></div>${btn('See all courts', { href: `#/courts${sport ? `?sport=${sport}` : ''}`, variant: 'secondary', icon: 'chevronRight' })}</div>
+    ${featured.length ? html`<div class="venue-grid" style="margin-top:16px">${featured.map((r) => venueCard(r, '#/venues', sport))}</div>` : empty('No venues for this sport yet', 'Try another sport.', undefined, 'search')}
   </div></section>
   <section class="section" style="background:#fff;border-block:1px solid var(--ck-slate-200)"><div class="container">
+    <div class="row-between"><div><p class="eyebrow">Open Play</p><h2>Just show up and play</h2><p class="muted" style="margin:4px 0 0">Register for a spot, check in with your QR pass and rotate into games — no need to book a whole court.</p></div>${btn('All Open Play', { href: `#/open-play${sport ? `?sport=${sport}` : ''}`, variant: 'secondary', icon: 'chevronRight' })}</div>
+    ${openPlay.length ? html`<div class="grid g2" style="margin-top:16px">${openPlay.map((o) => openPlayCard(o))}</div>` : empty('No Open Play sessions for this sport yet', 'Check back soon.', undefined, 'users')}
+  </div></section>
+  <section class="section"><div class="container">
     <p class="eyebrow">How it works</p><h2>From search to serve in three steps</h2>
     <div class="steps3" style="margin-top:18px">
-      <div class="card"><h3>Pick a venue & time</h3><p class="muted">Search near you or by city. See every court's open slots and the exact price for your time.</p></div>
+      <div class="card"><h3>Pick a sport, venue & time</h3><p class="muted">Search near you or by city. See every court's open slots — full or half court where available — and the exact price for your time.</p></div>
       <div class="card"><h3>Pay securely</h3><p class="muted">Your slot is held for 10 minutes while you pay with GCash, Maya, cards, QR Ph or online banking. Fees are shown before you pay.</p></div>
       <div class="card"><h3>Show your QR & play</h3><p class="muted">Booking is confirmed only after the payment provider verifies it. Check in with your QR code at the front desk.</p></div>
     </div>
   </div></section>
-  <section class="section"><div class="container">
-    <div class="row-between"><div><p class="eyebrow">Events & open play</p><h2>Join the community</h2></div>${btn('All events', { href: '#/events', variant: 'secondary', icon: 'chevronRight' })}</div>
+  ${events.length ? html`<section class="section" style="background:#fff;border-block:1px solid var(--ck-slate-200)"><div class="container">
+    <div class="row-between"><div><p class="eyebrow">Events</p><h2>Tournaments, leagues & clinics</h2></div>${btn('All events', { href: '#/events', variant: 'secondary', icon: 'chevronRight' })}</div>
     <div class="grid g3" style="margin-top:16px">${events.map((e) => eventCard(e))}</div>
-  </div></section>
+  </div></section>` : ''}
   <section class="section-sm"><div class="container"><div class="band">
     <div><p class="eyebrow" style="color:var(--ck-color-accent)">For venue owners</p><h2 style="color:#fff">Fill your courts. Get paid automatically.</h2><p>No subscription — CourtKo earns a small commission only on successful bookings. Calendar, walk-ins, pricing rules, events, pro-shop pickup and payouts in one place.</p><div class="row">${btn('List your venue', { href: '#/for-business', variant: 'accent', icon: 'building' })}${btn('See the commission', { href: '#/pricing', variant: 'ghost' })}</div></div>
     <div class="card" style="color:var(--ck-color-ink)"><div class="card-body">${exampleBreakdown()}</div></div>
@@ -63,11 +72,12 @@ function trust(ic: string, title: string, body: string): SafeHtml {
 }
 
 function heroPhone(): SafeHtml {
-  return html`<div style="padding:14px 12px 16px"><div class="row-between" style="margin-bottom:10px"><b>Dink District BGC</b>${tag('Open now', 'success')}</div>
-  <div style="border-radius:14px;overflow:hidden;aspect-ratio:16/9">${venueCover({ hue: 158, accent: 298, pattern: 'lines' })}</div>
-  <p class="small muted" style="margin:10px 0 6px">Tonight · pick a time</p>
-  <div class="chips">${['6:00 PM', '7:00 PM', '8:30 PM', '9:00 PM'].map((t, i) => html`<span class="chip${i === 1 ? ' active' : ''}">${t}</span>`)}</div>
-  <div class="card" style="margin-top:12px;padding:12px"><div class="row-between small"><span>Court 2 · 1 hr</span><b>₱600.00</b></div><div class="row-between small muted"><span>GCash processing fee</span><span>₱14.12</span></div><hr style="margin:8px 0"/><div class="row-between"><b>Total</b><b>₱614.12</b></div></div>
+  return html`<div style="padding:14px 12px 16px"><div class="row-between" style="margin-bottom:8px"><b>Hoopsville Cubao</b>${tag('Open now', 'success')}</div>
+  <div class="row" style="gap:6px;margin-bottom:8px">${sportTag('basketball', { small: true })}${sportTag('volleyball', { small: true })}</div>
+  <div style="border-radius:14px;overflow:hidden;aspect-ratio:16/9">${venueCover({ hue: 22, accent: 162, pattern: 'lines' }, { sport: 'basketball' })}</div>
+  <div class="seg" style="margin:10px 0 6px;width:100%"><button class="active" style="flex:1">Full court</button><button style="flex:1">Half court</button></div>
+  <div class="chips">${['6:00 PM', '7:00 PM', '8:00 PM', '9:00 PM'].map((t, i) => html`<span class="chip${i === 1 ? ' active' : ''}">${t}</span>`)}</div>
+  <div class="card" style="margin-top:12px;padding:12px"><div class="row-between small"><span>Gym 1 · Full court · 2 hrs</span><b>₱4,000.00</b></div><div class="row-between small muted"><span>GCash processing fee</span><span>₱94.17</span></div><hr style="margin:8px 0"/><div class="row-between"><b>Total</b><b>₱4,094.17</b></div></div>
   <div class="btn btn-primary btn-block" style="margin-top:12px">Pay with GCash</div></div>`;
 }
 
@@ -84,18 +94,29 @@ function todayStr(): string {
 form('home.search', (fd) => {
   const q = str(fd, 'q');
   const date = str(fd, 'date');
-  app.navigate(`#/courts?q=${encodeURIComponent(q)}&date=${encodeURIComponent(date)}`);
+  const sport = str(fd, 'sport');
+  app.navigate(`#/courts?q=${encodeURIComponent(q)}&date=${encodeURIComponent(date)}${sport ? `&sport=${sport}` : ''}`);
 });
+action('home.sport', (el) => app.set('homeSport', el.dataset.sport ?? ''));
 
 // ---------------------------------------------------------------- find a court
 
 export function discoverView(ctx: ViewCtx, inApp: boolean): SafeHtml {
   const q = ctx.query.get('q') ?? '';
-  const f = app.state('discover', { environment: '', amenity: '', minRating: 0, maxPrice: 0, hasEvents: false, sort: '', view: 'list' as 'list' | 'map' });
+  const f = app.state('discover', { sport: ctx.query.get('sport') ?? '', environment: '', amenity: '', minRating: 0, maxPrice: 0, hasEvents: false, hasOpenPlay: false, layout: '', surface: '', sort: '', view: 'list' as 'list' | 'map' });
+  if (ctx.query.get('sport') !== null && app.ui.discoverSportFromQuery !== ctx.query.get('sport')) {
+    f.sport = ctx.query.get('sport') ?? '';
+    app.ui.discoverSportFromQuery = f.sport;
+  }
   const loc = currentLocation();
+  const sportName = sportsCatalog().find((x) => x.code === f.sport)?.name;
   const res = app.api.read('GET /v1/public/venues', {
     q,
     near: loc,
+    sport: f.sport,
+    layout: f.layout as never,
+    surface: f.surface,
+    hasOpenPlay: f.hasOpenPlay,
     environment: f.environment as never,
     amenities: f.amenity ? [f.amenity] : [],
     minRating: f.minRating,
@@ -106,8 +127,9 @@ export function discoverView(ctx: ViewCtx, inApp: boolean): SafeHtml {
   const suggestions = q.length >= 2 ? app.api.read('GET /v1/public/locations', { q }) : [];
   const base = inApp ? '#/app/book' : '#/venues';
   const amenities = app.store.state.settings.platform!.amenities;
-  return html`${pageHeader(inApp ? 'Discover courts' : 'Find a pickleball court', { subtitle: `${res.rows.length} venue${res.rows.length === 1 ? '' : 's'}${q ? ` matching “${q}”` : ' across the Philippines'}` })}
+  return html`${pageHeader(inApp ? 'Discover courts' : sportName ? `Find a ${sportName.toLowerCase()} court` : 'Find a court', { subtitle: `${res.rows.length} venue${res.rows.length === 1 ? '' : 's'}${sportName ? ` for ${sportName}` : ''}${q ? ` matching “${q}”` : ' across the Philippines'}` })}
   <div class="card" style="margin-bottom:16px"><div class="card-body stack-sm">
+    ${sportPicker(f.sport, 'discover.sport')}
     <form class="row" data-form="discover.search" role="search"><div style="flex:1;min-width:220px"><label class="sr-only" for="dq">Search</label><input id="dq" name="q" type="search" value="${q}" placeholder="City, municipality, barangay, landmark or venue" autocomplete="off"/></div>${btn('Search', { type: 'submit', variant: 'primary', icon: 'search' })}</form>
     ${suggestions.length ? html`<div class="chips">${suggestions.map((s) => html`<a class="chip" href="#${ctx.path}?q=${encodeURIComponent(s.query)}">${icon('pin', 14)} ${s.label} <span class="muted xs">${s.kind}</span></a>`)}</div>` : ''}
     ${locationBar()}
@@ -115,13 +137,16 @@ export function discoverView(ctx: ViewCtx, inApp: boolean): SafeHtml {
       <select aria-label="Court type" data-change="discover.filter" data-key="environment">${[['', 'Any court type'], ['indoor', 'Indoor'], ['covered', 'Covered'], ['outdoor', 'Outdoor']].map(([v, l]) => html`<option value="${v}"${v === f.environment ? html` selected` : ''}>${l}</option>`)}</select>
       <select aria-label="Amenity" data-change="discover.filter" data-key="amenity"><option value="">Any amenities</option>${amenities.map((a) => html`<option value="${a.code}"${a.code === f.amenity ? html` selected` : ''}>${a.label}</option>`)}</select>
       <select aria-label="Rating" data-change="discover.filter" data-key="minRating">${[[0, 'Any rating'], [4, '4★ & up'], [4.5, '4.5★ & up']].map(([v, l]) => html`<option value="${v}"${Number(v) === f.minRating ? html` selected` : ''}>${l}</option>`)}</select>
-      <select aria-label="Max price" data-change="discover.filter" data-key="maxPrice">${[[0, 'Any price'], [30000, 'Up to ₱300/hr'], [40000, 'Up to ₱400/hr'], [50000, 'Up to ₱500/hr']].map(([v, l]) => html`<option value="${v}"${Number(v) === f.maxPrice ? html` selected` : ''}>${l}</option>`)}</select>
+      <select aria-label="Max price" data-change="discover.filter" data-key="maxPrice">${[[0, 'Any price'], [30000, 'Up to ₱300/hr'], [50000, 'Up to ₱500/hr'], [100000, 'Up to ₱1,000/hr'], [200000, 'Up to ₱2,000/hr']].map(([v, l]) => html`<option value="${v}"${Number(v) === f.maxPrice ? html` selected` : ''}>${l}</option>`)}</select>
+      <select aria-label="Full or partial court" data-change="discover.filter" data-key="layout">${[['', 'Full or half court'], ['full', 'Full court'], ['partial', 'Half court available']].map(([v, l]) => html`<option value="${v}"${v === f.layout ? html` selected` : ''}>${l}</option>`)}</select>
+      <select aria-label="Playing surface" data-change="discover.filter" data-key="surface">${[['', 'Any surface'], ['acrylic', 'Acrylic hard court'], ['hardwood', 'Sprung hardwood'], ['tile', 'Sports tile'], ['clay', 'Clay']].map(([v, l]) => html`<option value="${v}"${v === f.surface ? html` selected` : ''}>${l}</option>`)}</select>
       <select aria-label="Sort" data-change="discover.filter" data-key="sort">${[['', loc ? 'Nearest first' : 'Recommended'], ['next', 'Soonest available'], ['price', 'Lowest price'], ['rating', 'Top rated'], ...(loc ? [['distance', 'Distance']] : [])].map(([v, l]) => html`<option value="${v}"${v === f.sort ? html` selected` : ''}>${l}</option>`)}</select>
+      <button class="chip${f.hasOpenPlay ? ' active' : ''}" data-action="discover.openplay">${icon('users', 14)} Has Open Play</button>
       <button class="chip${f.hasEvents ? ' active' : ''}" data-action="discover.events">${icon('trophy', 14)} Has events</button>
       <div class="seg" style="margin-left:auto" role="group" aria-label="View"><button class="${f.view === 'list' ? 'active' : ''}" data-action="discover.view" data-v="list">${icon('list', 14)} List</button><button class="${f.view === 'map' ? 'active' : ''}" data-action="discover.view" data-v="map">${icon('map', 14)} Map</button></div>
     </div>
   </div></div>
-  ${res.rows.length === 0 ? empty('No venues match these filters', 'Try another city or clear a filter.', btn('Clear filters', { action: 'discover.clear', variant: 'secondary' }), 'search') : f.view === 'map' ? html`<div class="split"><div>${mapView(res.rows, { user: loc, base })}</div><ol class="list card" style="padding:0 16px">${res.rows.map((r, i) => html`<li><a href="${base}/${r.venue.slug}" class="row" style="text-decoration:none;color:inherit"><span class="pill pill-success">${i + 1}</span><span style="flex:1"><b>${r.venue.name}</b><br/><span class="small muted">${r.venue.address.city}${r.distanceKm !== null ? ` · ${r.distanceKm.toFixed(1)} km` : ''}</span></span>${r.fromRate ? html`<span class="small">from <b>${formatPHP(r.fromRate, { compact: true })}</b></span>` : ''}</a></li>`)}</ol></div>` : html`<div class="venue-grid">${res.rows.map((r) => venueCard(r, base))}</div>`}`;
+  ${res.rows.length === 0 ? empty('No venues match these filters', 'Try another city or clear a filter.', btn('Clear filters', { action: 'discover.clear', variant: 'secondary' }), 'search') : f.view === 'map' ? html`<div class="split"><div>${mapView(res.rows, { user: loc, base })}</div><ol class="list card" style="padding:0 16px">${res.rows.map((r, i) => html`<li><a href="${base}/${r.venue.slug}" class="row" style="text-decoration:none;color:inherit"><span class="pill pill-success">${i + 1}</span><span style="flex:1"><b>${r.venue.name}</b><br/><span class="small muted">${r.venue.address.city}${r.distanceKm !== null ? ` · ${r.distanceKm.toFixed(1)} km` : ''}</span></span>${r.fromRate ? html`<span class="small">from <b>${formatPHP(r.fromRate, { compact: true })}</b></span>` : ''}</a></li>`)}</ol></div>` : html`<div class="venue-grid">${res.rows.map((r) => venueCard(r, base, f.sport))}</div>`}`;
 }
 
 route('/courts', 'public', 'Find a court', (ctx) => html`<div class="container section-sm">${discoverView(ctx, false)}</div>`);
@@ -139,6 +164,15 @@ onChange('discover.filter', (el) => {
 });
 action('discover.view', (el) => {
   app.state<Record<string, unknown>>('discover', {}).view = el.dataset.v;
+  app.render();
+});
+action('discover.sport', (el) => {
+  app.state<Record<string, unknown>>('discover', {}).sport = el.dataset.sport ?? '';
+  app.render();
+});
+action('discover.openplay', () => {
+  const f = app.state<Record<string, unknown>>('discover', {});
+  f.hasOpenPlay = !f.hasOpenPlay;
   app.render();
 });
 action('discover.events', () => {
@@ -159,16 +193,20 @@ export function venueDetailView(ctx: ViewCtx, inApp: boolean): SafeHtml {
   const loc = currentLocation();
   const dist = loc ? Math.round(Math.hypot((v.geo.lat - loc.lat) * 111, (v.geo.lng - loc.lng) * 108) * 10) / 10 : null;
   const tab = app.state<string>(`vtab:${v.id}`, 'book');
+  const coverSport = app.state<string>(`sport:${v.id}`, ctx.query.get('sport') && d.sports.includes(ctx.query.get('sport')!) ? ctx.query.get('sport')! : d.sports[0] ?? 'pickleball');
+  const opBase = inApp ? '#/app/open-play' : '#/open-play';
   return html`
   ${d.preview ? alertBox('warning', 'Preview — this venue is not published yet', 'Only your team can see this page.') : ''}
-  <div class="venue-hero">${venueCover(v.art, { label: v.name })}<div class="overlay"><div class="row" style="gap:6px;margin-bottom:6px">${d.courts.map((c) => c.environment).filter((e, i, a) => a.indexOf(e) === i).map((e) => tag(ENV_LABEL[e]!, 'accent'))}</div><h1>${v.name}</h1><p>${v.tagline}</p></div>
+  <div class="venue-hero">${venueCover(v.art, { label: v.name, sport: coverSport })}<div class="overlay"><div class="row" style="gap:6px;margin-bottom:6px">${d.sports.map((x) => sportTag(x))}${d.courts.map((c) => c.environment).filter((e, i, a) => a.indexOf(e) === i).map((e) => tag(ENV_LABEL[e]!, 'accent'))}</div><h1>${v.name}</h1><p>${v.tagline}</p></div>
   ${ctx.me ? html`<button class="${d.favorite ? 'fav-btn on' : 'fav-btn'}" data-action="fav.toggle" data-venue="${v.id}" aria-label="${d.favorite ? 'Remove from favorites' : 'Save to favorites'}">${icon('heart', 18)}</button>` : ''}</div>
   <div class="row" style="margin:14px 0 18px">${stars(v.ratingAvg, v.ratingCount)}<span class="small">${icon('pin', 14)} ${v.address.line1}, ${v.address.barangay}, ${v.address.city}${dist !== null ? ` · ~${dist} km away` : ''}</span>${d.fromRate ? html`<span class="small">from <b>${formatPHP(d.fromRate, { compact: true })}</b>/hr</span>` : ''}${btn('Directions', { href: `https://www.google.com/maps/search/?api=1&query=${v.geo.lat},${v.geo.lng}`, variant: 'ghost', size: 'sm', icon: 'external' })}</div>
-  <div class="tabs" role="tablist">${[['book', 'Book a court'], ['about', 'About & rules'], ['rates', 'Rates'], ['events', `Events (${d.events.length})`], ['shop', 'Shop'], ['reviews', `Reviews (${v.ratingCount})`]].map(([k, l]) => html`<button class="tab${tab === k ? ' active' : ''}" role="tab" aria-selected="${tab === k ? 'true' : 'false'}" data-action="vtab" data-venue="${v.id}" data-key="${k}">${l}</button>`)}</div>
+  <div class="tabs" role="tablist">${[['book', 'Book a court'], ['openplay', `Open Play (${d.openPlay.length})`], ['courts', `Courts (${d.physicalCourts.length})`], ['about', 'About & rules'], ['rates', 'Rates'], ['events', `Events (${d.events.length})`], ['shop', 'Shop'], ['reviews', `Reviews (${v.ratingCount})`]].map(([k, l]) => html`<button class="tab${tab === k ? ' active' : ''}" role="tab" aria-selected="${tab === k ? 'true' : 'false'}" data-action="vtab" data-venue="${v.id}" data-key="${k}">${l}</button>`)}</div>
   ${tab === 'book' ? availabilityPanel(ctx, v, inApp) : ''}
+  ${tab === 'openplay' ? (d.openPlay.length ? html`<div class="grid g2">${d.openPlay.map((o) => openPlayCard(app.api.read('GET /v1/public/open-play/{sessionId}', { sessionId: o.id }), opBase))}</div>` : empty('No Open Play sessions scheduled', 'Check back soon, or book a court for your group.', undefined, 'users')) : ''}
+  ${tab === 'courts' ? html`<div class="grid g2">${d.physicalCourts.map((p) => card(html`<div class="row" style="gap:6px;margin-bottom:8px">${p.court.sports.map((x) => sportTag(x, { small: true }))}${tag(ENV_LABEL[p.court.environment]!, 'neutral')}</div>${dl([['Surface', p.court.surface], ['Bookable as', p.layouts.filter((l) => l.status === 'active').map((l) => l.layoutLabel ?? l.name).join(' · ')], ['Capacity', `Up to ${p.court.capacity} people`], ['Equipment', p.court.equipment.join(', ') || '—'], ['Accessibility', p.court.accessibility || '—']])}${p.court.unitNames.length > 1 ? html`<p class="xs muted" style="margin-top:8px">${icon('info', 12)} ${p.court.sports.includes('basketball') ? 'Booking the full court blocks both halves; booking a half blocks the full court.' : 'Booking the tennis court uses both pickleball courts; each pickleball court uses half the tennis court.'}${p.court.sports.length > 1 ? ` Switching sports needs a ${p.court.changeoverMinutes}-minute changeover.` : ''}</p>` : p.court.sports.length > 1 ? html`<p class="xs muted" style="margin-top:8px">${icon('info', 12)} One sport at a time — switching needs a ${p.court.changeoverMinutes}-minute changeover.</p>` : ''}`, { title: p.court.name }))}</div>` : ''}
   ${tab === 'about' ? html`<div class="split"><div class="stack">${card(html`<p>${v.description}</p><h3>Amenities</h3><div class="amenities">${d.amenities.map((a) => html`<span class="amenity">${icon('check', 14)} ${a}</span>`)}</div>`, { title: 'About this venue' })}${card(html`<ul class="bullets">${v.rules.map((r) => html`<li>${r}</li>`)}</ul>`, { title: 'Venue rules' })}</div><div class="stack">${card(dl([['Parking', v.parking], ['Accessibility', v.accessibility], ['Operating hours', 'Daily 6:00 AM – 11:00 PM'], ['Contact', v.contactPhone], ['Operated by', d.business.tradeName]]), { title: 'Good to know' })}${card(html`<p class="small muted">Policy v${d.policy.version} · shown again before you pay and saved with your booking.</p><ul class="bullets small">${d.policy.lines.map((l) => html`<li>${l}</li>`)}</ul>`, { title: `${d.policy.name} cancellation policy` })}</div></div>` : ''}
-  ${tab === 'rates' ? card(html`<div class="table-wrap"><table class="table"><thead><tr><th>Rate</th><th>When</th><th>Courts</th><th class="num">Price</th></tr></thead><tbody>${d.rates.map((r) => html`<tr><td><b>${r.name}</b><br/><span class="xs muted">${r.kind}</span></td><td>${r.when}</td><td>${r.courts}</td><td class="num"><b>${r.price}</b></td></tr>`)}</tbody></table></div><p class="small muted" style="margin-top:10px">When rules overlap, the highest-priority rule applies; bookings that span two rates are priced per 15-minute slice. ${d.business.vatRegistered ? 'Prices include 12% VAT.' : 'This venue is not VAT-registered.'} Your exact total is shown before you pay.</p>`, { title: 'Court rates' }) : ''}
-  ${tab === 'events' ? (d.events.length ? html`<div class="grid g2">${d.events.map((e) => eventCard(app.api.read('GET /v1/public/events/{eventId}', { eventId: e.id }), inApp ? '#/app/events' : '#/events'))}</div>` : empty('No upcoming events', 'Check back soon for open play and clinics.', undefined, 'trophy')) : ''}
+  ${tab === 'rates' ? card(html`<div class="table-wrap"><table class="table"><thead><tr><th>Rate</th><th>Sport</th><th>When</th><th>Courts</th><th class="num">Price</th></tr></thead><tbody>${d.rates.map((r) => html`<tr><td><b>${r.name}</b><br/><span class="xs muted">${r.kind}</span></td><td>${r.sport || '—'}</td><td>${r.when}</td><td>${r.courts}</td><td class="num"><b>${r.price}</b></td></tr>`)}</tbody></table></div><p class="small muted" style="margin-top:10px">When rules overlap, the highest-priority rule applies; bookings that span two rates are priced per 15-minute slice. ${d.business.vatRegistered ? 'Prices include 12% VAT.' : 'This venue is not VAT-registered.'} Your exact total is shown before you pay.</p>`, { title: 'Court rates' }) : ''}
+  ${tab === 'events' ? (d.events.length ? html`<div class="grid g2">${d.events.map((e) => eventCard(app.api.read('GET /v1/public/events/{eventId}', { eventId: e.id }), inApp ? '#/app/events' : '#/events'))}</div>` : empty('No upcoming events', 'Check back soon for tournaments, leagues and clinics.', undefined, 'trophy')) : ''}
   ${tab === 'shop' ? html`<p class="muted">Pre-order drinks, rentals and gear for pickup at the counter — or add them while booking a court.</p><div class="grid g3">${d.products.map((p) => html`<div class="card"><div class="card-body row" style="align-items:flex-start">${productTile(p.product.art, 56)}<div style="flex:1"><b>${p.product.name}</b><div class="small muted">${p.product.pickupInstructions}</div><div class="row-between" style="margin-top:8px"><b>${formatPHP(p.product.price)}</b><span class="xs ${p.available > 5 ? 'muted' : ''}">${p.available > 0 ? `${p.available} in stock` : 'Out of stock'}</span></div></div></div></div>`)}</div>${d.products.some((p) => p.product.fulfillment.standalone) ? html`<div style="margin-top:14px">${btn('Order for pickup', { href: `#/app/shop/${v.id}`, variant: 'primary', icon: 'bag' })}</div>` : ''}` : ''}
   ${tab === 'reviews' ? (d.reviews.length ? html`<div class="grid g2">${d.reviews.map(({ review: r, author }) => html`<div class="card"><div class="card-body"><div class="row-between"><div class="row">${avatar(author, (author.charCodeAt(0) * 7) % 360, 32)}<b>${author}</b></div>${stars(r.rating)}</div><p style="margin-top:10px">${r.body}</p><p class="xs muted">${formatDateLong(r.createdAt)} · verified booking</p>${r.reply ? html`<div class="alert alert-info small"><div class="alert-body"><b>Reply from the venue</b><div>${r.reply.body}</div></div></div>` : ''}${ctx.me ? btn('Report', { action: 'review.report', data: { review: r.id }, variant: 'link', size: 'sm', icon: 'flag' }) : ''}</div></div>`)}</div><p class="small muted" style="margin-top:12px">Only players with a completed booking can review, so every review comes from a real visit.</p>` : empty('No reviews yet', 'Reviews come only from verified, completed bookings.', undefined, 'star')) : ''}`;
 }
@@ -186,15 +224,18 @@ action('review.report', async (el) => {
 
 export function eventsView(ctx: ViewCtx, base: string): SafeHtml {
   const type = app.state<string>('evType', '');
-  const list = app.api.read('GET /v1/public/events', { type: type as never });
+  const sport = app.state<string>('evSport', '');
+  const list = app.api.read('GET /v1/public/events', { type: type as never }).filter((e) => !sport || (e.event.sport ?? 'pickleball') === sport);
   const types = app.store.state.settings.platform!.eventTypes.filter((t) => t.code !== 'private');
   void ctx;
-  return html`${pageHeader('Events, clinics & open play', { subtitle: 'Tournaments, leagues, clinics and social play at CourtKo venues.' })}
+  return html`${pageHeader('Events, tournaments & clinics', { subtitle: html`Tournaments, leagues, clinics and social events at CourtKo venues. Looking for drop-in games? See <a href="${base.startsWith('#/app') ? '#/app/open-play' : '#/open-play'}">Open Play</a>.` })}
+  <div style="margin-bottom:12px">${sportPicker(sport, 'ev.sport')}</div>
   <div class="chips" style="margin-bottom:16px"><button class="chip${!type ? ' active' : ''}" data-action="ev.type" data-t="">All</button>${types.map((t) => html`<button class="chip${type === t.code ? ' active' : ''}" data-action="ev.type" data-t="${t.code}">${t.label}</button>`)}</div>
   ${list.length ? html`<div class="grid g2">${list.map((e) => eventCard(e, base))}</div>` : empty('No events of this type yet', 'Try another category.', undefined, 'trophy')}`;
 }
 route('/events', 'public', 'Events', (ctx) => html`<div class="container section-sm">${eventsView(ctx, '#/events')}</div>`);
 action('ev.type', (el) => app.set('evType', el.dataset.t ?? ''));
+action('ev.sport', (el) => app.set('evSport', el.dataset.sport ?? ''));
 
 export function eventDetailView(ctx: ViewCtx, inApp: boolean): SafeHtml {
   const e = app.api.read('GET /v1/public/events/{eventId}', { eventId: ctx.params.id! });
@@ -235,12 +276,13 @@ action('ev.waitlist', async (el) => {
 // ---------------------------------------------------------------- static pages
 
 route('/how-it-works', 'public', 'How it works', () => html`<div class="container-narrow section-sm prose">${pageHeader('How CourtKo works')}
-  <h2>For players</h2><ol><li><b>Search</b> by city, barangay or venue — or allow location to sort by distance (optional, never stored).</li><li><b>Pick a court and time</b> on the live availability grid. You'll see the exact price for your slot, including peak or weekend rates.</li><li><b>Hold & pay.</b> We hold the court for 10 minutes while you pay with GCash, Maya, GrabPay, cards, QR Ph or online banking. The full breakdown — court, add-ons, discounts, VAT and processing fee — is shown before you pay.</li><li><b>Confirmation.</b> Your booking is confirmed only when the payment provider verifies the payment on our servers (not just when your browser comes back). You get a receipt and a QR code.</li><li><b>Check in & play.</b> Show your QR code or booking code (e.g. <code>CK-7F3K9Q</code>) at the front desk.</li></ol>
+  <h2>For players</h2><ol><li><b>Choose your sport</b> — pickleball, basketball, volleyball or tennis — then search by city, barangay or venue, or allow location to sort by distance (optional, never stored).</li><li><b>Pick a court and time</b> on the live availability grid — a full court, a half court where the venue offers it, or a single court. You'll see the exact price for your slot, including peak or weekend rates.</li><li><b>Hold & pay.</b> We hold the court for 10 minutes while you pay with GCash, Maya, GrabPay, cards, QR Ph or online banking. The full breakdown — court, add-ons, discounts, VAT and processing fee — is shown before you pay.</li><li><b>Confirmation.</b> Your booking is confirmed only when the payment provider verifies the payment on our servers (not just when your browser comes back). You get a receipt and a QR code.</li><li><b>Check in & play.</b> Show your QR code or booking code (e.g. <code>CK-7F3K9Q</code>) at the front desk.</li></ol>
+  <h2>Open Play</h2><p>Prefer to just show up and play? Register for an Open Play session, check in with your rotating QR pass, and the venue rotates players into games. You'll see live counts (registered, checked in, waiting, playing) and your own spot in the rotation — never other players' private details.</p>
   <h2>If plans change</h2><p>Each venue's cancellation policy is shown before you pay and saved with your booking. Refunds go back to your original payment method. If the venue cancels, you always get a full refund, including fees.</p>
   <h2>For venues</h2><p>Venues manage courts, hours, pricing rules, events and pickup orders; staff get only the permissions they need. Payouts are settled through the payment provider's sub-account for the venue. See <a href="#/for-business">For venue owners</a>.</p></div>`);
 
-route('/for-business', 'public', 'For venue owners', () => html`<div class="container section-sm">${pageHeader('Grow your pickleball business with CourtKo', { subtitle: 'No subscription. A small commission only when a booking is paid.', actions: btn('Register your business', { href: '#/biz/onboarding', variant: 'primary', icon: 'building' }) })}
-  <div class="features">${[['calendar', 'Live calendar', 'Every court, booking, hold, event and maintenance block in one day view. Check players in with a QR scan.'], ['tag', 'Flexible pricing', 'Standard, peak, weekend, holiday and promotional rules with priorities and a price simulator. Past bookings keep their price.'], ['users', 'Staff roles', 'Receptionist, Court Manager, Finance Viewer and more — or build custom roles. Staff only see what they need.'], ['trophy', 'Events & open play', 'Capacity-safe registration, waitlists that fill themselves, and results that feed player stats.'], ['bag', 'Pro shop & pickup', 'Sell drinks, rentals and gear as booking add-ons or pickup orders with single-use claim codes.'], ['wallet', 'Automatic settlement', 'Your share settles to your own payment sub-account. Statements show every fee and commission line.']].map(([i, t, d]) => html`<div class="card feature"><span class="ic-wrap">${icon(i!, 22)}</span><h3>${t}</h3><p class="muted">${d}</p></div>`)}</div>
+route('/for-business', 'public', 'For venue owners', () => html`<div class="container section-sm">${pageHeader('Grow your sports venue with CourtKo', { subtitle: 'No subscription. A small commission only when a booking is paid.', actions: btn('Register your business', { href: '#/biz/onboarding', variant: 'primary', icon: 'building' }) })}
+  <div class="features">${[['calendar', 'Live calendar', 'Every court, booking, hold, event and maintenance block in one day view. Check players in with a QR scan.'], ['tag', 'Flexible pricing', 'Standard, peak, weekend, holiday and promotional rules with priorities and a price simulator. Past bookings keep their price.'], ['users', 'Staff roles', 'Receptionist, Court Manager, Finance Viewer and more — or build custom roles. Staff only see what they need.'], ['layers', 'Multi-sport courts', 'Offer pickleball, basketball, volleyball and tennis. Full and half courts, shared floors and changeover times are handled for you — no double bookings.'], ['users', 'Open Play desk', 'Publish sessions, check players in with secure QR passes, run the court rotation and see live attendance at a glance.'], ['trophy', 'Events', 'Capacity-safe registration, waitlists that fill themselves, and results that feed player stats.'], ['bag', 'Pro shop & pickup', 'Sell drinks, rentals and gear as booking add-ons or pickup orders with single-use claim codes.'], ['wallet', 'Automatic settlement', 'Your share settles to your own payment sub-account. Statements show every fee and commission line.']].map(([i, t, d]) => html`<div class="card feature"><span class="ic-wrap">${icon(i!, 22)}</span><h3>${t}</h3><p class="muted">${d}</p></div>`)}</div>
   <div class="section-sm"><div class="split"><div class="card"><div class="card-body prose"><h2 style="margin-top:0">Getting started</h2><ol><li>Create a CourtKo account and register your business.</li><li>Upload your DTI/SEC registration, BIR Form 2303, Mayor's permit and the owner's valid ID. We review within 1–2 business days.</li><li>Add your venue, courts, hours and rates, then publish.</li><li>Connect your payout account (via the payment provider's secure onboarding).</li></ol><p class="small muted">Verification helps keep the marketplace safe and supports e-commerce rules for online merchants.</p></div></div><div class="card"><div class="card-body">${exampleBreakdown()}</div></div></div></div></div>`);
 
 route('/pricing', 'public', 'Pricing & commission', () => {

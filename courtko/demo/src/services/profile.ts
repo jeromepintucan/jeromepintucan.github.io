@@ -179,6 +179,11 @@ export function exportMyData(s: Svc) {
     notifications: s.db.filter('notifications', (n) => n.userId === u.id).map((n) => ({ title: n.title, createdAt: new Date(n.createdAt).toISOString() })),
     loginHistory: s.db.filter('loginEvents', (e) => e.userId === u.id).map((e) => ({ at: new Date(e.at).toISOString(), outcome: e.outcome, device: e.device })),
     restrictions: s.db.filter('restrictions', (r) => r.userId === u.id).map((r) => ({ scope: r.scope, status: r.status, start: new Date(r.startAt).toISOString(), end: r.endAt ? new Date(r.endAt).toISOString() : null })),
+    sportProfiles: s.db.filter('sportProfiles', (x) => x.userId === u.id),
+    openPlay: s.db.filter('opRegistrations', (r) => r.userId === u.id).map((r) => ({ session: s.db.get('openPlaySessions', r.sessionId)?.title, status: r.status, attendance: r.attendance, checkedInAt: r.checkedInAt ? new Date(r.checkedInAt).toISOString() : null, gamesPlayed: r.gamesPlayed, attendanceEvents: s.db.filter('attendanceEvents', (e) => e.registrationId === r.id).map((e) => ({ type: e.type, at: new Date(e.at).toISOString(), from: e.from, to: e.to })) })),
+    following: s.db.filter('follows', (f) => f.followerId === u.id).map((f) => ({ username: s.db.get('profiles', f.followeeId)?.username ?? null, status: f.status, since: new Date(f.createdAt).toISOString() })),
+    followers: s.db.filter('follows', (f) => f.followeeId === u.id && f.status === 'accepted').map((f) => ({ username: s.db.get('profiles', f.followerId)?.username ?? null, since: new Date(f.createdAt).toISOString() })),
+    blocked: s.db.filter('blocks', (b) => b.blockerId === u.id).map((b) => ({ username: s.db.get('profiles', b.blockedId)?.username ?? null, since: new Date(b.createdAt).toISOString() })),
   };
   s.after.push((s2) => {
     securityEvent(s2, { type: 'data_export', severity: 'info', userId: u.id, businessId: null, detail: 'Personal data export downloaded' });
@@ -233,7 +238,15 @@ export function processDeletions(s: Svc): number {
       p.displayName = 'Former player';
       p.bio = '';
       p.city = '';
+      p.username = null;
+      p.social = { ...p.social, discoverable: false, allowFollows: false };
     });
+    // Social graph: follows end; blocks the user made are kept (doc 24 §15 proposal) so harassment can't resume.
+    for (const f of s.db.filter('follows', (x) => (x.followerId === u.id || x.followeeId === u.id) && (x.status === 'accepted' || x.status === 'pending'))) s.db.update('follows', f.id, (x) => {
+      x.status = 'removed';
+      x.endedAt = s.now;
+    });
+    for (const sp of s.db.filter('sportProfiles', (x) => x.userId === u.id)) s.db.remove('sportProfiles', sp.id);
     for (const sess of s.db.filter('sessions', (x) => x.userId === u.id && !x.revokedAt)) s.db.update('sessions', sess.id, (x) => {
       x.revokedAt = s.now;
       x.revokeReason = 'account_deleted';

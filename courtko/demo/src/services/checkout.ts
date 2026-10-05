@@ -20,13 +20,13 @@ import {
   type Quote,
   type TaxProfile,
 } from '../domain/pricing.ts';
-import { BOOKING_TRANSITIONS, CHECKOUT_TRANSITIONS, ORDER_TRANSITIONS, PAYMENT_TRANSITIONS, REGISTRATION_TRANSITIONS, transition } from '../domain/state.ts';
+import { BOOKING_TRANSITIONS, CHECKOUT_TRANSITIONS, OP_REG_TRANSITIONS, ORDER_TRANSITIONS, PAYMENT_TRANSITIONS, REGISTRATION_TRANSITIONS, transition } from '../domain/state.ts';
 import { formatDateShort, formatTimeRange, MINUTE } from '../domain/time.ts';
 import { reserveStock, releaseStock, sellStock } from './inventory.ts';
 import type { Booking, BookingSlot, Business, Checkout, Court, Id, OrderItem, Payment, PriceSnapshot, Restriction, Venue } from './model.ts';
 import * as provider from './provider.ts';
 import { createRefund } from './refunds.ts';
-import { ConstraintViolation } from './store.ts';
+import { ConstraintViolation, slotUnits, unitsIntersect } from './store.ts';
 import { commissionTermsFor, displayName, feeSchedule, notify, notifyBusiness, settings, type Svc } from './svc.ts';
 import type { Db } from './store.ts';
 
@@ -63,7 +63,7 @@ export function holidaySet(db: Db): Set<string> {
 export function courtPricing(db: Db, venue: Venue, court: Court, startMs: number, endMs: number): CourtPricing {
   const rules = db.filter('pricingRules', (r) => r.venueId === venue.id && r.status === 'active');
   try {
-    return priceCourtTime({ rules, courtId: court.id, courtName: court.name, startMs, endMs, offsetMin: venue.offsetMin, holidays: holidaySet(db) });
+    return priceCourtTime({ rules, courtId: court.id, courtName: court.name, startMs, endMs, offsetMin: venue.offsetMin, holidays: holidaySet(db), ...(court.sport ? { sport: court.sport } : {}) });
   } catch (e) {
     if (e instanceof PricingError) throw new AppError('CONFLICT', e.message);
     throw e;
@@ -136,6 +136,8 @@ export function insertSlot(
   s: Svc,
   p: { businessId: Id; venueId: Id; courtId: Id; startMs: number; endMs: number; bufferMinutes: number; kind: BookingSlot['kind']; sourceId: Id; expiresAt: number | null },
 ): BookingSlot {
+  const court = s.db.get('courts', p.courtId);
+  const units = unitsOfCourt(court, p.courtId);
   const slot: BookingSlot = {
     id: newId('slt'),
     businessId: p.businessId,
@@ -146,23 +148,52 @@ export function insertSlot(
     occupiedEndMs: p.endMs + p.bufferMinutes * MINUTE,
     kind: p.kind,
     sourceId: p.sourceId,
+    units,
+    ...(court?.sport ? { sport: court.sport } : {}),
     status: 'active',
     expiresAt: p.expiresAt,
     createdAt: s.now,
     releasedAt: null,
   };
+  // CR-D04: different sports on the same space need a changeover gap (checked inside the same transaction).
+  if (court?.sport && (p.kind === 'hold' || p.kind === 'booking' || p.kind === 'open_play')) {
+    const physical = court.physicalCourtId ? s.db.get('physicalCourts', court.physicalCourtId) : undefined;
+    const gap = (physical?.changeoverMinutes ?? s.db.get('venues', p.venueId)?.settings.changeoverMinutes ?? 15) * MINUTE;
+    const clash = gap
+      ? s.db.find('slots', (o) => o.status === 'active' && o.sourceId !== p.sourceId && !!o.sport && o.sport !== court.sport && !(o.kind === 'hold' && o.expiresAt !== null && o.expiresAt <= s.now) && unitsIntersect(slotUnits(o), units) && o.startMs - gap < slot.occupiedEndMs && slot.startMs < o.occupiedEndMs + gap && !(o.startMs < slot.occupiedEndMs && slot.startMs < o.occupiedEndMs))
+      : undefined;
+    if (clash) fail('CHANGEOVER_CONFLICT', `This space is set up for ${clash.sport} right before or after. Leave ${Math.round(gap / MINUTE)} minutes for the court changeover.`);
+  }
   try {
     return s.db.insert('slots', slot);
   } catch (e) {
     if (e instanceof ConstraintViolation && e.constraint === 'booking_slots_no_overlap') {
       const other = e.conflictingId ? s.db.get('slots', e.conflictingId) : undefined;
       if (other && (other.kind === 'hold' || other.kind === 'booking')) {
-        s.deferred.push({ at: s.now, type: 'double_booking_blocked', severity: 'info', userId: s.actor.realUser?.id ?? null, businessId: p.businessId, detail: `Overlapping ${p.kind} rejected by booking_slots_no_overlap (conflict with ${other.kind})`, ip: s.req.ip });
+        s.deferred.push({ at: s.now, type: 'double_booking_blocked', severity: 'info', userId: s.actor.realUser?.id ?? null, businessId: p.businessId, detail: `Overlapping ${p.kind} rejected by booking_slots_no_overlap (conflict with ${other.kind}${other.courtId !== p.courtId ? ' on a dependent court layout' : ''})`, ip: s.req.ip });
       }
-      fail('SLOT_UNAVAILABLE', other?.kind === 'block' ? 'That court is blocked for maintenance at this time.' : other?.kind === 'event' ? 'That court is reserved for an event at this time.' : 'Someone else just booked or is checking out this time. Please pick another slot.');
+      const dependent = other && other.courtId !== p.courtId;
+      const otherCourt = dependent ? s.db.get('courts', other.courtId)?.name : undefined;
+      fail(
+        'SLOT_UNAVAILABLE',
+        other?.kind === 'block'
+          ? 'That court is blocked for maintenance at this time.'
+          : other?.kind === 'event'
+            ? 'That court is reserved for an event at this time.'
+            : other?.kind === 'open_play'
+              ? 'That court is reserved for an Open Play session at this time.'
+              : dependent
+                ? `That space is already in use (${otherCourt ?? 'a related court layout'}) at this time.`
+                : 'Someone else just booked or is checking out this time. Please pick another slot.',
+      );
     }
     throw e;
   }
+}
+
+/** Space units a court layout occupies; layouts created before CR-01 occupy themselves. */
+export function unitsOfCourt(court: Court | undefined, fallbackId: Id): string[] {
+  return court?.units?.length ? [...court.units] : [fallbackId];
 }
 
 export function releaseSlot(s: Svc, slotId: Id | null | undefined, reason: string): void {
@@ -178,10 +209,39 @@ export function releaseSlot(s: Svc, slotId: Id | null | undefined, reason: strin
 
 /** Releases expired holds that overlap a requested range (the production code does this in the same transaction). */
 export function sweepStaleHolds(s: Svc, courtId: Id, startMs: number, occupiedEndMs: number): void {
-  for (const slot of s.db.filter('slots', (x) => x.courtId === courtId && x.status === 'active' && x.kind === 'hold' && x.expiresAt !== null && x.expiresAt <= s.now && x.startMs < occupiedEndMs && startMs < x.occupiedEndMs)) {
+  const units = unitsOfCourt(s.db.get('courts', courtId), courtId);
+  for (const slot of s.db.filter('slots', (x) => unitsIntersect(slotUnits(x), units) && x.status === 'active' && x.kind === 'hold' && x.expiresAt !== null && x.expiresAt <= s.now && x.startMs < occupiedEndMs && startMs < x.occupiedEndMs)) {
     const booking = s.db.get('bookings', slot.sourceId);
     if (booking) expireCheckout(s, booking.checkoutId, 'Hold expired');
     else releaseSlot(s, slot.id, 'Hold expired');
+  }
+}
+
+// ---------------------------------------------------------------- checkout kind hooks
+
+/**
+ * Feature modules that add a checkout kind (Open Play) register their fulfillment here. This keeps one payment
+ * pipeline (doc 24 CR-D06) without import cycles: checkout.ts never imports the feature module.
+ */
+export interface CheckoutKindHooks {
+  fulfill(s: Svc, checkout: Checkout, payment: Payment): void;
+  /** Called after a not-yet-paid registration is released (hold expired, cancelled, auto-refunded). */
+  released?(s: Svc, checkout: Checkout, reason: string): void;
+}
+const KIND_HOOKS: Partial<Record<Checkout['kind'], CheckoutKindHooks>> = {};
+export function registerCheckoutHooks(kind: Checkout['kind'], hooks: CheckoutKindHooks): void {
+  KIND_HOOKS[kind] = hooks;
+}
+
+function releaseOpenPlayHold(s: Svc, checkout: Checkout, reason: string, by: string): void {
+  if (!checkout.openPlayRegistrationId) return;
+  const r = s.db.get('opRegistrations', checkout.openPlayRegistrationId);
+  if (r && (r.status === 'held' || r.status === 'pending_payment')) {
+    s.db.update('opRegistrations', r.id, (x) => {
+      x.cancelledAt = s.now;
+      transition(OP_REG_TRANSITIONS, x, 'cancelled', s.now, by, reason, 'Open Play registration');
+    });
+    KIND_HOOKS[checkout.kind]?.released?.(s, checkout, reason);
   }
 }
 
@@ -226,6 +286,7 @@ export function expireCheckout(s: Svc, checkoutId: Id, reason: string): void {
     const r = s.db.get('registrations', checkout.registrationId);
     if (r && (r.status === 'held' || r.status === 'pending_payment')) s.db.update('registrations', r.id, (x) => transition(REGISTRATION_TRANSITIONS, x, 'cancelled', s.now, 'system', reason, 'registration'));
   }
+  releaseOpenPlayHold(s, checkout, reason, 'system');
   releaseReservations(s, checkout, reason);
 }
 
@@ -246,6 +307,7 @@ export function cancelCheckout(s: Svc, checkoutId: Id, reason: string, by: strin
     const r = s.db.get('registrations', checkout.registrationId);
     if (r && (r.status === 'held' || r.status === 'pending_payment')) s.db.update('registrations', r.id, (x) => transition(REGISTRATION_TRANSITIONS, x, 'cancelled', s.now, by, reason, 'registration'));
   }
+  releaseOpenPlayHold(s, checkout, reason, by);
   releaseReservations(s, checkout, reason);
 }
 
@@ -337,7 +399,7 @@ export function startPayment(s: Svc, checkoutId: Id, method: PaymentMethodCode):
     forUserId: business.payoutAccount.providerSubAccountId,
     splitPlatformAmount,
     merchantName: venue.name,
-    description: checkout.kind === 'court_booking' ? 'Court booking' : checkout.kind === 'event_registration' ? 'Event registration' : 'Venue order',
+    description: checkout.kind === 'court_booking' ? 'Court booking' : checkout.kind === 'event_registration' ? 'Event registration' : checkout.kind === 'open_play_registration' ? 'Open Play registration' : 'Venue order',
     expiresAt,
     idempotencyKey: payment.idempotencyKey,
   });
@@ -369,6 +431,13 @@ export function startPayment(s: Svc, checkoutId: Id, method: PaymentMethodCode):
       transition(REGISTRATION_TRANSITIONS, x, 'pending_payment', s.now, 'system', 'Payment started', 'registration');
     });
   }
+  if (checkout.openPlayRegistrationId) {
+    const r = s.db.get('opRegistrations', checkout.openPlayRegistrationId);
+    if (r?.status === 'held') s.db.update('opRegistrations', r.id, (x) => {
+      x.holdExpiresAt = expiresAt;
+      transition(OP_REG_TRANSITIONS, x, 'pending_payment', s.now, 'system', 'Payment started', 'Open Play registration');
+    });
+  }
   return { payment: s.db.must('payments', paymentId), redirectUrl: `#/pay/${session.id}`, expiresAt };
 }
 
@@ -391,6 +460,7 @@ function autoRefundAll(s: Svc, checkout: Checkout, payment: Payment, reason: str
     const r = s.db.get('registrations', checkout.registrationId);
     if (r && (r.status === 'held' || r.status === 'pending_payment')) s.db.update('registrations', r.id, (x) => transition(REGISTRATION_TRANSITIONS, x, 'cancelled', s.now, 'system', reason, 'registration'));
   }
+  releaseOpenPlayHold(s, checkout, reason, 'system');
   if (checkout.orderId) {
     const o = s.db.get('orders', checkout.orderId);
     if (o && o.status === 'pending_payment') s.db.update('orders', o.id, (x) => transition(ORDER_TRANSITIONS, x, 'cancelled', s.now, 'system', reason, 'order'));
@@ -403,6 +473,7 @@ function autoRefundAll(s: Svc, checkout: Checkout, payment: Payment, reason: str
     bookingId: checkout.bookingId ?? null,
     orderId: checkout.orderId ?? null,
     registrationId: checkout.registrationId ?? null,
+    openPlayRegistrationId: checkout.openPlayRegistrationId ?? null,
   });
   notify(s, checkout.userId, 'booking_updates', { ...playerMessage, link: '#/app/payments' });
 }
@@ -470,6 +541,7 @@ export function fulfillCheckout(s: Svc, checkoutId: Id, paymentId: Id): void {
   }
   if (checkout.kind === 'court_booking') fulfillBooking(s, checkout, payment, venue);
   else if (checkout.kind === 'event_registration') fulfillRegistration(s, checkout, payment);
+  else if (KIND_HOOKS[checkout.kind]) KIND_HOOKS[checkout.kind]!.fulfill(s, checkout, payment);
   else fulfillOrder(s, checkout, payment);
   // Close any other open attempt so the player can't pay twice (a second capture would be refunded).
   for (const pid of s.db.must('checkouts', checkout.id).paymentIds) {
@@ -594,6 +666,10 @@ export function onPaymentAttemptFailed(s: Svc, paymentId: Id, reason: string): v
     if (checkout.registrationId) {
       const r = s.db.get('registrations', checkout.registrationId);
       if (r?.status === 'pending_payment') s.db.update('registrations', r.id, (x) => transition(REGISTRATION_TRANSITIONS, x, 'held', s.now, 'provider', 'Payment failed', 'registration'));
+    }
+    if (checkout.openPlayRegistrationId) {
+      const r = s.db.get('opRegistrations', checkout.openPlayRegistrationId);
+      if (r?.status === 'pending_payment') s.db.update('opRegistrations', r.id, (x) => transition(OP_REG_TRANSITIONS, x, 'held', s.now, 'provider', 'Payment failed', 'Open Play registration'));
     }
   }
   notify(s, payment.userId, 'payment_updates', { title: 'Payment was not completed', body: `${provider.METHOD_LABEL[payment.method]}: ${reason}. Your hold is kept until it expires — you can try again.`, link: '#/app/bookings' });

@@ -492,3 +492,27 @@ Payment provider account and KYB, fee contract, legal and tax review, brand and 
 ## 10. Open questions
 
 Unresolved decisions are tracked with owners and due dates in [doc 23 — Known assumptions & unresolved decisions](23-assumptions-and-decisions.md). The ones that shape this document most: provider account and contract (D-01), sub-account type (D-02), settlement model and RA 11127 (D-03), e-marketplace duties (D-04), fee pass-through per method (D-05), invoicing and e-invoicing (D-13), commission-base correction (D-14), password policy (D-28), cash/offline bookings (D-29), QR Ph refund route (D-30), platform-funded discount transfers (D-31), identity providers (D-32), hold extension for accessibility (D-33) and bookings of suspended businesses (D-34).
+
+---
+
+## Addendum CR-01 (2026-10-06): multi-sport, Open Play, attendance, social profiles
+
+Approved change request. The full impact analysis and the design decisions (CR-D01…D12) are in [doc 24](24-change-impact-multisport.md). Every requirement above stays in force. Where a requirement below conflicts with an earlier one, this addendum wins.
+
+| ID | Requirement | Phase |
+|---|---|---|
+| SPT-01 | The initial release supports exactly four sports: pickleball, basketball, volleyball and tennis. Badminton, futsal and other sports are out of scope for launch | MVP |
+| SPT-02 | Sports are platform reference data managed by SuperAdmin: name, description, icon, status, court layouts, formats, min/max players, default duration, skill levels, Open Play configuration, match-result configuration, team/partner requirements. No sport value is hard-coded in shared components. Changes are versioned and audited | MVP |
+| SPT-03 | Format compatibility is validated server-side. Not every sport uses singles and doubles | MVP |
+| SPT-04 | Shared UI uses sport-neutral terms (Player, Sport, Court, Game/Match, Open Play Session) | MVP |
+| VEN-09 | A venue lists the sports it offers. A physical court supports one or more compatible sports | MVP |
+| CRT-01 | Courts are modelled as space units and bookable layouts. A full-court booking blocks its halves, a half-court booking blocks the full court, a shared floor hosts one sport at a time, and tennis/pickleball conversion follows the unit map | MVP |
+| CRT-02 | A changeover time applies between different sports on the same space (server-side) | MVP |
+| CRT-03 | Court configuration covers name/number, venue, sports, full/partial, environment, capacity, surface, amenities, equipment, accessibility, operating and maintenance schedule, sport-specific rates, images and status | MVP |
+| PRC-10 | Pricing rules can be limited to sports. Specificity order: court > sport > venue | MVP |
+| DSC-10 | Search and filters cover sport, location, venue, date, time, price, full/partial court, environment, surface, amenities, Open Play and events | MVP |
+| OPP-01…14 | Open Play sessions (configuration per doc 24 §3). Individual, partner and team registration. Join a team. Waitlist. Free, per-player or per-team pricing through the standard checkout/ledger/refund pipeline. Cancellation and refunds per policy. Walk-ins | MVP |
+| ATT-01…12 | Signed, time-limited check-in passes (live and registration QR), controlled search, manual fallback with a reason. Separate registration and attendance statuses and counts. Append-only attendance history with recorded rejected and reversed scans. Management dashboard. Privacy-safe player summary | MVP |
+| ROT-01…09 | Staff-controlled court assignment and rotation (first checked in, first waiting, manual, random, skill-based, winner stays, timed). Strategies only suggest. Optional score recording. Automated matchmaking is P2+ | MVP |
+| SOC-01…12 | Usernames, player search, public profiles (privacy projection), one-directional follows with optional approval, followers/following, block, report, discoverability and activity controls | MVP |
+| PLY-01a | **My Sports dashboard** on the player profile: per-sport sessions, hours, games, W–L, venues, upcoming games and self-declared level (with pin/hide) | MVP |

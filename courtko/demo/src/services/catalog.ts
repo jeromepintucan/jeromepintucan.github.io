@@ -9,25 +9,44 @@ import { coarsen, haversineKm, isValidLatLng, type LatLng } from '../domain/geo.
 import { describePolicy, POLICY_LIBRARY } from '../domain/policy.ts';
 import { RULE_KIND_LABEL } from '../domain/pricing.ts';
 import { DAY, addDays, formatMinuteOfDay, localDate, localToInstant, DOW_SHORT } from '../domain/time.ts';
-import { occupanciesFor } from './booking.ts';
+import { occupanciesFor, venueSports } from './booking.ts';
+import { unitsOfCourt } from './checkout.ts';
 import { productStock } from './inventory.ts';
 import type { Id, Venue } from './model.ts';
 import { describeRule } from './pricingSvc.ts';
 import { displayName, settings, type Svc } from './svc.ts';
 import type { Db } from './store.ts';
 
-export function startingRate(db: Db, venueId: Id): number | null {
-  const rates = db.filter('pricingRules', (r) => r.venueId === venueId && r.status === 'active' && r.effect.type === 'rate' && !r.conditions.holidaysOnly).map((r) => (r.effect.type === 'rate' ? r.effect.ratePerHour : 0));
+export function startingRate(db: Db, venueId: Id, sport?: string): number | null {
+  const rules = db.filter('pricingRules', (r) => r.venueId === venueId && r.status === 'active' && r.effect.type === 'rate' && !r.conditions.holidaysOnly && !r.courtIds);
+  let pool = rules;
+  if (sport) {
+    const specific = rules.filter((r) => r.sports?.includes(sport));
+    pool = specific.length ? specific : rules.filter((r) => !r.sports?.length);
+  }
+  const rates = pool.map((r) => (r.effect.type === 'rate' ? r.effect.ratePerHour : 0));
   return rates.length ? Math.min(...rates) : null;
 }
 
-export function nextAvailable(db: Db, venue: Venue, now: number): { startMs: number; courtName: string } | null {
-  const courts = db.filter('courts', (c) => c.venueId === venue.id && c.status === 'active').sort((a, b) => a.sortOrder - b.sortOrder);
+export function nextAvailable(db: Db, venue: Venue, now: number, sport?: string): { startMs: number; courtName: string } | null {
+  const courts = db.filter('courts', (c) => c.venueId === venue.id && c.status === 'active' && (!sport || (c.sport ?? 'pickleball') === sport)).sort((a, b) => a.sortOrder - b.sortOrder);
+  if (!courts.length) return null;
   const today = localDate(now, venue.offsetMin);
   for (const date of [today, addDays(today, 1), addDays(today, 2)]) {
     const schedule = scheduleFor(date, venue.hours, db.filter('specialHours', (x) => x.venueId === venue.id));
     const dayStart = localToInstant(date, 0, venue.offsetMin);
-    const grid = computeAvailability({ date, offsetMin: venue.offsetMin, schedule, settings: venue.settings, courtIds: courts.map((c) => c.id), occupancies: occupanciesFor(db, venue.id, dayStart, dayStart + DAY, now), durationMinutes: venue.settings.minDurationMinutes, now });
+    const grid = computeAvailability({
+      date,
+      offsetMin: venue.offsetMin,
+      schedule,
+      settings: venue.settings,
+      courtIds: courts.map((c) => c.id),
+      courtUnits: Object.fromEntries(courts.map((c) => [c.id, unitsOfCourt(c, c.id)])),
+      courtSports: Object.fromEntries(courts.map((c) => [c.id, c.sport])),
+      occupancies: occupanciesFor(db, venue.id, dayStart, dayStart + DAY, now),
+      durationMinutes: venue.settings.minDurationMinutes,
+      now,
+    });
     let best: { startMs: number; courtName: string } | null = null;
     for (const g of grid) {
       const cell = g.cells.find((c) => c.bookable);
@@ -50,6 +69,15 @@ export interface VenueSearchInput {
   date?: string;
   startMinute?: number;
   sort?: 'recommended' | 'distance' | 'price' | 'rating' | 'next';
+  /** doc 24 DSC-05 additions */
+  sport?: string;
+  layout?: 'full' | 'partial' | '';
+  surface?: string;
+  hasOpenPlay?: boolean;
+}
+
+export function openPlayCount(db: Db, venueId: Id, now: number, sport?: string): number {
+  return db.count('openPlaySessions', (o) => o.venueId === venueId && (o.status === 'published' || o.status === 'in_progress') && o.visibility === 'public' && o.endMs > now && (!sport || o.sport === sport));
 }
 
 export function searchVenues(s: Svc, input: VenueSearchInput) {
@@ -59,23 +87,36 @@ export function searchVenues(s: Svc, input: VenueSearchInput) {
   const rows = s.db
     .filter('venues', (v) => v.status === 'published' && s.db.get('businesses', v.businessId)?.status === 'active')
     .map((v) => {
-      const courts = s.db.filter('courts', (c) => c.venueId === v.id && c.status === 'active');
+      const sport = input.sport || undefined;
+      const all = s.db.filter('courts', (c) => c.venueId === v.id && c.status === 'active');
+      const courts = sport ? all.filter((c) => (c.sport ?? 'pickleball') === sport) : all;
+      const physical = new Set(courts.map((c) => c.physicalCourtId ?? c.id));
       const distanceKm = near ? haversineKm(near, v.geo) : null;
-      const eventsCount = s.db.count('events', (e) => e.venueId === v.id && e.status === 'published' && e.visibility === 'public' && e.endMs > s.now);
+      const eventsCount = s.db.count('events', (e) => e.venueId === v.id && e.status === 'published' && e.visibility === 'public' && e.endMs > s.now && (!sport || (e.sport ?? 'pickleball') === sport));
       return {
         venue: v,
+        sports: venueSports(s.db, v),
         businessName: s.db.get('businesses', v.businessId)?.tradeName ?? '',
-        courts: courts.length,
+        courts: physical.size,
         environments: [...new Set(courts.map((c) => c.environment))],
+        surfaces: [...new Set(courts.map((c) => c.surface))],
+        hasPartial: courts.some((c) => c.layout === 'half'),
+        hasFull: courts.some((c) => c.layout !== 'half'),
         distanceKm,
-        fromRate: startingRate(s.db, v.id),
-        next: nextAvailable(s.db, v, s.now),
+        fromRate: startingRate(s.db, v.id, sport),
+        next: nextAvailable(s.db, v, s.now, sport),
         eventsCount,
+        openPlayCount: openPlayCount(s.db, v.id, s.now, sport),
         favorite: favorites.has(v.id),
       };
     })
     .filter((r) => {
       const v = r.venue;
+      if (input.sport && !r.sports.includes(input.sport)) return false;
+      if (input.layout === 'partial' && !r.hasPartial) return false;
+      if (input.layout === 'full' && !r.hasFull) return false;
+      if (input.surface && !r.surfaces.some((x) => x.toLowerCase().includes(input.surface!.toLowerCase()))) return false;
+      if (input.hasOpenPlay && r.openPlayCount === 0) return false;
       if (q && ![v.name, v.address.city, v.address.barangay, v.address.province, v.address.landmark ?? '', r.businessName, v.tagline].some((t) => t.toLowerCase().includes(q))) return false;
       if (near && input.radiusKm && r.distanceKm !== null && r.distanceKm > input.radiusKm) return false;
       if (input.environment && !r.environments.includes(input.environment)) return false;
@@ -109,7 +150,13 @@ export function venueDetail(s: Svc, input: { slug: string }) {
   if (!venue || (venue.status !== 'published' && !canPreview(s, venue))) fail('NOT_FOUND', 'Venue not found.');
   const business = s.db.must('businesses', venue.businessId);
   const courts = s.db.filter('courts', (c) => c.venueId === venue.id && c.status === 'active').sort((a, b) => a.sortOrder - b.sortOrder);
+  const physicalCourts = s.db
+    .filter('physicalCourts', (p) => p.venueId === venue.id && p.status === 'active')
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((p) => ({ court: p, layouts: courts.filter((c) => c.physicalCourtId === p.id) }));
+  const sports = venueSports(s.db, venue);
   const rules = s.db.filter('pricingRules', (r) => r.venueId === venue.id && r.status === 'active').sort((a, b) => a.priority - b.priority);
+  const sportCfgs = s.db.all('sports');
   const amenityLabels = new Map(settings(s.db).amenities.map((a) => [a.code, a.label]));
   const rates = rules.map((r) => {
     const c = r.conditions;
@@ -119,7 +166,8 @@ export function venueDetail(s: Svc, input: { slug: string }) {
     if (c.holidaysOnly) parts.push('Public holidays');
     if (c.dateFrom || c.dateTo) parts.push(`${c.dateFrom ?? '…'} to ${c.dateTo ?? '…'}`);
     const courtNames = r.courtIds ? courts.filter((ct) => r.courtIds!.includes(ct.id)).map((ct) => ct.name).join(', ') : 'All courts';
-    return { name: r.name, kind: RULE_KIND_LABEL[r.kind], when: parts.join(' · ') || 'Anytime', courts: courtNames, price: describeRule(r) };
+    const sportLabel = r.sports?.length ? r.sports.map((x) => sportCfgs.find((c) => c.code === x)?.name ?? x).join(', ') : sports.length > 1 ? 'All sports' : '';
+    return { name: r.name, kind: RULE_KIND_LABEL[r.kind], when: parts.join(' · ') || 'Anytime', courts: courtNames, sport: sportLabel, price: describeRule(r) };
   });
   const products = s.db
     .filter('products', (p) => p.venueId === venue.id && p.status === 'active')
@@ -131,8 +179,14 @@ export function venueDetail(s: Svc, input: { slug: string }) {
     .slice(0, 12)
     .map((r) => ({ review: r, author: displayName(s.db, r.userId) }));
   const policy = POLICY_LIBRARY[venue.policyKey];
+  const openPlay = s.db
+    .filter('openPlaySessions', (o) => o.venueId === venue.id && (o.status === 'published' || o.status === 'in_progress') && o.visibility === 'public' && o.endMs > s.now)
+    .sort((a, b) => a.startMs - b.startMs);
   return {
     venue,
+    sports,
+    physicalCourts,
+    openPlay,
     business: { tradeName: business.tradeName, vatRegistered: business.vatRegistered },
     courts,
     amenities: venue.amenities.map((a) => amenityLabels.get(a) ?? a),

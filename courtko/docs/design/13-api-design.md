@@ -499,3 +499,12 @@ Rules:
 - `/v1` stays available for at least 6 months after `/v2` is released, with `Deprecation` and `Sunset` headers (RFC 8594) and a changelog entry.
 - Mobile clients report their version (`X-Client-Version`). The API can return `426` with an upgrade prompt for versions below the supported minimum.
 
+---
+
+## 8. Addendum CR-01 (2026-10-06)
+
+New and changed endpoints for sports, court configurations, Open Play (registration, invites, check-in, attendance, rotation, live desk/SSE) and social profiles are listed in [doc 24 §5](24-change-impact-multisport.md). New error codes:
+
+`SPORT_NOT_SUPPORTED`, `FORMAT_INCOMPATIBLE`, `CHANGEOVER_CONFLICT`, `SESSION_FULL`, `REGISTRATION_CLOSED`, `PARTNER_REQUIRED`, `INVITE_EXPIRED`, `CHECKIN_TOKEN_INVALID`, `CHECKIN_TOKEN_EXPIRED`, `CHECKIN_WRONG_SESSION`, `ALREADY_CHECKED_IN`, `CHECKIN_WINDOW_CLOSED`, `NOT_CHECKED_IN`, `SCORE_RECORDING_DISABLED`, `USERNAME_TAKEN`, `FOLLOW_NOT_ALLOWED`.
+
+Rejected check-in scans are written even when the request fails (same mechanism as failed-login counters).

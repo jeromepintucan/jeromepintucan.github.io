@@ -1364,3 +1364,21 @@ pnpm api:openapi
 3. The OpenAPI document renders and matches the deployed API version.
 
 **Provider-dependent assumptions.** A single "Provider configuration checklist" in `docs/onboarding/environment.md` lists every PLACEHOLDER (Xendit keys, webhook token, platform account ID, fee schedules, sub-account type, SMS aggregator, maps keys, SES domain) and where each value is configured once the product owner supplies it.
+
+---
+
+## Addendum CR-01 (2026-10-06): plan changes
+
+The 20-step plan stays. CR-01 adds the work below to the existing steps. Ordering and demo file mapping are in [doc 24 §10](24-change-impact-multisport.md).
+
+| Existing step | Added work |
+|---|---|
+| Schema & RLS | Sports catalog. Space units and court configurations, with the unit-keyed exclusion-constraint migration. Open Play, attendance (append-only trigger), parties and invites. Follows, blocks, sport profiles. RLS for every new tenant table |
+| Venues & courts | Venue sports. Courts & layouts editor with a dependency preview. Changeover rules. Maintenance windows |
+| Pricing | Sport and layout conditions. Simulator by sport |
+| Availability & holds | Per-layout availability from unit occupancy. Changeover guard under per-unit locks |
+| Events → Open Play | Open Play sessions, registration modes, waitlist, partner/team flows, walk-ins, cancellation and refunds through the existing pipeline |
+| Front desk | Check-in tokens (KMS key IDs, rotation). Live desk. Court board and rotation suggestions. SSE fan-out from the outbox. No-show job at the late cutoff |
+| Player app | Sport picker, Open Play pass, invites, social profiles, My Sports dashboard |
+| SuperAdmin | Sports catalog (maker-checker for deactivation once two platform admins hold `platform.sports.manage`). Open Play overview. Profile moderation |
+| Testing | Doc 24 §8 cases, including a 50-way concurrent full/half hold race at constraint level and the privacy-projection tests |

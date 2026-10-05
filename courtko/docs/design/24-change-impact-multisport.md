@@ -3,9 +3,9 @@
 | Field | Value |
 |---|---|
 | Document | 24 — Change request CR-01 impact analysis (pre-implementation) |
-| Status | **Draft for product-owner review. No code has been changed yet.** |
-| Scope received | Sections 1–6 in full. Section 7 (Social Player Profiles) up to "Blocking another user must: … Not automatically" (cut off) |
-| Not yet received | The rest of section 7, plus any sections 8+ |
+| Status | **Approved by the product owner (2026-10-06) and implemented in the interactive demo.** Production work is planned in §10 |
+| Scope received | Sections 1–6 in full, Section 7 (Social Player Profiles) up to "Blocking another user must: … Not automatically" (cut off), plus a **My Sports dashboard on the player profile** (added 2026-10-06) |
+| Not yet received | The rest of section 7, plus any sections 8+. The demo uses the Q1 default for blocking (§12) |
 | Related | [01 PRD](01-product-requirements.md) · [03 Roles](03-role-permission-matrix.md) · [07 Booking SM](07-booking-state-machine.md) · [12 ERD](12-database-erd.md) · [13 API](13-api-design.md) · [14 Threats](14-security-threat-model.md) · [15 Privacy](15-privacy-data-retention-matrix.md) · [23 Decisions](23-assumptions-and-decisions.md) |
 
 CR-01 adds to the existing specification and replaces none of it. Security, payments, receipts, commission, refunds, settlements, privacy, audit, accessibility, testing and tenant isolation all stay in force. Every new money flow reuses the existing checkout → payment → ledger → refund pipeline, and every new tenant-owned table gets `business_id` plus RLS.
@@ -51,6 +51,7 @@ These decisions shape everything below. Each one needs product-owner sign-off be
 | EVT-01 | The `open_play` type is removed from events and replaced by the OPP section. Events gain `sport_code`. |
 | EVT-08 | Partner/team invitations are promoted from P2 to MVP **for Open Play** (OPP-05..09). Events keep the P2 timing unless extended. |
 | EVT-09 | Match/game recording for Open Play is staff-entered and only when score recording is enabled for that session. |
+| PLY-01 | **My Sports dashboard** (added per product-owner request): the activity dashboard is broken down by sport. For each sport the player plays, it shows: games/sessions played, hours on court, bookings vs Open Play, venues played most, last played, upcoming bookings and sessions, skill level with its source, and officially recorded results only (PLY-03). Sports appear automatically after the first completed booking or check-in, and the player can pin, hide or add sports they're interested in. Figures come from server-side completed bookings and attendance events, never from client-side totals. |
 | PLY-02 | Skill level is recorded **per sport** (self-declared, labeled with its source). |
 | PLY-04 | Visibility values change to private / followers / organizers / public (CR-D11). The "connections P2" note is removed. |
 | PLY-07 | Reporting a profile is supported through the existing `ContentReport` with `targetType: 'profile'`. |
@@ -89,8 +90,9 @@ These decisions shape everything below. Each one needs product-owner sign-off be
 | My Open Play | `/app/open-play/registrations/:id` | N: registration, payment, check-in and attendance status. Rotating QR. Partner/team status. Court or waiting position. Cancel with quote |
 | Partner and team invites | `/app/invites` | N: accept/decline. Join a team (when permitted) |
 | Events | `/events`, `/app/events` | M: sport filter. Open Play removed from the event types |
+| My Sports dashboard | `/app/profile` (top section), `/app/activity` | N: one card per sport (stats, upcoming, skill, venues). Sport filter on Activity |
 | Player profile (own) | `/app/profile` | M: username, per-sport skill, social privacy controls (discoverable, allow follows, follow approval, activity visibility) |
-| Public player profile | `/players/:username` | N: public projection. Follow/unfollow/request, block, report |
+| Public player profile | `/players/:username` | N: public projection. Shows the sports the player plays, and per-sport stats only if their activity visibility allows. Follow/unfollow/request, block, report |
 | Player search | `/app/players` | N: search by display name or username, honoring blocks and discoverability |
 | Followers / following | `/players/:username/followers`, `…/following` | N: shown only when permitted |
 | Follow requests | `/app/follow-requests` | N: incoming/outgoing. Accept/decline/cancel |
@@ -151,7 +153,8 @@ These decisions shape everything below. Each one needs product-owner sign-off be
 | `attendance_events` | tenant, **append-only** | `session_id`, `registration_id` (nullable for rejected unknown scans), `type` (`check_in`, `check_in_rejected`, `assign_court`, `start_game`, `end_game`, `to_waiting`, `temp_off`, `check_out`, `no_show`, `correction`, `reversal`), `method` (`qr` / `registration_qr` / `search` / `manual`), `actor_member_id`, `reason` (required for manual, correction, reversal), `reject_code`, `reverses_event_id`, `created_at`. Trigger blocks UPDATE/DELETE (same as the audit tables) |
 | `open_play_games` | tenant | `session_id`, `court_configuration_id`, `side_a uuid[]`, `side_b uuid[]`, `status` (`in_progress` / `completed` / `abandoned`), `started_at`, `ended_at`, `score jsonb` (only if `score_recording`), `recorded_by` |
 | `open_play_queue` | tenant | Waiting rotation: `session_id`, `registration_id`, `entered_at`, `priority`, `status` |
-| `player_sport_profiles` | user | `(user_id, sport_code)`, `skill_level`, `skill_source`, `visibility` |
+| `player_sport_profiles` | user | `(user_id, sport_code)`, `skill_level`, `skill_source`, `visibility`, `pinned`, `hidden`, `interested` |
+| `player_sport_stats` (view) | user | Per-sport aggregates from completed bookings, Open Play attendance and recorded games. Rebuilt by the worker; never written by clients |
 | `follows` | user (cross-tenant, platform) | `follower_id`, `followee_id`, `status` (`pending` / `accepted` / `declined` / `cancelled` / `removed`), timestamps. Partial unique `(follower_id, followee_id)` where status IN (`pending`, `accepted`). CHECK `follower_id <> followee_id` |
 | `user_blocks` | user | `blocker_id`, `blocked_id`, `created_at`, unique pair. CHECK not self |
 | `social_settings` | user | `discoverable`, `allow_follows`, `require_follow_approval`, `show_followers`, `show_following`, `activity_visibility` per group |
@@ -268,6 +271,7 @@ Unchanged rules: the receptionist's venue scoping (BGC-only) applies to Open Pla
 | Counts | Registration ≠ attendance. Check-in ≠ on court. On-court count changes only on explicit assignment. Counts recomputed from events equal the live counters (property test) |
 | Rotation | Each strategy's suggestion is deterministic for a given queue. Staff confirmation is required. Scores are rejected when recording is disabled |
 | Privacy | The player live summary contains only counts plus own data (snapshot test of the DTO keys). The public-profile projection never includes contact, payment, restriction, notes or audit fields, across all endpoints that embed a person |
+| My Sports dashboard | Stats per sport match completed bookings and attendance events exactly. Cancelled and no-show sessions are excluded from "played". A sport appears after the first completed activity. Hidden sports never appear on the public profile. Another user sees stats only when visibility allows |
 | Social | Follow without approval → accepted. With approval → pending → accept/decline/cancel. Removing a follower works. Block removes both directions, prevents follows, hides from search and returns 404 on profile. Discoverability off excludes the user from search. Rate limits apply. Reporting a profile reaches the moderation queue |
 | Tenant isolation | Every new tenant table tested for cross-business access (404). The receptionist's venue scope covers the Open Play desk |
 | Regression | All existing 52 demo tests stay green. Existing pickleball bookings migrate to the unit model with identical availability |
@@ -343,3 +347,35 @@ The production 20-step plan (doc 19) gains matching work in steps for schema (un
 | Q5 | Can players see other participants' display names in an Open Play session, or only counts? | Counts only. Partner/team members see each other's display names. Display names of others appear only on the court board shown in-venue, if each player's visibility allows |
 | Q6 | Changeover times between sports per venue (e.g. tennis ↔ pickleball net conversion) | 15 minutes when the configuration changes, configurable per venue |
 | Q7 | Do events (tournaments, leagues, clinics) also need to be multi-sport in this release? | Yes: `sport_code` is required on events. No other event changes |
+
+---
+
+## 13. Implementation status (interactive demo, build `courtko-demo-2026.10.06-multisport`)
+
+| Area | Demo implementation | Key files | Tests |
+|---|---|---|---|
+| Sport catalog (CR-D01/D02) | Four active sports with formats, layouts, player counts, skill levels, Open Play and match-result settings. SuperAdmin screen with versioned, audited edits. Deactivation needs a reason. Maker-checker for deactivation is deferred: the demo has only one SuperAdmin | `domain/sports.ts`, `services/sportsAdmin.ts`, `ui/views/admin-sports.ts` | `multisport.test.ts` › sport catalog |
+| Physical courts, space units, layouts (CR-D03) | Slots carry space units. The store's no-overlap rule is keyed on units, giving full ↔ half, shared basketball/volleyball floors, and two pickleball courts on a tennis court. Courts & layouts editor with a dependency table. Calendar columns are physical courts, and half courts fill half a column | `services/courts.ts`, `services/store.ts`, `services/venues.ts`, `ui/views/business-setup.ts`, `business-ops.ts` | court dependencies suite |
+| Changeover (CR-D04) | Server-side guard in the hold/insert path. Availability explains the gap | `services/checkout.ts`, `domain/availability.ts` | shared-floor test |
+| Sport-specific rates (CR-D05) | Rules can be limited to sports. Specificity order: court > sport > venue | `domain/pricing.ts`, `services/pricingSvc.ts` | sport-specific rates test |
+| Search & discovery | Filters for sport, full/half court, surface and Open Play. Sport picker on home, discover, events and venue pages. Sport-specific cover art | `services/catalog.ts`, `ui/views/public.ts`, `shared.ts`, `art.ts` | UI smoke |
+| Open Play (CR-D06) | Dedicated sessions with all §3 fields and sport ↔ format ↔ court validation. Individual, partner and team registration. Join a team. Waitlist with offers. Free, per-player and per-team pricing through the shared checkout/ledger/refund pipeline. Venue cancellation refunds everyone in full | `services/openplay.ts`, `ui/views/openplay.ts`, `business-openplay.ts` | Open Play suite |
+| Partner/teams (§4) | Invites by username only. On decline, expiry or cancellation the remaining player stays registered with "needs partner" (or both are cancelled with a full refund if the session is configured that way). Staff can assign a replacement. Notifications sent | `services/openplay.ts` | partner invite test |
+| Secure check-in (CR-D08) | OP1 live pass (10-minute rotation) and REG1 registration QR: HMAC-signed, bound to the session, no personal data. Duplicate, expired, tampered, wrong-session and out-of-window scans are rejected **and recorded**; tampering raises a security event. Manual check-in needs a reason. Reversals and corrections are new events (MFA + permission) | `domain/checkin.ts`, `services/openplay.ts` | secure check-in suite |
+| Attendance & rotation (CR-D07/D09) | Separate registration and attendance axes. Fifteen live counters. Players count as on court only after explicit assignment. Court board, waiting rotation, strategy suggestions (staff confirm), games with optional scores, temporarily off, check-out, no-show job at the late cutoff | `services/openplay.ts`, `ui/views/business-openplay.ts` | check-in ≠ on court test |
+| Player privacy (§5) | The live summary contains counts plus the viewer's own status. Registrations returned to players strip check-in secrets. Restriction flags are shown only to staff with `restrictions.view` | `services/openplay.ts` | privacy-safe summary test |
+| Social profiles (§7, CR-D11/D12) | Usernames, search, suggestions, public-profile projection, follow with optional approval, followers/following lists, block (both directions, looks like "not found", doesn't touch bookings), report → moderation, privacy controls. Data export includes the social graph. Account deletion clears the username and ends follows | `services/social.ts`, `ui/views/social.ts`, `services/profile.ts`, `services/reviews.ts` | social suite |
+| My Sports dashboard (PLY-01 addition) | Per-sport sessions, hours, games, W–L, venues, upcoming games, self-declared level, pin/hide, interested sports. Visibility respected on the public profile | `services/social.ts` › `mySportsDashboard` | My Sports test |
+| Permissions (§6) | `openplay.view/manage/check_in/run/attendance.correct` (correct = MFA), `platform.sports.manage`. Role templates updated | `domain/rbac.ts` | desk & reversal tests |
+| Demo-only helpers | `GET /demo/open-play/{id}/sample-pass` and `POST /demo/open-play/live`, so presenters can show scans and a live desk at any time. **Not part of the production API** | `services/openplay.ts` | — |
+
+**Defaults used for open questions:**
+
+- Q1 (blocking): social-only, with no notification to the blocked user.
+- Q2 (minors): not implemented in the demo. All demo personas are adults. **Production must decide before launch.**
+- Q3 (team pricing): per-team means the captain pays.
+- Q4 (invites): seats are reserved while an invite is pending; the invite lasts 30 minutes, capped at registration close.
+- Q5: players see counts only; party members see each other's display names.
+- Q6: changeover is 15–20 minutes, configurable per court.
+- Q7: events now carry a sport.
+

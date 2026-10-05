@@ -25,7 +25,7 @@ export class ConstraintViolation extends Error {
   }
 }
 
-const APPEND_ONLY: TableName[] = ['audit', 'journals', 'inventory', 'securityEvents', 'loginEvents', 'outbound', 'ruleHistory'];
+const APPEND_ONLY: TableName[] = ['audit', 'journals', 'inventory', 'securityEvents', 'loginEvents', 'outbound', 'ruleHistory', 'attendanceEvents'];
 /** Financial and identity records are never hard-deleted (status changes or anonymization instead). */
 const NO_DELETE: TableName[] = ['payments', 'refunds', 'payouts', 'disputes', 'bookings', 'checkouts', 'snapshots', 'orders', 'users', 'webhookEvents', 'businesses'];
 
@@ -46,10 +46,25 @@ const UNIQUE: { [T in TableName]?: UniqueKey<T>[] } = {
   webhookEvents: [{ name: 'webhook_events_provider_event_key', key: (w) => `${w.provider}:${w.providerEventId}` }],
   payments: [{ name: 'payments_idempotency_key', key: (p) => p.idempotencyKey }],
   promotions: [{ name: 'promotions_code_scope_key', key: (p) => (p.status === 'archived' ? null : `${p.businessId ?? 'platform'}:${p.code.toUpperCase()}`) }],
+  profiles: [{ name: 'user_profiles_username_key', key: (p) => (p.username ? p.username.toLowerCase() : null) }],
+  follows: [{ name: 'follows_active_pair_key', key: (f) => (f.status === 'pending' || f.status === 'accepted' ? `${f.followerId}:${f.followeeId}` : null) }],
+  blocks: [{ name: 'user_blocks_pair_key', key: (b) => `${b.blockerId}:${b.blockedId}` }],
+  opRegistrations: [{ name: 'open_play_registrations_session_user_key', key: (r) => (r.userId && !['cancelled', 'refunded'].includes(r.status) ? `${r.sessionId}:${r.userId}` : null) }],
+  opGames: [{ name: 'open_play_games_one_live_per_court', key: (g) => (g.status === 'in_progress' ? `${g.sessionId}:${g.courtId}` : null) }],
 };
 
+/** Space units occupied by a slot (CR-D03). Legacy slots without units occupy their whole court. */
+export function slotUnits(slot: Pick<BookingSlot, 'units' | 'courtId'>): string[] {
+  return slot.units?.length ? slot.units : [slot.courtId];
+}
+
+export function unitsIntersect(a: readonly string[], b: readonly string[]): boolean {
+  return a.some((u) => b.includes(u));
+}
+
+/** Production: EXCLUDE USING gist (space_unit_id WITH =, occupied_range WITH &&) — one row per unit. */
 function slotsOverlap(a: BookingSlot, b: BookingSlot): boolean {
-  return a.courtId === b.courtId && a.startMs < b.occupiedEndMs && b.startMs < a.occupiedEndMs;
+  return a.startMs < b.occupiedEndMs && b.startMs < a.occupiedEndMs && unitsIntersect(slotUnits(a), slotUnits(b));
 }
 
 export class Db {

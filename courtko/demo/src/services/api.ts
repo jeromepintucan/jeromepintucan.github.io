@@ -16,6 +16,9 @@ import * as businesses from './businesses.ts';
 import * as catalog from './catalog.ts';
 import * as disputes from './disputes.ts';
 import * as events from './events.ts';
+import * as openplay from './openplay.ts';
+import * as social from './social.ts';
+import * as sportsAdmin from './sportsAdmin.ts';
 import * as payments from './payments.ts';
 import * as payouts from './payouts.ts';
 import * as pricing from './pricingSvc.ts';
@@ -37,7 +40,22 @@ const READ = {
   'GET /v1/me': (s: Svc) => profile.getMe(s),
   'GET /v1/public/venues': (s: Svc, i: catalog.VenueSearchInput) => catalog.searchVenues(s, i),
   'GET /v1/public/venues/{slug}': (s: Svc, i: { slug: string }) => catalog.venueDetail(s, i),
-  'GET /v1/public/venues/{venueId}/availability': (s: Svc, i: { venueId: string; date: string; durationMinutes?: number }) => booking.venueAvailability(s, i),
+  'GET /v1/public/venues/{venueId}/availability': (s: Svc, i: { venueId: string; date: string; durationMinutes?: number; sport?: string }) => booking.venueAvailability(s, i),
+  'GET /v1/public/sports': (s: Svc) => sportsAdmin.publicSports(s),
+  'GET /v1/public/open-play': (s: Svc, i: openplay.OpenPlaySearch) => openplay.listOpenPlay(s, i),
+  'GET /v1/public/open-play/{sessionId}': (s: Svc, i: { sessionId: string }) => openplay.getOpenPlay(s, i),
+  'GET /v1/players': (s: Svc, i: { q: string }) => social.searchPlayers(s, i),
+  'GET /v1/players/{username}': (s: Svc, i: { username: string }) => social.publicProfile(s, i),
+  'GET /v1/players/{username}/{kind}': (s: Svc, i: { username: string; kind: 'followers' | 'following' }) => social.followList(s, i),
+  'GET /v1/me/open-play/registrations': (s: Svc) => openplay.myOpenPlay(s),
+  'GET /v1/me/open-play/registrations/{registrationId}': (s: Svc, i: { registrationId: string }) => openplay.myOpenPlayRegistration(s, i),
+  'GET /v1/me/open-play/registrations/{registrationId}/checkin-token': (s: Svc, i: { registrationId: string }) => openplay.openPlayCheckinToken(s, i),
+  'GET /v1/me/open-play/registrations/{registrationId}/cancellation-quote': (s: Svc, i: { registrationId: string }) => openplay.openPlayCancellationQuote(s, i),
+  'GET /v1/me/invites': (s: Svc) => openplay.myInvites(s),
+  'GET /v1/me/sports': (s: Svc) => social.mySportsDashboard(s),
+  'GET /v1/me/follow-requests': (s: Svc) => social.followRequests(s),
+  'GET /v1/me/blocks': (s: Svc) => social.myBlocks(s),
+  'GET /v1/me/player-suggestions': (s: Svc) => social.discoverPlayers(s),
   'GET /v1/public/venues/{venueId}/products': (s: Svc, i: { venueId: string; purpose?: 'booking' | 'event' | 'standalone' }) => products.venueShop(s, i),
   'GET /v1/public/locations': (s: Svc, i: { q: string }) => catalog.searchLocations(s, i),
   'GET /v1/public/events': (s: Svc, i: { type?: any; q?: string }) => events.listPublicEvents(s, i),
@@ -60,6 +78,7 @@ const READ = {
   'GET /v1/me/restrictions': (s: Svc) => restrictions.myRestrictions(s),
   'GET /v1/staff/me/memberships': (s: Svc) => staff.myMemberships(s),
   'GET /demo/authenticator-code': (s: Svc, i: { identifier: string }) => auth.demoAuthenticatorCode(s, i),
+  'GET /demo/open-play/{sessionId}/sample-pass': (s: Svc, i: Parameters<typeof openplay.demoSamplePass>[1]) => openplay.demoSamplePass(s, i),
   // business & staff
   'GET /v1/businesses/{businessId}': (s: Svc, i: { businessId: string }) => businesses.myBusinessOverview(s, i),
   'GET /v1/businesses/{businessId}/venues': (s: Svc, i: { businessId: string }) => venues.listBusinessVenues(s, i),
@@ -73,6 +92,11 @@ const READ = {
   'GET /v1/businesses/{businessId}/pricing-rules/preview': (s: Svc, i: Parameters<typeof pricing.simulatePrice>[1]) => pricing.simulatePrice(s, i),
   'GET /v1/businesses/{businessId}/promotions': (s: Svc, i: { businessId: string }) => pricing.listPromotions(s, i),
   'GET /v1/businesses/{businessId}/events': (s: Svc, i: { businessId: string }) => events.businessEvents(s, i),
+  'GET /v1/businesses/{businessId}/open-play': (s: Svc, i: { businessId: string; venueId?: string }) => openplay.businessOpenPlay(s, i),
+  'GET /v1/businesses/{businessId}/open-play/{sessionId}/desk': (s: Svc, i: { businessId: string; sessionId: string }) => openplay.openPlayDesk(s, i),
+  'GET /v1/businesses/{businessId}/open-play/{sessionId}/search': (s: Svc, i: { businessId: string; sessionId: string; q: string }) => openplay.openPlaySearch(s, i),
+  'GET /v1/businesses/{businessId}/open-play/{sessionId}/rotation-suggestion': (s: Svc, i: { businessId: string; sessionId: string; courtId: string }) => openplay.rotationSuggestion(s, i),
+  'GET /v1/businesses/{businessId}/open-play/{sessionId}/attendance-events': (s: Svc, i: { businessId: string; sessionId: string }) => openplay.attendanceLog(s, i),
   'GET /v1/businesses/{businessId}/events/{eventId}/registrations': (s: Svc, i: { businessId: string; eventId: string }) => events.eventRegistrations(s, i),
   'GET /v1/businesses/{businessId}/products': (s: Svc, i: { businessId: string; venueId?: string }) => products.businessProducts(s, i),
   'GET /v1/businesses/{businessId}/orders': (s: Svc, i: { businessId: string; status?: string }) => products.businessOrders(s, i),
@@ -112,6 +136,8 @@ const READ = {
   'GET /v1/admin/products': (s: Svc) => adminProducts(s),
   'GET /v1/admin/promotions': (s: Svc) => pricing.listPromotions(s, {}),
   'GET /v1/admin/privacy-requests': (s: Svc) => profile.privacyRequests(s),
+  'GET /v1/admin/sports': (s: Svc) => sportsAdmin.adminSports(s),
+  'GET /v1/admin/open-play': (s: Svc) => openplay.adminOpenPlay(s),
 } satisfies Record<string, Handler | ((s: Svc) => unknown)>;
 
 const WRITE = {
@@ -124,6 +150,7 @@ const WRITE = {
   'POST /v1/auth/password-reset/request': (s: Svc, i: { identifier: string }) => auth.requestPasswordReset(s, i),
   'POST /v1/auth/password-reset/confirm': (s: Svc, i: { verificationId: string; code: string; newPassword: string }) => auth.resetPassword(s, i),
   'POST /demo/sign-in': (s: Svc, i: { persona: string }) => auth.demoSignIn(s, i),
+  'POST /demo/open-play/live': (s: Svc) => openplay.demoStartLiveOpenPlay(s),
   'PATCH /v1/me/profile': (s: Svc, i: Parameters<typeof profile.updateProfile>[1]) => profile.updateProfile(s, i),
   'PUT /v1/me/preferences/notifications': (s: Svc, i: Parameters<typeof profile.updateNotificationPrefs>[1]) => profile.updateNotificationPrefs(s, i),
   'PUT /v1/me/preferences/location': (s: Svc, i: { consent: 'granted' | 'denied' }) => profile.setLocationConsent(s, i),
@@ -152,6 +179,20 @@ const WRITE = {
   'POST /v1/me/events/registrations/{registrationId}/accept-offer': (s: Svc, i: { registrationId: string }) => events.acceptOffer(s, i),
   'POST /v1/me/events/registrations/{registrationId}/withdraw': (s: Svc, i: { registrationId: string }) => events.withdrawRegistration(s, i),
   'POST /v1/me/orders': (s: Svc, i: Parameters<typeof products.createStandaloneOrder>[1]) => products.createStandaloneOrder(s, i),
+  'POST /v1/me/open-play/{sessionId}/registrations': (s: Svc, i: Parameters<typeof openplay.registerOpenPlay>[1]) => openplay.registerOpenPlay(s, i),
+  'POST /v1/me/open-play/{sessionId}/waitlist': (s: Svc, i: { sessionId: string }) => openplay.joinOpenPlayWaitlist(s, i),
+  'POST /v1/me/open-play/registrations/{registrationId}/accept-offer': (s: Svc, i: { registrationId: string }) => openplay.acceptOpenPlayOffer(s, i),
+  'POST /v1/me/open-play/registrations/{registrationId}/cancellation': (s: Svc, i: { registrationId: string; reason?: string }) => openplay.cancelMyOpenPlay(s, i),
+  'POST /v1/me/open-play/registrations/{registrationId}/invitations': (s: Svc, i: { registrationId: string; username: string }) => openplay.invitePartner(s, i),
+  'POST /v1/me/invites/{inviteId}/response': (s: Svc, i: { inviteId: string; accept: boolean }) => openplay.respondToInvite(s, i),
+  'PUT /v1/me/sports/{sport}': (s: Svc, i: Parameters<typeof social.setSportProfile>[1]) => social.setSportProfile(s, i),
+  'PATCH /v1/me/social-settings': (s: Svc, i: Parameters<typeof social.updateSocialSettings>[1]) => social.updateSocialSettings(s, i),
+  'POST /v1/me/follows/{username}': (s: Svc, i: { username: string }) => social.followPlayer(s, i),
+  'DELETE /v1/me/follows/{username}': (s: Svc, i: { username: string }) => social.unfollowPlayer(s, i),
+  'POST /v1/me/follow-requests/{followId}/response': (s: Svc, i: { followId: string; accept: boolean }) => social.respondFollowRequest(s, i),
+  'DELETE /v1/me/followers/{username}': (s: Svc, i: { username: string }) => social.removeFollower(s, i),
+  'POST /v1/me/blocks/{username}': (s: Svc, i: { username: string }) => social.blockPlayer(s, i),
+  'DELETE /v1/me/blocks/{username}': (s: Svc, i: { username: string }) => social.unblockPlayer(s, i),
   'POST /v1/me/restrictions/{restrictionId}/appeal': (s: Svc, i: { restrictionId: string; message: string }) => restrictions.submitAppeal(s, i),
   'POST /v1/me/privacy/data-exports': (s: Svc) => profile.exportMyData(s),
   'POST /v1/me/privacy/deletion-requests': (s: Svc) => profile.requestDeletion(s),
@@ -171,6 +212,21 @@ const WRITE = {
   'DELETE /v1/businesses/{businessId}/special-hours/{specialHoursId}': (s: Svc, i: { businessId: string; specialHoursId: string }) => venues.removeSpecialHours(s, i),
   'POST /v1/businesses/{businessId}/venues/{venueId}/publish': (s: Svc, i: { businessId: string; venueId: string; publish: boolean }) => venues.publishVenue(s, i),
   'PUT /v1/businesses/{businessId}/venues/{venueId}/courts': (s: Svc, i: Parameters<typeof venues.upsertCourt>[1]) => venues.upsertCourt(s, i),
+  'PUT /v1/businesses/{businessId}/venues/{venueId}/physical-courts': (s: Svc, i: Parameters<typeof venues.savePhysicalCourt>[1]) => venues.savePhysicalCourt(s, i),
+  'PUT /v1/businesses/{businessId}/venues/{venueId}/sports': (s: Svc, i: Parameters<typeof venues.updateVenueSports>[1]) => venues.updateVenueSports(s, i),
+  'PUT /v1/businesses/{businessId}/open-play': (s: Svc, i: openplay.SaveOpenPlayInput) => openplay.saveOpenPlay(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/publish': (s: Svc, i: { businessId: string; sessionId: string }) => openplay.publishOpenPlay(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/duplicate': (s: Svc, i: { businessId: string; sessionId: string; days?: number }) => openplay.duplicateOpenPlay(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/cancellation': (s: Svc, i: { businessId: string; sessionId: string; reason: string }) => openplay.cancelOpenPlay(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/check-ins': (s: Svc, i: Parameters<typeof openplay.openPlayCheckIn>[1]) => openplay.openPlayCheckIn(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/walk-ins': (s: Svc, i: Parameters<typeof openplay.openPlayWalkIn>[1]) => openplay.openPlayWalkIn(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/attendance': (s: Svc, i: Parameters<typeof openplay.openPlayAttendance>[1]) => openplay.openPlayAttendance(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/games': (s: Svc, i: Parameters<typeof openplay.startOpenPlayGame>[1]) => openplay.startOpenPlayGame(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/games/{gameId}/completion': (s: Svc, i: Parameters<typeof openplay.endOpenPlayGame>[1]) => openplay.endOpenPlayGame(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/attendance-corrections': (s: Svc, i: Parameters<typeof openplay.correctAttendance>[1]) => openplay.correctAttendance(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/attendance-events/{eventId}/reversal': (s: Svc, i: Parameters<typeof openplay.reverseAttendanceEvent>[1]) => openplay.reverseAttendanceEvent(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/parties': (s: Svc, i: Parameters<typeof openplay.formParty>[1]) => openplay.formParty(s, i),
+  'POST /v1/businesses/{businessId}/open-play/{sessionId}/parties/{partyId}/replacement': (s: Svc, i: Parameters<typeof openplay.assignReplacement>[1]) => openplay.assignReplacement(s, i),
   'POST /v1/businesses/{businessId}/courts/{courtId}/blocks': (s: Svc, i: Parameters<typeof venues.createCourtBlock>[1]) => venues.createCourtBlock(s, i),
   'DELETE /v1/businesses/{businessId}/court-blocks/{blockId}': (s: Svc, i: { businessId: string; blockId: string }) => venues.removeCourtBlock(s, i),
   'PUT /v1/businesses/{businessId}/pricing-rules': (s: Svc, i: Parameters<typeof pricing.savePricingRule>[1]) => pricing.savePricingRule(s, i),
@@ -228,6 +284,7 @@ const WRITE = {
   'PATCH /v1/admin/config/feature-flags/{key}': (s: Svc, i: { key: string; enabled: boolean }) => admin.toggleFeatureFlag(s, i),
   'PATCH /v1/admin/config/refund-threshold': (s: Svc, i: { amount: number }) => admin.updateRefundThreshold(s, i),
   'PUT /v1/admin/promotions': (s: Svc, i: Parameters<typeof pricing.savePromotion>[1]) => pricing.savePromotion(s, i),
+  'PATCH /v1/admin/sports/{sport}': (s: Svc, i: Parameters<typeof sportsAdmin.updateSport>[1]) => sportsAdmin.updateSport(s, i),
 } satisfies Record<string, Handler | ((s: Svc) => unknown)>;
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
