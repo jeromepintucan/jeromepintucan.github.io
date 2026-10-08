@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dial customizer · GT 7 Pro 466 × 466</title>
+<style>
+  :root{
+    --bench:#DCDFDB; --panel:#F3F4F1; --ink:#1E2B29; --muted:#5D6A67;
+    --line:#C5CAC5; --brass:#9C7A45; --stage:#262B2A;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bench);color:var(--ink);
+    font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:100vh}
+  .stage{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:18px;padding:28px;
+    background:radial-gradient(circle at 50% 42%,#343B39 0%,var(--stage) 62%,#1A1E1D 100%)}
+  .case{width:min(72vh,82vw,600px);aspect-ratio:1;border-radius:50%;padding:3.2%;
+    background:conic-gradient(from 20deg,#8C9294,#E3E6E6,#7E8486,#D2D6D6,#8C9294);
+    box-shadow:0 30px 60px rgba(0,0,0,.45),inset 0 0 0 2px rgba(255,255,255,.25)}
+  .case canvas{width:100%;height:100%;display:block;border-radius:50%;background:#000}
+  .stage p{margin:0;color:#B9C2BF;font-size:13px}
+  .stage label{color:#DDE3E1;font-size:13px;display:flex;gap:8px;align-items:center}
+  aside{background:var(--panel);border-left:1px solid var(--line);padding:26px 24px 40px;overflow:auto;max-height:100vh}
+  h1{font:600 26px/1.15 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;margin:0 0 6px}
+  .intro{color:var(--muted);margin:0 0 18px;max-width:42ch}
+  fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:16px 0 18px}
+  legend{font:600 17px "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;padding:0 0 4px}
+  .row{display:grid;grid-template-columns:118px 1fr;gap:10px;align-items:center;margin:9px 0}
+  .row > *{min-width:0}
+  .row > label{color:var(--muted);font-size:13.5px}
+  input[type=text],select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;font:inherit;color:var(--ink)}
+  input[type=color]{width:44px;height:30px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff}
+  .pair{display:flex;gap:10px;align-items:center}
+  input[type=range]{width:100%;accent-color:var(--brass)}
+  .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px;min-width:34px;text-align:right}
+  .presets{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 2px}
+  .swatch{width:38px;height:38px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
+  .swatch span{position:absolute;left:-9999px}
+  button{font:inherit;padding:9px 14px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+  button.ghost{background:transparent;color:var(--ink)}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+  .status{font-size:13px;color:var(--muted);min-height:1.4em;margin-top:8px}
+  #result{max-width:160px;margin-top:10px;display:none;border-radius:50%}
+  .hint{font-size:12.5px;color:var(--muted);margin:4px 0 0}
+  .file{font-size:13px}
+  @media (max-width:900px){
+    .wrap{grid-template-columns:1fr}
+    .stage{position:relative;height:auto;padding:24px 16px}
+    .case{width:min(86vw,520px)}
+    aside{max-height:none;border-left:0;border-top:1px solid var(--line)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section class="stage" aria-label="Preview">
+    <div class="case"><canvas id="preview" width="932" height="932" aria-label="Dial preview"></canvas></div>
+    <label><input type="checkbox" id="handsToggle" checked> Show sample hands (preview only, never exported)</label>
+    <p>Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px</p>
+  </section>
+
+  <aside>
+    <h1>Dial customizer</h1>
+    <p class="intro">Change the text, finish and markers, then export a background for Theme Studio. Hands and date are added there as separate layers.</p>
+
+    <fieldset>
+      <legend>Starting point</legend>
+      <div class="presets" id="presets"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Text</legend>
+      <div class="row"><label for="brand">Name</label><input type="text" id="brand" data-key="brand"></div>
+      <div class="row"><label for="sub">Line under name</label><input type="text" id="sub" data-key="sub"></div>
+      <div class="row"><label for="bottom">Lower line</label><input type="text" id="bottom" data-key="bottom"></div>
+      <div class="row"><label for="bottom2">Second lower line</label><input type="text" id="bottom2" data-key="bottom2"></div>
+      <div class="row"><label for="font">Typeface</label>
+        <select id="font" data-key="font">
+          <option value="serif">Classic serif</option>
+          <option value="didone">High-contrast serif</option>
+          <option value="sans">Neutral sans</option>
+          <option value="geo">Geometric sans</option>
+          <option value="custom">Uploaded font</option>
+        </select></div>
+      <div class="row"><label for="fontFile">Upload a font</label><input class="file" type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2"></div>
+      <div class="row"><label>Colors</label><div class="pair">
+        <input type="color" data-key="textColor" aria-label="Name color">
+        <input type="color" data-key="subColor" aria-label="Small text color">
+        <span class="hint">Name · small lines</span></div></div>
+      <div class="row"><label for="brandSize">Name size</label><div class="pair"><input type="range" id="brandSize" data-key="brandSize" min="3" max="14" step="0.1"><span class="val"></span></div></div>
+      <div class="row"><label for="brandSpacing">Name spacing</label><div class="pair"><input type="range" id="brandSpacing" data-key="brandSpacing" min="0" max="5" step="0.1"><span class="val"></span></div></div>
+      <div class="row"><label for="subSize">Small text size</label><div class="pair"><input type="range" id="subSize" data-key="subSize" min="2" max="7" step="0.1"><span class="val"></span></div></div>
+      <div class="row"><label for="weight">Name weight</label>
+        <select id="weight" data-key="weight"><option value="400">Regular</option><option value="700">Bold</option></select></div>
+      <div class="row"><label for="textOffset">Move text</label><div class="pair"><input type="range" id="textOffset" data-key="textOffset" min="-12" max="12" step="0.5"><span class="val"></span></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Dial finish</legend>
+      <div class="row"><label>Colors</label><div class="pair">
+        <input type="color" data-key="base" aria-label="Dial shadow color">
+        <input type="color" data-key="high" aria-label="Dial highlight color">
+        <span class="hint">Shadow · highlight</span></div></div>
+      <div class="row"><label for="brush">Sunburst texture</label><div class="pair"><input type="range" id="brush" data-key="brush" min="0" max="2.5" step="0.05"><span class="val"></span></div></div>
+      <div class="row"><label for="sweep">Light reflection</label><div class="pair"><input type="range" id="sweep" data-key="sweep" min="0" max="0.5" step="0.01"><span class="val"></span></div></div>
+      <div class="row"><label for="light">Light angle</label><div class="pair"><input type="range" id="light" data-key="light" min="0" max="180" step="1"><span class="val"></span></div></div>
+      <div class="row"><label for="edge">Edge shading</label><div class="pair"><input type="range" id="edge" data-key="edge" min="0" max="0.8" step="0.01"><span class="val"></span></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Hour markers</legend>
+      <div class="row"><label for="indexStyle">Shape</label>
+        <select id="indexStyle" data-key="indexStyle"><option value="baton">Batons</option><option value="round">Round</option><option value="none">None</option></select></div>
+      <div class="row"><label for="twelve">At 12 o'clock</label>
+        <select id="twelve" data-key="twelve"><option value="twin">Twin batons</option><option value="single">Wide baton</option><option value="triangle">Triangle</option></select></div>
+      <div class="row"><label>Colors</label><div class="pair">
+        <input type="color" data-key="frame" aria-label="Marker frame color">
+        <input type="color" data-key="lume" aria-label="Marker fill color">
+        <span class="hint">Frame · fill</span></div></div>
+      <div class="row"><label for="markerScale">Marker size</label><div class="pair"><input type="range" id="markerScale" data-key="markerScale" min="0.7" max="1.3" step="0.01"><span class="val"></span></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Minute track</legend>
+      <div class="row"><label for="track">Show track</label><input type="checkbox" id="track" data-key="track"></div>
+      <div class="row"><label>Colors</label><div class="pair">
+        <input type="color" data-key="trackColor" aria-label="Minute tick color">
+        <input type="color" data-key="fineColor" aria-label="Fine tick color">
+        <span class="hint">Minutes · fine ticks</span></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Export</legend>
+      <div class="row"><label for="size">Size</label>
+        <select id="size">
+          <option value="466">466 × 466 (Theme Studio)</option>
+          <option value="932">932 × 932</option>
+          <option value="1864">1864 × 1864</option>
+          <option value="3728">3728 × 3728 (master)</option>
+        </select></div>
+      <div class="row"><label for="transparent">Outside circle</label>
+        <select id="transparent" data-key="transparent"><option value="false">Black</option><option value="true">Transparent</option></select></div>
+      <div class="btns">
+        <button id="exportBtn">Export PNG</button>
+        <button class="ghost" id="saveBtn">Save settings</button>
+        <button class="ghost" id="loadBtn">Load settings</button>
+        <button class="ghost" id="resetBtn">Reset</button>
+        <input type="file" id="loadFile" accept=".json" hidden>
+      </div>
+      <div class="status" id="status" role="status"></div>
+      <img id="result" alt="Exported dial">
+      <p class="hint" id="resultHint" hidden>If the download didn't start, right-click or long-press the image to save it.</p>
+    </fieldset>
+  </aside>
+</div>
+
+<script>
+const DEFAULTS = {
+  brand:'MERIDIAN', sub:'AUTOMATIC', bottom:'200 M', bottom2:'',
+  font:'serif', weight:'400', textColor:'#ECE6D2', subColor:'#C8D7CD',
+  brandSize:7.5, brandSpacing:1.8, subSize:3.8, textOffset:0,
+  base:'#125C54', high:'#46AA96', brush:1, sweep:0.22, light:34, edge:0.35,
+  indexStyle:'baton', twelve:'twin', frame:'#C8CDD0', lume:'#F2EEDC', markerScale:1,
+  track:true, trackColor:'#ECE6D2', fineColor:'#C8CDC3', transparent:'false'
+};
+const PRESETS = [
+  {name:'Teal sunburst', swatch:'#2E8C7B', v:{}},
+  {name:'Midnight blue', swatch:'#25385E', v:{base:'#101C34',high:'#46639C',textColor:'#EDEFF3',subColor:'#C3CCDD',trackColor:'#EDEFF3',fineColor:'#AEB8CC'}},
+  {name:'Graphite', swatch:'#4A4F52', v:{base:'#1C1F21',high:'#6E767B',textColor:'#ECECE8',subColor:'#C9CCCB',trackColor:'#ECECE8',fineColor:'#9EA4A6'}},
+  {name:'Sand and gold', swatch:'#C9AE84', v:{base:'#8A6E4E',high:'#E8D2AE',textColor:'#2C2A26',subColor:'#4A433A',trackColor:'#2C2A26',fineColor:'#5A5148',frame:'#D3B57E',lume:'#FBF6E8'}},
+  {name:'Ice white', swatch:'#E4E8EA', v:{base:'#AEB6BA',high:'#F7F9FA',textColor:'#1F2A30',subColor:'#3E4A50',trackColor:'#1F2A30',fineColor:'#55636A',frame:'#9AA2A7',lume:'#FFFFFF',brush:0.7}},
+];
+const FONTS = {
+  serif:'Georgia,"Times New Roman",serif',
+  didone:'Didot,"Bodoni 72","Bodoni MT","Bodoni 72 Oldstyle",Georgia,serif',
+  sans:'"Helvetica Neue",Helvetica,Arial,sans-serif',
+  geo:'Futura,"Century Gothic",Avenir,"Trebuchet MS",sans-serif',
+  custom:'"UserFont",Georgia,serif'
+};
+let state = {...DEFAULTS};
+
+// ---------- helpers ----------
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const hex2rgb=h=>{h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]};
+const rgb2hex=a=>'#'+a.map(v=>Math.round(clamp(v,0,255)).toString(16).padStart(2,'0')).join('');
+const tint=(hex,amt)=>{const c=hex2rgb(hex);return rgb2hex(c.map(v=>amt>=0?v+(255-v)*amt:v*(1+amt)))};
+
+// ---------- sunburst background (cached) ----------
+const bgCache = new Map();
+function makeBg(S){
+  const key=[S,state.base,state.high,state.brush,state.sweep,state.light,state.edge].join('|');
+  if(bgCache.has(key)) return bgCache.get(key);
+  const cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const ctx=cv.getContext('2d'); const img=ctx.createImageData(S,S); const d=img.data;
+  const c=S/2, b=hex2rgb(state.base), h=hex2rgb(state.high);
+  const L=state.light*Math.PI/180, br=state.brush, sw=state.sweep, ed=state.edge;
+  for(let y=0;y<S;y++){
+    const dy=y+0.5-c;
+    for(let x=0;x<S;x++){
+      const dx=x+0.5-c, dist=Math.sqrt(dx*dx+dy*dy);
+      if(dist>c+1) continue;
+      const r=dist/c, a=Math.atan2(dy,dx);
+      const circ=6.2832*dist, aa=k=>clamp((circ/k-2)/3,0,1); // fade texture where it would alias
+      const fine=br*(0.035*aa(720)*Math.sin(a*720+1.3)+0.025*aa(1440)*Math.sin(a*1440+4.1)+0.03*aa(360)*Math.sin(a*360+2.7));
+      let shade=(1-0.55*Math.pow(r,1.6))*(1+sw*Math.cos(2*(a+L))+fine);
+      shade=clamp(shade,0,1.4);
+      const t=clamp((shade-0.45)/0.95,0,1);
+      const e=clamp(1.08-ed*clamp(r-0.8,0,1)/0.2,0.45,1.1);
+      const i=(y*S+x)*4;
+      d[i]=(b[0]+(h[0]-b[0])*t)*e; d[i+1]=(b[1]+(h[1]-b[1])*t)*e; d[i+2]=(b[2]+(h[2]-b[2])*t)*e;
+      d[i+3]=255*clamp(c-dist+0.5,0,1);
+    }
+  }
+  ctx.putImageData(img,0,0);
+  if(bgCache.size>6) bgCache.delete(bgCache.keys().next().value);
+  bgCache.set(key,cv);
+  return cv;
+}
+
+// ---------- geometry ----------
+function P(c,ang,rad){const t=(ang-90)*Math.PI/180;return[c+rad*Math.cos(t),c+rad*Math.sin(t)]}
+function quad(c,ang,r0,r1,w0,w1){
+  const t=(ang-90)*Math.PI/180, nx=-Math.sin(t), ny=Math.cos(t);
+  const p0=P(c,ang,r0), p1=P(c,ang,r1);
+  return[[p0[0]+nx*w0,p0[1]+ny*w0],[p1[0]+nx*w1,p1[1]+ny*w1],[p1[0]-nx*w1,p1[1]-ny*w1],[p0[0]-nx*w0,p0[1]-ny*w0]];
+}
+function poly(ctx,pts){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath()}
+
+// Each marker: {type:'poly'|'circle', outer, inner}
+function markers(c,R){
+  const out=[], k=state.markerScale, outerR=R*0.885;
+  const baton=(ang,len,w,iw)=>({type:'poly',
+    outer:quad(c,ang,outerR-R*len*k,outerR,R*w*k,R*w*k),
+    inner:quad(c,ang,outerR-R*len*k+R*0.022,outerR-R*0.02,R*iw*k,R*iw*k)});
+  const dot=(ang,rr,ir)=>{const p=P(c,ang,R*0.80);return{type:'circle',x:p[0],y:p[1],outer:R*rr*k,inner:R*ir*k}};
+  for(let hr=1;hr<12;hr++){
+    const ang=hr*30, major=hr%3===0;
+    if(state.indexStyle==='baton') out.push(major?baton(ang,0.265,0.040,0.024):baton(ang,0.205,0.026,0.012));
+    else if(state.indexStyle==='round') out.push(major?dot(ang,0.058,0.042):dot(ang,0.044,0.030));
+  }
+  if(state.indexStyle!=='none'){
+    if(state.twelve==='twin'){
+      for(const off of[-3.2,3.2]) out.push({type:'poly',
+        outer:quad(c,off,outerR-R*0.285*k,outerR,R*0.022*k,R*0.034*k),
+        inner:quad(c,off,outerR-R*0.285*k+R*0.025,outerR-R*0.02,R*0.010*k,R*0.020*k)});
+    }else if(state.twelve==='single'){
+      out.push(baton(0,0.285,0.058,0.040));
+    }else{
+      out.push({type:'poly',outer:[P(c,0,outerR-R*0.25*k),...quad(c,0,outerR,outerR,R*0.075*k,R*0.075*k).slice(1,3)].map(p=>p),
+        inner:[P(c,0,outerR-R*0.25*k+R*0.05),...quad(c,0,outerR-R*0.02,outerR-R*0.02,R*0.05*k,R*0.05*k).slice(1,3)]});
+    }
+  }
+  return out;
+}
+function shapePath(ctx,m,which){
+  if(m.type==='circle'){ctx.beginPath();ctx.arc(m.x,m.y,which==='outer'?m.outer:m.inner,0,Math.PI*2)}
+  else poly(ctx,m[which]);
+}
+
+function spacedText(ctx,txt,y,px,color,spacing,family,weight){
+  if(!txt) return;
+  ctx.font=`${weight} ${px}px ${family}`; ctx.fillStyle=color; ctx.textBaseline='middle'; ctx.textAlign='left';
+  const chars=[...txt], w=chars.map(ch=>ctx.measureText(ch).width);
+  const total=w.reduce((a,b)=>a+b,0)+spacing*(chars.length-1);
+  let x=ctx.canvas.width/2-total/2;
+  chars.forEach((ch,i)=>{ctx.fillText(ch,x,y);x+=w[i]+spacing});
+}
+
+// ---------- full render ----------
+function render(S){
+  const cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const ctx=cv.getContext('2d'); const c=S/2, R=S/2;
+  if(state.transparent!=='true'){ctx.fillStyle='#000';ctx.fillRect(0,0,S,S)}
+  ctx.drawImage(makeBg(S),0,0);
+
+  // minute track
+  if(state.track){
+    ctx.fillStyle=state.fineColor;
+    for(let i=0;i<240;i++){if(i%4===0)continue;poly(ctx,quad(c,i*1.5,R*0.935,R*0.955,R*0.0018,R*0.0018));ctx.fill()}
+    ctx.fillStyle=state.trackColor;
+    for(let i=0;i<60;i++){if(i%5===0)continue;poly(ctx,quad(c,i*6,R*0.905,R*0.955,R*0.0045,R*0.0045));ctx.fill()}
+    ctx.strokeStyle=state.fineColor; ctx.lineWidth=R*0.004;
+    ctx.beginPath();ctx.arc(c,c,R*0.958,0,Math.PI*2);ctx.stroke();
+  }
+
+  // applied markers
+  const ms=markers(c,R);
+  const g=ctx.createLinearGradient(0,0,0,S);
+  g.addColorStop(0,tint(state.frame,0.25)); g.addColorStop(0.5,tint(state.frame,-0.32)); g.addColorStop(1,tint(state.frame,0.18));
+  ctx.save();
+  ctx.shadowColor='rgba(0,12,10,0.55)'; ctx.shadowBlur=R*0.028; ctx.shadowOffsetX=R*0.012; ctx.shadowOffsetY=R*0.018;
+  ctx.fillStyle=g; ms.forEach(m=>{shapePath(ctx,m,'outer');ctx.fill()});
+  ctx.restore();
+  ctx.fillStyle=state.lume; ms.forEach(m=>{shapePath(ctx,m,'inner');ctx.fill()});
+
+  // text
+  const fam=FONTS[state.font]||FONTS.serif, off=R*state.textOffset/100;
+  spacedText(ctx,state.brand,c-R*0.36+off,R*state.brandSize/100,state.textColor,R*state.brandSpacing/100,fam,state.weight);
+  spacedText(ctx,state.sub,c-R*0.27+off+R*(state.brandSize-7.5)/200,R*state.subSize/100,state.subColor,R*0.012,fam,'400');
+  spacedText(ctx,state.bottom,c+R*0.34,R*state.subSize*1.05/100,state.subColor,R*0.010,fam,'400');
+  spacedText(ctx,state.bottom2,c+R*0.42,R*state.subSize*0.9/100,state.subColor,R*0.010,fam,'400');
+  return cv;
+}
+
+// Supersample small sizes so 466 px output stays crisp
+function renderFor(size){
+  let src=render(Math.max(size,1864));
+  while(src.width/2>=size){
+    const h=document.createElement('canvas'); h.width=h.height=src.width/2;
+    const hc=h.getContext('2d'); hc.imageSmoothingQuality='high'; hc.drawImage(src,0,0,h.width,h.height); src=h;
+  }
+  if(src.width!==size){const f=document.createElement('canvas');f.width=f.height=size;
+    const fc=f.getContext('2d');fc.imageSmoothingQuality='high';fc.drawImage(src,0,0,size,size);src=f}
+  return src;
+}
+
+// ---------- preview ----------
+const pv=document.getElementById('preview'), pctx=pv.getContext('2d');
+let raf=0;
+function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(drawPreview)}
+function drawPreview(){
+  const S=pv.width, img=render(S);
+  pctx.clearRect(0,0,S,S); pctx.drawImage(img,0,0);
+  if(document.getElementById('handsToggle').checked) drawHands(pctx,S);
+}
+function drawHands(ctx,S){
+  const c=S/2,R=S/2;
+  const hand=(ang,len,w,tail)=>{
+    const pts=[P(c,ang,len),...quad(c,ang,-tail,R*0.05,w*0.6,w).slice(0,2).reverse(),P(c,ang+180,tail)];
+    const a=quad(c,ang,-tail,len*0.82,w*0.55,w), tip=P(c,ang,len);
+    ctx.beginPath();ctx.moveTo(a[0][0],a[0][1]);ctx.lineTo(a[1][0],a[1][1]);ctx.lineTo(tip[0],tip[1]);ctx.lineTo(a[2][0],a[2][1]);ctx.lineTo(a[3][0],a[3][1]);ctx.closePath();
+  };
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=R*0.03;ctx.shadowOffsetX=R*0.015;ctx.shadowOffsetY=R*0.025;
+  ctx.fillStyle=tint(state.frame,-0.1);
+  hand(305,R*0.52,R*0.032,R*0.08);ctx.fill();
+  hand(60,R*0.78,R*0.024,R*0.10);ctx.fill();
+  ctx.restore();
+  ctx.fillStyle=state.lume;
+  hand(305,R*0.47,R*0.016,0);ctx.fill();
+  hand(60,R*0.72,R*0.011,0);ctx.fill();
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=R*0.02;ctx.shadowOffsetY=R*0.02;
+  ctx.strokeStyle='#C9472F';ctx.lineWidth=R*0.008;ctx.beginPath();
+  const s0=P(c,180+180,R*0.18),s1=P(c,180,R*0.86);ctx.moveTo(s0[0],s0[1]);ctx.lineTo(s1[0],s1[1]);ctx.stroke();
+  ctx.fillStyle='#C9472F';ctx.beginPath();ctx.arc(c,c,R*0.028,0,Math.PI*2);ctx.fill();ctx.restore();
+  ctx.fillStyle=tint(state.frame,0.2);ctx.beginPath();ctx.arc(c,c,R*0.012,0,Math.PI*2);ctx.fill();
+}
+
+// ---------- bind controls ----------
+const inputs=[...document.querySelectorAll('[data-key]')];
+function syncInputs(){
+  inputs.forEach(el=>{
+    const k=el.dataset.key,v=state[k];
+    if(el.type==='checkbox') el.checked=!!v; else el.value=String(v);
+    const out=el.parentElement.querySelector('.val'); if(out) out.textContent=Number(el.value).toFixed(el.step&&el.step<1?2:0).replace(/\.00$/,'');
+  });
+}
+inputs.forEach(el=>el.addEventListener('input',()=>{
+  const k=el.dataset.key;
+  state[k]=el.type==='checkbox'?el.checked:el.type==='range'?parseFloat(el.value):el.value;
+  const out=el.parentElement.querySelector('.val'); if(out) out.textContent=Number(el.value).toFixed(el.step&&el.step<1?2:0).replace(/\.00$/,'');
+  schedule();
+}));
+document.getElementById('handsToggle').addEventListener('change',schedule);
+
+const presetBox=document.getElementById('presets');
+PRESETS.forEach(p=>{
+  const b=document.createElement('button');b.className='swatch';b.style.background=p.swatch;b.title=p.name;
+  b.innerHTML=`<span>${p.name}</span>`;b.style.position='relative';
+  b.onclick=()=>{const keep={brand:state.brand,sub:state.sub,bottom:state.bottom,bottom2:state.bottom2,font:state.font};
+    state={...DEFAULTS,...p.v,...keep};syncInputs();schedule()};
+  presetBox.appendChild(b);
+});
+
+const status=document.getElementById('status');
+document.getElementById('fontFile').addEventListener('change',async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const face=new FontFace('UserFont',await f.arrayBuffer()); await face.load(); document.fonts.add(face);
+    state.font='custom'; syncInputs(); schedule(); status.textContent=`Using ${f.name}.`;
+  }catch(err){status.textContent='That font file could not be read. Try a .ttf, .otf or .woff file.'}
+});
+
+function download(blob,name){
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+document.getElementById('exportBtn').onclick=()=>{
+  const size=parseInt(document.getElementById('size').value);
+  status.textContent=size>=1864?'Rendering… large sizes take a few seconds.':'Rendering…';
+  setTimeout(()=>{
+    const cv=renderFor(size);
+    cv.toBlob(blob=>{
+      const name=`${(state.brand||'dial').toLowerCase().replace(/[^a-z0-9]+/g,'-')}_dial_${size}.png`;
+      download(blob,name);
+      const img=document.getElementById('result'); img.src=URL.createObjectURL(blob); img.style.display='block';
+      document.getElementById('resultHint').hidden=false;
+      status.textContent=`Exported ${name}.`;
+    },'image/png');
+  },30);
+};
+document.getElementById('saveBtn').onclick=()=>{
+  download(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'dial_settings.json');
+  status.textContent='Settings saved as dial_settings.json.';
+};
+document.getElementById('loadBtn').onclick=()=>document.getElementById('loadFile').click();
+document.getElementById('loadFile').addEventListener('change',async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{state={...DEFAULTS,...JSON.parse(await f.text())};syncInputs();schedule();status.textContent=`Loaded ${f.name}.`}
+  catch{status.textContent='That file is not a valid settings file.'}
+});
+document.getElementById('resetBtn').onclick=()=>{state={...DEFAULTS};syncInputs();schedule();status.textContent='Reset to the original design.'};
+
+syncInputs(); drawPreview();
+</script>
+</body>
+</html>
