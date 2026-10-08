@@ -58,13 +58,12 @@
 <div class="wrap">
   <section class="stage" aria-label="Preview">
     <div class="case"><canvas id="preview" width="932" height="932" aria-label="Dial preview"></canvas></div>
-    <label><input type="checkbox" id="handsToggle" checked> Show sample hands (preview only, never exported)</label>
     <p>Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px</p>
   </section>
 
   <aside>
     <h1>Dial customizer</h1>
-    <p class="intro">Change the text, finish and markers, then export a background for Theme Studio. Hands and date are added there as separate layers.</p>
+    <p class="intro">Change the text, finish and markers, then export a background for Theme Studio. </p>
 
     <fieldset>
       <legend>Starting point</legend>
@@ -324,30 +323,7 @@ function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(drawPrev
 function drawPreview(){
   const S=pv.width, img=render(S);
   pctx.clearRect(0,0,S,S); pctx.drawImage(img,0,0);
-  if(document.getElementById('handsToggle').checked) drawHands(pctx,S);
 }
-function drawHands(ctx,S){
-  const c=S/2,R=S/2;
-  const hand=(ang,len,w,tail)=>{
-    const pts=[P(c,ang,len),...quad(c,ang,-tail,R*0.05,w*0.6,w).slice(0,2).reverse(),P(c,ang+180,tail)];
-    const a=quad(c,ang,-tail,len*0.82,w*0.55,w), tip=P(c,ang,len);
-    ctx.beginPath();ctx.moveTo(a[0][0],a[0][1]);ctx.lineTo(a[1][0],a[1][1]);ctx.lineTo(tip[0],tip[1]);ctx.lineTo(a[2][0],a[2][1]);ctx.lineTo(a[3][0],a[3][1]);ctx.closePath();
-  };
-  ctx.save();ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=R*0.03;ctx.shadowOffsetX=R*0.015;ctx.shadowOffsetY=R*0.025;
-  ctx.fillStyle=tint(state.frame,-0.1);
-  hand(305,R*0.52,R*0.032,R*0.08);ctx.fill();
-  hand(60,R*0.78,R*0.024,R*0.10);ctx.fill();
-  ctx.restore();
-  ctx.fillStyle=state.lume;
-  hand(305,R*0.47,R*0.016,0);ctx.fill();
-  hand(60,R*0.72,R*0.011,0);ctx.fill();
-  ctx.save();ctx.shadowColor='rgba(0,0,0,.4)';ctx.shadowBlur=R*0.02;ctx.shadowOffsetY=R*0.02;
-  ctx.strokeStyle='#C9472F';ctx.lineWidth=R*0.008;ctx.beginPath();
-  const s0=P(c,180+180,R*0.18),s1=P(c,180,R*0.86);ctx.moveTo(s0[0],s0[1]);ctx.lineTo(s1[0],s1[1]);ctx.stroke();
-  ctx.fillStyle='#C9472F';ctx.beginPath();ctx.arc(c,c,R*0.028,0,Math.PI*2);ctx.fill();ctx.restore();
-  ctx.fillStyle=tint(state.frame,0.2);ctx.beginPath();ctx.arc(c,c,R*0.012,0,Math.PI*2);ctx.fill();
-}
-
 // ---------- bind controls ----------
 const inputs=[...document.querySelectorAll('[data-key]')];
 function syncInputs(){
@@ -363,7 +339,6 @@ inputs.forEach(el=>el.addEventListener('input',()=>{
   const out=el.parentElement.querySelector('.val'); if(out) out.textContent=Number(el.value).toFixed(el.step&&el.step<1?2:0).replace(/\.00$/,'');
   schedule();
 }));
-document.getElementById('handsToggle').addEventListener('change',schedule);
 
 const presetBox=document.getElementById('presets');
 PRESETS.forEach(p=>{
