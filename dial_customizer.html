@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dial customizer · GT 7 Pro 466 × 466</title>
+<title>Dial customizer · Huawei watch faces</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
@@ -19,6 +19,14 @@
     background:conic-gradient(from 20deg,#8C9294,#E3E6E6,#7E8486,#D2D6D6,#8C9294);
     box-shadow:0 30px 60px rgba(0,0,0,.45),inset 0 0 0 2px rgba(255,255,255,.25)}
   .case canvas{width:100%;height:100%;display:block;border-radius:50%;background:#000}
+  .case.rect{width:auto;height:min(74vh,640px);max-width:82vw;aspect-ratio:408/480;border-radius:22%/19%;padding:4.2%;
+    background:linear-gradient(135deg,#B7BCBE,#E8EBEB 30%,#8D9395 60%,#D4D8D9)}
+  .case.rect canvas{border-radius:var(--cr,19%)/var(--crv,16%)}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .seg button{background:#fff;color:var(--ink);border:1px solid var(--line);text-align:left;padding:9px 11px;display:flex;flex-direction:column;gap:2px}
+  .seg button b{font-weight:600;font-size:14px}
+  .seg button span{font-size:12px;color:var(--muted)}
+  .seg button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
   .stage p{margin:0;color:#B9C2BF;font-size:13px}
   aside{background:var(--panel);border-left:1px solid var(--line);padding:26px 24px 40px;overflow:auto;max-height:100vh}
   h1{font:600 26px/1.15 "EB Garamond","Iowan Old Style",Palatino,Georgia,serif;margin:0 0 6px}
@@ -69,13 +77,22 @@
 <body>
 <div class="wrap">
   <section class="stage" aria-label="Preview">
-    <div class="case"><canvas id="preview" width="932" height="932" aria-label="Dial preview"></canvas></div>
-    <p>Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px</p>
+    <div class="case" id="case"><canvas id="preview" width="932" height="932" aria-label="Dial preview"></canvas></div>
+    <p id="caption">Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px</p>
   </section>
 
   <aside>
     <h1>Dial customizer</h1>
     <p class="intro">Change the emblem, text, finish and markers, then export a background for Theme Studio.</p>
+
+    <fieldset>
+      <legend>Watch</legend>
+      <div class="seg" role="group" aria-label="Watch shape">
+        <button type="button" data-shape="round" aria-pressed="true"><b>Round</b><span>GT 7 Pro · 466 × 466</span></button>
+        <button type="button" data-shape="rect" aria-pressed="false"><b>43.2 × 36.3 × 9.9 mm</b><span>Watch Fit 3 · 408 × 480</span></button>
+      </div>
+      <div class="row" id="cornerRow"><label for="cornerR">Screen corners</label><div class="pair"><input type="range" id="cornerR" data-key="cornerR" min="20" max="160" step="1"><span class="val"></span></div></div>
+    </fieldset>
 
     <fieldset>
       <legend>Dial color</legend>
@@ -204,10 +221,7 @@
       <legend>Export</legend>
       <div class="row"><label for="size">Size</label>
         <select id="size">
-          <option value="466">466 × 466 (Theme Studio)</option>
-          <option value="932">932 × 932</option>
-          <option value="1864">1864 × 1864</option>
-          <option value="3728">3728 × 3728 (master)</option>
+          <option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option>
         </select></div>
       <div class="row"><label for="transparent">Outside circle</label>
         <select id="transparent" data-key="transparent"><option value="false">Black</option><option value="true">Transparent</option></select></div>
@@ -237,6 +251,7 @@ const DEFAULTS = {
   swiss:'SWISS MADE', swissSize:2.6, swissWeight:'500', swissTrack:150, swissStretch:100, swissColor:'#D9D9D9',
   swissMode:'split', swissR:0.86, swissGap:5,
   lineSpacing:100,
+  shape:'round', cornerR:80,
   m369:'single', m369Gap:2.6, depth:1, centerCap:'none', centerSize:1, centerColor:'#C8CDD0',
   base:'#125C54', high:'#46AA96', brush:1, sweep:0.22, light:34, edge:0.35,
   indexStyle:'baton', twelve:'twin', m12Len:0.285, m12Width:0.034, m12Gap:3.2, m12Taper:0.35, m12Frame:0.013, m12Fill:'lume', m12Img:'', m12ImgMode:'original', m12Colors:'match', m12FrameC:'#C8CDD0', m12LumeC:'#F2EEDC', frame:'#C8CDD0', lume:'#F2EEDC', markerScale:1,
@@ -279,25 +294,25 @@ const tint=(hex,amt)=>{const c=hex2rgb(hex);return rgb2hex(c.map(v=>amt>=0?v+(25
 
 // ---------- sunburst background (cached) ----------
 const bgCache=new Map();
-function makeBg(S){
-  const key=[S,state.base,state.high,state.brush,state.sweep,state.light,state.edge].join('|');
+function makeBg(W,H){
+  const key=[W,H,GEO.rect,GEO.cr,state.base,state.high,state.brush,state.sweep,state.light,state.edge].join('|');
   if(bgCache.has(key)) return bgCache.get(key);
-  const cv=document.createElement('canvas'); cv.width=cv.height=S;
-  const ctx=cv.getContext('2d'); const img=ctx.createImageData(S,S); const d=img.data;
-  const c=S/2, b=hex2rgb(state.base), h=hex2rgb(state.high);
-  const L=state.light*Math.PI/180, br=state.brush, sw=state.sweep, ed=state.edge;
-  for(let y=0;y<S;y++){
-    const dy=y+0.5-c;
-    for(let x=0;x<S;x++){
-      const dx=x+0.5-c, dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist>c+1) continue;
-      const r=dist/c, a=Math.atan2(dy,dx), circ=6.2832*dist, aa=k=>clamp((circ/k-2)/3,0,1);
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d'),img=ctx.createImageData(W,H),d=img.data;
+  const cx=W/2,cy=H/2,R=GEO.R,b=hex2rgb(state.base),h=hex2rgb(state.high);
+  const L=state.light*Math.PI/180,br=state.brush,sw=state.sweep,ed=state.edge;
+  for(let y=0;y<H;y++){
+    const dy=y+0.5-cy;
+    for(let x=0;x<W;x++){
+      const dx=x+0.5-cx,sd=sdRR(dx,dy);
+      if(sd>1) continue;
+      const dist=Math.sqrt(dx*dx+dy*dy),r=Math.max(0,1+sd/R),a=Math.atan2(dy,dx),circ=6.2832*dist,aa=k=>clamp((circ/k-2)/3,0,1);
       const fine=br*(0.035*aa(720)*Math.sin(a*720+1.3)+0.025*aa(1440)*Math.sin(a*1440+4.1)+0.03*aa(360)*Math.sin(a*360+2.7));
       const shade=clamp((1-0.55*Math.pow(r,1.6))*(1+sw*Math.cos(2*(a+L))+fine),0,1.4);
-      const t=clamp((shade-0.45)/0.95,0,1), e=clamp(1.08-ed*clamp(r-0.8,0,1)/0.2,0.45,1.1);
-      const i=(y*S+x)*4;
-      d[i]=(b[0]+(h[0]-b[0])*t)*e; d[i+1]=(b[1]+(h[1]-b[1])*t)*e; d[i+2]=(b[2]+(h[2]-b[2])*t)*e;
-      d[i+3]=255*clamp(c-dist+0.5,0,1);
+      const t=clamp((shade-0.45)/0.95,0,1),e=clamp(1.08-ed*clamp(r-0.8,0,1)/0.2,0.45,1.1);
+      const i=(y*W+x)*4;
+      d[i]=(b[0]+(h[0]-b[0])*t)*e;d[i+1]=(b[1]+(h[1]-b[1])*t)*e;d[i+2]=(b[2]+(h[2]-b[2])*t)*e;
+      d[i+3]=255*clamp(0.5-sd,0,1);
     }
   }
   ctx.putImageData(img,0,0);
@@ -306,7 +321,30 @@ function makeBg(S){
 }
 
 // ---------- geometry ----------
-function P(c,ang,rad){const t=(ang-90)*Math.PI/180;return[c+rad*Math.cos(t),c+rad*Math.sin(t)]}
+// GEO describes the current screen. Round: a circle of radius R. Rect: a rounded rectangle.
+// Radial positions are written for a circle of radius R; on a rectangle they are measured
+// inward from the screen edge along the same ray, so markers and ticks follow the edge.
+let GEO={cx:0,cy:0,R:1,rect:false,hw:1,hh:1,cr:0,cache:new Map()};
+function setGeo(W,H,scale){
+  const rect=state.shape==='rect';
+  GEO={cx:W/2,cy:H/2,R:Math.min(W,H)/2,rect,hw:W/2,hh:H/2,cr:rect?Math.min(state.cornerR*scale,Math.min(W,H)/2):0,cache:new Map()};
+}
+function sdRR(x,y,g=GEO){
+  if(!g.rect) return Math.hypot(x,y)-g.R;
+  const qx=Math.abs(x)-g.hw+g.cr,qy=Math.abs(y)-g.hh+g.cr;
+  return Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0)-g.cr;
+}
+function edgeDist(ang){
+  if(!GEO.rect) return GEO.R;
+  const key=Math.round(ang*100);if(GEO.cache.has(key)) return GEO.cache.get(key);
+  const t=(ang-90)*Math.PI/180,dx=Math.cos(t),dy=Math.sin(t);let lo=0,hi=Math.hypot(GEO.hw,GEO.hh)+2;
+  for(let i=0;i<28;i++){const m=(lo+hi)/2;sdRR(dx*m,dy*m)>0?hi=m:lo=m}
+  GEO.cache.set(key,lo);return lo;
+}
+function P(c,ang,rad){
+  const t=(ang-90)*Math.PI/180,r=GEO.rect?edgeDist(ang)-(GEO.R-rad):rad;
+  return[GEO.cx+r*Math.cos(t),GEO.cy+r*Math.sin(t)];
+}
 function quad(c,ang,r0,r1,w0,w1){
   const t=(ang-90)*Math.PI/180,nx=-Math.sin(t),ny=Math.cos(t),p0=P(c,ang,r0),p1=P(c,ang,r1);
   return[[p0[0]+nx*w0,p0[1]+ny*w0],[p1[0]+nx*w1,p1[1]+ny*w1],[p1[0]-nx*w1,p1[1]-ny*w1],[p0[0]-nx*w0,p0[1]-ny*w0]];
@@ -434,6 +472,7 @@ function bevel(ctx,m,R,dp){
 }
 function drawCenter(ctx,c,R){
   const t=state.centerCap;if(t==='none')return;
+  ctx.save();ctx.translate(GEO.cx-c,GEO.cy-c);
   const k=state.centerSize,col=state.centerColor,dp=Math.max(state.depth,0.4);
   const metal=(r)=>{const g=ctx.createRadialGradient(c-r*0.35,c-r*0.4,r*0.05,c,c,r);g.addColorStop(0,tint(col,0.7));g.addColorStop(0.55,col);g.addColorStop(1,tint(col,-0.45));return g};
   ctx.save();
@@ -451,7 +490,7 @@ function drawCenter(ctx,c,R){
     g.addColorStop(0,tint(col,0.6));g.addColorStop(0.5,tint(col,-0.4));g.addColorStop(1,tint(col,0.35));
     ctx.strokeStyle=g;ctx.lineWidth=R*0.008*k;ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.stroke();
   }
-  ctx.restore();
+  ctx.restore();ctx.restore();
 }
 function shapePath(ctx,m,w){if(m.type==='circle'){ctx.beginPath();ctx.arc(m.x,m.y,w==='outer'?m.outer:m.inner,0,Math.PI*2)}else poly(ctx,m[w])}
 
@@ -564,10 +603,13 @@ function textLine(ctx,txt,cy,o){
 function arcText(ctx,c,R,txt,o){
   ctx.save();
   const cap=setFont(ctx,o),ls=o.px*o.track/1000,rad=R*state.swissR,toDeg=180/Math.PI;
-  const widthDeg=str=>{const ch=[...str];return(ch.reduce((a,x)=>a+ctx.measureText(x).width*o.stretch,0)+ls*Math.max(0,ch.length-1))/rad*toDeg};
-  const seg=(str,startDeg)=>{let a=startDeg;[...str].forEach(ch=>{const w=ctx.measureText(ch).width*o.stretch,wd=w/rad*toDeg,mid=a-wd/2,p=P(c,mid,rad);
-    ctx.save();ctx.translate(p[0],p[1]);ctx.rotate((mid-180)*Math.PI/180);ctx.scale(o.stretch,1);ctx.textAlign='center';ctx.fillText(ch,0,cap/2);ctx.restore();
-    a-=wd+ls/rad*toDeg})};
+  const r180=Math.hypot(P(c,180,rad)[0]-GEO.cx,P(c,180,rad)[1]-GEO.cy);
+  const widthDeg=str=>{const ch=[...str];return(ch.reduce((a,x)=>a+ctx.measureText(x).width*o.stretch,0)+ls*Math.max(0,ch.length-1))/r180*toDeg};
+  const effR=ang=>{const p=P(c,ang,rad);return Math.hypot(p[0]-GEO.cx,p[1]-GEO.cy)};
+  const seg=(str,startDeg)=>{let a=startDeg;[...str].forEach(ch=>{const er=effR(a),w=ctx.measureText(ch).width*o.stretch,wd=w/er*toDeg,mid=a-wd/2,p=P(c,mid,rad);
+    const p1=P(c,mid+0.4,rad),p2=P(c,mid-0.4,rad),rot=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
+    ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(rot);ctx.scale(o.stretch,1);ctx.textAlign='center';ctx.fillText(ch,0,cap/2);ctx.restore();
+    a-=wd+ls/er*toDeg})};
   if(state.swissMode==='split'){
     const t=txt.trim(),mid=t.length/2;let best=-1;
     [...t].forEach((ch,i)=>{if(ch===' '&&(best<0||Math.abs(i-mid)<Math.abs(best-mid)))best=i});
@@ -578,18 +620,19 @@ function arcText(ctx,c,R,txt,o){
 }
 
 // ---------- full render ----------
-function render(S){
-  const cv=document.createElement('canvas');cv.width=cv.height=S;
-  const ctx=cv.getContext('2d'),c=S/2,R=S/2;
-  if(state.transparent!=='true'){ctx.fillStyle='#000';ctx.fillRect(0,0,S,S)}
-  ctx.drawImage(makeBg(S),0,0);
+function render(W,H,scale=W/(state.shape==='rect'?408:466)){
+  const cv=document.createElement('canvas');
+  cv.width=W;cv.height=H;setGeo(W,H,scale);
+  const ctx=cv.getContext('2d'),c=GEO.R,R=GEO.R,S=H,cx=GEO.cx,cy=GEO.cy,hh=GEO.hh;
+  if(state.transparent!=='true'){ctx.fillStyle='#000';ctx.fillRect(0,0,W,H)}
+  ctx.drawImage(makeBg(W,H),0,0);
 
   if(state.track==='on'){
     ctx.fillStyle=state.fineColor;
     for(let i=0;i<240;i++){if(i%4===0)continue;poly(ctx,quad(c,i*1.5,R*0.935,R*0.955,R*0.0018,R*0.0018));ctx.fill()}
     ctx.fillStyle=state.trackColor;
     for(let i=0;i<60;i++){if(i%5===0)continue;poly(ctx,quad(c,i*6,R*0.905,R*0.955,R*0.0045,R*0.0045));ctx.fill()}
-    ctx.strokeStyle=state.fineColor;ctx.lineWidth=R*0.004;ctx.beginPath();ctx.arc(c,c,R*0.958,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=state.fineColor;ctx.lineWidth=R*0.004;ctx.beginPath();for(let a=0;a<=360;a+=0.5){const p=P(c,a,R*0.958);a?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])}ctx.closePath();ctx.stroke();
   }
 
   paintMarkers(ctx,markers(c,R),state.frame,state.lume,'lume',R,S);
@@ -600,36 +643,51 @@ function render(S){
 
   // top text block: emblem, name, line under name
   const sp=state.lineSpacing/100,oN=lineOpts('brand',R),oS=lineOpts('sub',R),oB=lineOpts('bottom',R),oB2=lineOpts('bottom2',R),oW=lineOpts('swiss',R);
-  const nameY=c-R*0.36+R*state.brandY/100;
+  const nameY=cy-hh*0.36+R*state.brandY/100;
   const nameCap=textLine(ctx,state.brand,nameY,oN)||oN.px*0.68;
   textLine(ctx,state.sub,nameY+sp*(oN.px+oS.px)*0.75+R*state.subY/100,oS);
   const ls=R*state.logoSize/100;
-  drawEmblem(ctx,c,nameY-nameCap/2-R*state.logoGap/100-ls/2,ls,R);
+  drawEmblem(ctx,cx,nameY-nameCap/2-R*state.logoGap/100-ls/2,ls,R);
 
   // lower text block
-  const lowY=c+R*0.34+R*state.bottomY/100;
+  const lowY=cy+hh*0.34+R*state.bottomY/100;
   textLine(ctx,state.bottom,lowY,oB);
   textLine(ctx,state.bottom2,lowY+sp*(oB.px+oB2.px)*0.75+R*state.bottom2Y/100,oB2);
 
   // bottom text near 6 o'clock
   if(state.swiss){
-    if(state.swissMode==='straight') textLine(ctx,state.swiss,c+R*state.swissR,oW);
+    if(state.swissMode==='straight') textLine(ctx,state.swiss,P(c,180,R*state.swissR)[1],oW);
     else arcText(ctx,c,R,prep(state.swiss),oW);
   }
   return cv;
 }
-function renderFor(size){
-  let src=render(Math.max(size,1864));
-  while(src.width/2>=size){const h=document.createElement('canvas');h.width=h.height=src.width/2;
+const BASE=()=>state.shape==='rect'?[408,480]:[466,466];
+function renderFor(scale){
+  const [bw,bh]=BASE(),ss=Math.max(scale,4);
+  let src=render(bw*ss,bh*ss,ss);
+  while(src.width/2>=bw*scale-0.5){const h=document.createElement('canvas');h.width=src.width/2;h.height=src.height/2;
     const hc=h.getContext('2d');hc.imageSmoothingQuality='high';hc.drawImage(src,0,0,h.width,h.height);src=h}
   return src;
+}
+function applyShape(){
+  const [bw,bh]=BASE(),cs=document.getElementById('case');
+  pv.width=bw*2;pv.height=bh*2;
+  cs.classList.toggle('rect',state.shape==='rect');
+  if(state.shape==='rect'){cs.style.setProperty('--cr',(state.cornerR/bw*100)+'%');cs.style.setProperty('--crv',(state.cornerR/bh*100)+'%')}
+  document.getElementById('caption').textContent=state.shape==='rect'
+    ?'43.2 × 36.3 × 9.9 mm · Huawei Watch Fit 3 · 1.82″ · 408 × 480 px'
+    :'Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px';
+  document.querySelectorAll('[data-shape]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shape===state.shape)));
+  document.getElementById('cornerRow').hidden=state.shape!=='rect';
+  const sel=document.getElementById('size');
+  [...sel.options].forEach(o=>{const k=+o.value;o.textContent=`${bw*k} × ${bh*k}`+(k===1?' (Theme Studio)':k===8?' (master)':'')});
 }
 
 // ---------- preview ----------
 const pv=document.getElementById('preview'),pctx=pv.getContext('2d');
 let raf=0;
 function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(drawPreview)}
-function drawPreview(){pctx.clearRect(0,0,pv.width,pv.height);pctx.drawImage(render(pv.width),0,0);drawThumbs();drawTwelveThumbs();updateTwelveUI()}
+function drawPreview(){pctx.clearRect(0,0,pv.width,pv.height);pctx.drawImage(render(pv.width,pv.height,2),0,0);drawThumbs();drawTwelveThumbs();updateTwelveUI()}
 
 // ---------- emblem picker ----------
 const logoBox=document.getElementById('logos'),thumbs={};
@@ -669,11 +727,13 @@ function drawTwelveThumbs(){
   Object.entries(twThumbs).forEach(([k,cv])=>{
     const ctx=cv.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,72,72);
     if(k==='none'){ctx.strokeStyle='#9AA3A0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(36,36,22,0,Math.PI*2);ctx.moveTo(20,52);ctx.lineTo(52,20);ctx.stroke();return}
+    const saveGeo=GEO;GEO={cx:500,cy:500,R:500,rect:false,hw:500,hh:500,cr:0,cache:new Map()};
     const list=twelveShapes(500,500,k);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
     list.forEach(m=>{const pts=(m.type==='crown'||m.type==='image')?[[m.x-m.w/2,m.y-m.h/2],[m.x+m.w/2,m.y+m.h/2]]:m.type==='poly'?m.outer:m.type==='circle'?[[m.x-m.r,m.y-m.r],[m.x+m.r,m.y+m.r]]:[[m.x-m.px*0.8,m.y-m.px*0.4],[m.x+m.px*0.8,m.y+m.px*0.4]];
       pts.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])})});
     const sc=58/Math.max(x1-x0,y1-y0);ctx.setTransform(sc,0,0,sc,36-sc*(x0+x1)/2,36-sc*(y0+y1)/2);
     paintMarkers(ctx,list,'#5E6764','#ECE9DE',state.m12Fill==='solid'?'solid':'lume',500,1000,false);
+    GEO=saveGeo;
   });
 }
 function updateTwelveUI(){
@@ -713,7 +773,7 @@ const inputs=[...document.querySelectorAll('[data-key]')];
 const fmt=el=>{const st=parseFloat(el.step||1);const n=Number(el.value);const d=st<0.01?3:st<0.1?2:st<1?1:0;return(/Track$/.test(el.dataset.key||'')&&n>0?'+':'')+n.toFixed(d)};
 function syncInputs(){
   inputs.forEach(el=>{el.value=String(state[el.dataset.key]);const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el)});
-  updateLogoUI();updateVis();
+  updateLogoUI();updateVis();if(typeof applyShape==='function'&&typeof pv!=='undefined')applyShape();
 }
 inputs.forEach(el=>el.addEventListener('input',()=>{
   const k=el.dataset.key;state[k]=el.type==='range'?parseFloat(el.value):el.value;
@@ -769,10 +829,10 @@ document.getElementById('m12File').addEventListener('change',e=>{
 });
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
 document.getElementById('exportBtn').onclick=()=>{
-  const size=parseInt(document.getElementById('size').value);
-  status.textContent=size>=1864?'Rendering… large sizes take a few seconds.':'Rendering…';
-  setTimeout(()=>{renderFor(size).toBlob(blob=>{
-    const name=`${(state.brand||'dial').toLowerCase().replace(/[^a-z0-9]+/g,'-')}_dial_${size}.png`;
+  const scale=parseInt(document.getElementById('size').value),[bw,bh]=BASE();
+  status.textContent=scale>=4?'Rendering… large sizes take a few seconds.':'Rendering…';
+  setTimeout(()=>{renderFor(scale).toBlob(blob=>{
+    const name=`${(state.brand||'dial').toLowerCase().replace(/[^a-z0-9]+/g,'-')}_${state.shape==='rect'?'fit3':'gt7pro'}_${bw*scale}x${bh*scale}.png`;
     download(blob,name);const img=document.getElementById('result');img.src=URL.createObjectURL(blob);img.style.display='block';
     document.getElementById('resultHint').hidden=false;status.textContent=`Exported ${name}.`},'image/png')},30);
 };
@@ -790,6 +850,9 @@ pv.addEventListener('click',e=>{
   if(Math.abs(x)<0.2&&y<-0.45){const f=document.getElementById('twelveSet');f.scrollIntoView({behavior:'smooth',block:'start'});
     f.classList.remove('flash');void f.offsetWidth;f.classList.add('flash')}
 });
+document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{state.shape=b.dataset.shape;applyShape();schedule()}));
+document.getElementById('cornerR').addEventListener('input',applyShape);
+applyShape();
 syncInputs();drawPreview();ensureFont();
 </script>
 </body>
