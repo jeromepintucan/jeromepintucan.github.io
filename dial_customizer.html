@@ -4,48 +4,52 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dial customizer · GT 7 Pro 466 × 466</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bench:#DCDFDB; --panel:#F3F4F1; --ink:#1E2B29; --muted:#5D6A67;
-    --line:#C5CAC5; --brass:#9C7A45; --stage:#262B2A;
-  }
+  :root{--bench:#DCDFDB;--panel:#F3F4F1;--ink:#1E2B29;--muted:#5D6A67;--line:#C5CAC5;--brass:#9C7A45;--stage:#262B2A}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bench);color:var(--ink);
-    font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px;min-height:100vh}
-  .stage{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;gap:18px;padding:28px;
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bench);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 420px;min-height:100vh}
+  .stage{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px;
     background:radial-gradient(circle at 50% 42%,#343B39 0%,var(--stage) 62%,#1A1E1D 100%)}
   .case{width:min(72vh,82vw,600px);aspect-ratio:1;border-radius:50%;padding:3.2%;
     background:conic-gradient(from 20deg,#8C9294,#E3E6E6,#7E8486,#D2D6D6,#8C9294);
     box-shadow:0 30px 60px rgba(0,0,0,.45),inset 0 0 0 2px rgba(255,255,255,.25)}
   .case canvas{width:100%;height:100%;display:block;border-radius:50%;background:#000}
   .stage p{margin:0;color:#B9C2BF;font-size:13px}
-  .stage label{color:#DDE3E1;font-size:13px;display:flex;gap:8px;align-items:center}
   aside{background:var(--panel);border-left:1px solid var(--line);padding:26px 24px 40px;overflow:auto;max-height:100vh}
-  h1{font:600 26px/1.15 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;margin:0 0 6px}
+  h1{font:600 26px/1.15 "EB Garamond","Iowan Old Style",Palatino,Georgia,serif;margin:0 0 6px}
   .intro{color:var(--muted);margin:0 0 18px;max-width:42ch}
   fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:16px 0 18px}
-  legend{font:600 17px "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;padding:0 0 4px}
-  .row{display:grid;grid-template-columns:118px 1fr;gap:10px;align-items:center;margin:9px 0}
+  legend{font:600 18px "EB Garamond","Iowan Old Style",Palatino,Georgia,serif;padding:0 0 4px}
+  .row{display:grid;grid-template-columns:128px 1fr;gap:10px;align-items:center;margin:9px 0}
   .row > *{min-width:0}
   .row > label{color:var(--muted);font-size:13.5px}
   input[type=text],select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;font:inherit;color:var(--ink)}
-  input[type=color]{width:44px;height:30px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff}
-  .pair{display:flex;gap:10px;align-items:center}
-  input[type=range]{width:100%;accent-color:var(--brass)}
-  .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px;min-width:34px;text-align:right}
+  input[type=color]{width:44px;height:30px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;flex:none}
+  .pair{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=range]{flex:1;min-width:0;accent-color:var(--brass)}
+  .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px;min-width:38px;text-align:right}
   .presets{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 2px}
-  .swatch{width:38px;height:38px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
-  .swatch span{position:absolute;left:-9999px}
-  button{font:inherit;padding:9px 14px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+  .swatch{width:38px;height:38px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+  .vh{position:absolute;left:-9999px}
+  button{font:inherit;padding:8px 13px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
   button.ghost{background:transparent;color:var(--ink)}
+  button.chip{padding:4px 10px;font-size:13px;background:#fff;color:var(--ink);border-color:var(--line)}
+  .logos{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .logos button{background:#fff;border:1px solid var(--line);color:var(--ink);padding:6px 2px 4px;font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .logos button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+  .logos canvas{width:36px;height:36px}
   .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
   :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
   .status{font-size:13px;color:var(--muted);min-height:1.4em;margin-top:8px}
   #result{max-width:160px;margin-top:10px;display:none;border-radius:50%}
   .hint{font-size:12.5px;color:var(--muted);margin:4px 0 0}
   .file{font-size:13px}
+  .sub{font:600 15px "EB Garamond",Georgia,serif;margin:14px 0 2px;color:var(--ink)}
   @media (max-width:900px){
     .wrap{grid-template-columns:1fr}
     .stage{position:relative;height:auto;padding:24px 16px}
@@ -63,11 +67,27 @@
 
   <aside>
     <h1>Dial customizer</h1>
-    <p class="intro">Change the text, finish and markers, then export a background for Theme Studio. </p>
+    <p class="intro">Change the emblem, text, finish and markers, then export a background for Theme Studio.</p>
 
     <fieldset>
-      <legend>Starting point</legend>
+      <legend>Dial color</legend>
       <div class="presets" id="presets"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Emblem</legend>
+      <div class="logos" id="logos" role="group" aria-label="Emblem"></div>
+      <div class="row" id="monoRow"><label for="monogram">Monogram letters</label><input type="text" id="monogram" data-key="monogram" maxlength="3"></div>
+      <div class="row" id="logoFileRow"><label for="logoFile">Your own emblem</label><input class="file" type="file" id="logoFile" accept=".png,.svg,.webp,image/png,image/svg+xml,image/webp"></div>
+      <div class="row"><label for="logoFinish">Finish</label>
+        <select id="logoFinish" data-key="logoFinish"><option value="metal">Applied metal</option><option value="flat">Printed</option></select></div>
+      <div class="row"><label>Color</label><div class="pair">
+        <input type="color" data-key="logoColor" aria-label="Emblem color">
+        <button class="chip" data-set="logoColor" data-val="#FFFFFF">White</button>
+        <button class="chip" data-set="logoColor" data-val="#D9D9D9">Silver</button>
+        <button class="chip" data-set="logoColor" data-val="#D3B57E">Gold</button></div></div>
+      <div class="row"><label for="logoSize">Size</label><div class="pair"><input type="range" id="logoSize" data-key="logoSize" min="5" max="22" step="0.1"><span class="val"></span></div></div>
+      <div class="row"><label for="logoGap">Gap above name</label><div class="pair"><input type="range" id="logoGap" data-key="logoGap" min="-2" max="10" step="0.1"><span class="val"></span></div></div>
     </fieldset>
 
     <fieldset>
@@ -76,25 +96,53 @@
       <div class="row"><label for="sub">Line under name</label><input type="text" id="sub" data-key="sub"></div>
       <div class="row"><label for="bottom">Lower line</label><input type="text" id="bottom" data-key="bottom"></div>
       <div class="row"><label for="bottom2">Second lower line</label><input type="text" id="bottom2" data-key="bottom2"></div>
-      <div class="row"><label for="font">Typeface</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Typography</legend>
+      <div class="row"><label>Type style</label><div class="pair" id="typePresets"></div></div>
+      <div class="row"><label for="font">Font family</label>
         <select id="font" data-key="font">
-          <option value="serif">Classic serif</option>
-          <option value="didone">High-contrast serif</option>
-          <option value="sans">Neutral sans</option>
-          <option value="geo">Geometric sans</option>
+          <option value="ebg">EB Garamond</option>
+          <option value="cormorant">Cormorant Garamond</option>
+          <option value="baskerville">Baskerville</option>
+          <option value="serif">Georgia</option>
+          <option value="didone">Didot / Bodoni</option>
+          <option value="sans">Helvetica</option>
+          <option value="geo">Futura</option>
           <option value="custom">Uploaded font</option>
         </select></div>
       <div class="row"><label for="fontFile">Upload a font</label><input class="file" type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2"></div>
-      <div class="row"><label>Colors</label><div class="pair">
+      <div class="row"><label for="caps">Case</label>
+        <select id="caps" data-key="caps"><option value="upper">ALL CAPS</option><option value="asis">As typed</option></select></div>
+      <div class="row"><label for="kerning">Kerning</label>
+        <select id="kerning" data-key="kerning"><option value="normal">Font kerning on</option><option value="none">Off</option></select></div>
+
+      <p class="sub">Name</p>
+      <div class="row"><label for="weight">Weight</label>
+        <select id="weight" data-key="weight"><option value="400">Regular 400</option><option value="500">Medium 500</option><option value="600">SemiBold 600</option><option value="700">Bold 700</option><option value="800">ExtraBold 800</option></select></div>
+      <div class="row"><label>Color</label><div class="pair">
         <input type="color" data-key="textColor" aria-label="Name color">
-        <input type="color" data-key="subColor" aria-label="Small text color">
-        <span class="hint">Name · small lines</span></div></div>
-      <div class="row"><label for="brandSize">Name size</label><div class="pair"><input type="range" id="brandSize" data-key="brandSize" min="3" max="14" step="0.1"><span class="val"></span></div></div>
-      <div class="row"><label for="brandSpacing">Name spacing</label><div class="pair"><input type="range" id="brandSpacing" data-key="brandSpacing" min="0" max="5" step="0.1"><span class="val"></span></div></div>
-      <div class="row"><label for="subSize">Small text size</label><div class="pair"><input type="range" id="subSize" data-key="subSize" min="2" max="7" step="0.1"><span class="val"></span></div></div>
-      <div class="row"><label for="weight">Name weight</label>
-        <select id="weight" data-key="weight"><option value="400">Regular</option><option value="700">Bold</option></select></div>
-      <div class="row"><label for="textOffset">Move text</label><div class="pair"><input type="range" id="textOffset" data-key="textOffset" min="-12" max="12" step="0.5"><span class="val"></span></div></div>
+        <button class="chip" data-set="textColor" data-val="#FFFFFF">White</button>
+        <button class="chip" data-set="textColor" data-val="#D9D9D9">Silver</button></div></div>
+      <div class="row"><label for="brandSize">Size</label><div class="pair"><input type="range" id="brandSize" data-key="brandSize" min="3" max="14" step="0.1"><span class="val"></span></div></div>
+      <div class="row"><label for="tracking">Tracking</label><div class="pair"><input type="range" id="tracking" data-key="tracking" min="-50" max="500" step="5"><span class="val"></span></div></div>
+
+      <p class="sub">Secondary lines</p>
+      <div class="row"><label for="subWeight">Weight</label>
+        <select id="subWeight" data-key="subWeight"><option value="400">Regular 400</option><option value="500">Medium 500</option><option value="600">SemiBold 600</option><option value="700">Bold 700</option><option value="800">ExtraBold 800</option></select></div>
+      <div class="row"><label>Color</label><div class="pair">
+        <input type="color" data-key="subColor" aria-label="Secondary text color">
+        <button class="chip" data-set="subColor" data-val="#FFFFFF">White</button>
+        <button class="chip" data-set="subColor" data-val="#D9D9D9">Silver</button></div></div>
+      <div class="row"><label for="subRatio">Size vs name (%)</label><div class="pair"><input type="range" id="subRatio" data-key="subRatio" min="30" max="90" step="1"><span class="val"></span></div></div>
+      <div class="row"><label for="subTracking">Tracking</label><div class="pair"><input type="range" id="subTracking" data-key="subTracking" min="-50" max="500" step="5"><span class="val"></span></div></div>
+
+      <p class="sub">Layout</p>
+      <div class="row"><label for="lineSpacing">Line spacing (%)</label><div class="pair"><input type="range" id="lineSpacing" data-key="lineSpacing" min="70" max="160" step="1"><span class="val"></span></div></div>
+      <div class="row"><label for="textOffset">Move top text</label><div class="pair"><input type="range" id="textOffset" data-key="textOffset" min="-14" max="14" step="0.5"><span class="val"></span></div></div>
+      <div class="row"><label for="lowerOffset">Move lower text</label><div class="pair"><input type="range" id="lowerOffset" data-key="lowerOffset" min="-14" max="14" step="0.5"><span class="val"></span></div></div>
+      <p class="hint" id="fontNote">Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).</p>
     </fieldset>
 
     <fieldset>
@@ -102,7 +150,7 @@
       <div class="row"><label>Colors</label><div class="pair">
         <input type="color" data-key="base" aria-label="Dial shadow color">
         <input type="color" data-key="high" aria-label="Dial highlight color">
-        <span class="hint">Shadow · highlight</span></div></div>
+        <span class="hint">Shadow, highlight</span></div></div>
       <div class="row"><label for="brush">Sunburst texture</label><div class="pair"><input type="range" id="brush" data-key="brush" min="0" max="2.5" step="0.05"><span class="val"></span></div></div>
       <div class="row"><label for="sweep">Light reflection</label><div class="pair"><input type="range" id="sweep" data-key="sweep" min="0" max="0.5" step="0.01"><span class="val"></span></div></div>
       <div class="row"><label for="light">Light angle</label><div class="pair"><input type="range" id="light" data-key="light" min="0" max="180" step="1"><span class="val"></span></div></div>
@@ -118,17 +166,17 @@
       <div class="row"><label>Colors</label><div class="pair">
         <input type="color" data-key="frame" aria-label="Marker frame color">
         <input type="color" data-key="lume" aria-label="Marker fill color">
-        <span class="hint">Frame · fill</span></div></div>
+        <span class="hint">Frame, fill</span></div></div>
       <div class="row"><label for="markerScale">Marker size</label><div class="pair"><input type="range" id="markerScale" data-key="markerScale" min="0.7" max="1.3" step="0.01"><span class="val"></span></div></div>
     </fieldset>
 
     <fieldset>
       <legend>Minute track</legend>
-      <div class="row"><label for="track">Show track</label><input type="checkbox" id="track" data-key="track"></div>
+      <div class="row"><label for="track">Show track</label><select id="track" data-key="track"><option value="on">On</option><option value="off">Off</option></select></div>
       <div class="row"><label>Colors</label><div class="pair">
         <input type="color" data-key="trackColor" aria-label="Minute tick color">
         <input type="color" data-key="fineColor" aria-label="Fine tick color">
-        <span class="hint">Minutes · fine ticks</span></div></div>
+        <span class="hint">Minutes, fine ticks</span></div></div>
     </fieldset>
 
     <fieldset>
@@ -158,27 +206,39 @@
 
 <script>
 const DEFAULTS = {
+  logo:'none', monogram:'M', logoImg:'', logoFinish:'metal', logoColor:'#D9D9D9', logoSize:14, logoGap:3,
   brand:'MERIDIAN', sub:'AUTOMATIC', bottom:'200 M', bottom2:'',
-  font:'serif', weight:'400', textColor:'#ECE6D2', subColor:'#C8D7CD',
-  brandSize:7.5, brandSpacing:1.8, subSize:3.8, textOffset:0,
+  font:'ebg', caps:'upper', kerning:'normal',
+  weight:'600', textColor:'#FFFFFF', brandSize:8, tracking:200,
+  subWeight:'500', subColor:'#D9D9D9', subRatio:60, subTracking:200,
+  lineSpacing:100, textOffset:0, lowerOffset:0,
   base:'#125C54', high:'#46AA96', brush:1, sweep:0.22, light:34, edge:0.35,
   indexStyle:'baton', twelve:'twin', frame:'#C8CDD0', lume:'#F2EEDC', markerScale:1,
-  track:true, trackColor:'#ECE6D2', fineColor:'#C8CDC3', transparent:'false'
+  track:'on', trackColor:'#ECE6D2', fineColor:'#C8CDC3', transparent:'false'
 };
 const PRESETS = [
   {name:'Teal sunburst', swatch:'#2E8C7B', v:{}},
-  {name:'Midnight blue', swatch:'#25385E', v:{base:'#101C34',high:'#46639C',textColor:'#EDEFF3',subColor:'#C3CCDD',trackColor:'#EDEFF3',fineColor:'#AEB8CC'}},
-  {name:'Graphite', swatch:'#4A4F52', v:{base:'#1C1F21',high:'#6E767B',textColor:'#ECECE8',subColor:'#C9CCCB',trackColor:'#ECECE8',fineColor:'#9EA4A6'}},
-  {name:'Sand and gold', swatch:'#C9AE84', v:{base:'#8A6E4E',high:'#E8D2AE',textColor:'#2C2A26',subColor:'#4A433A',trackColor:'#2C2A26',fineColor:'#5A5148',frame:'#D3B57E',lume:'#FBF6E8'}},
-  {name:'Ice white', swatch:'#E4E8EA', v:{base:'#AEB6BA',high:'#F7F9FA',textColor:'#1F2A30',subColor:'#3E4A50',trackColor:'#1F2A30',fineColor:'#55636A',frame:'#9AA2A7',lume:'#FFFFFF',brush:0.7}},
+  {name:'Midnight blue', swatch:'#25385E', v:{base:'#101C34',high:'#46639C',trackColor:'#EDEFF3',fineColor:'#AEB8CC'}},
+  {name:'Graphite', swatch:'#4A4F52', v:{base:'#1C1F21',high:'#6E767B',trackColor:'#ECECE8',fineColor:'#9EA4A6'}},
+  {name:'Sand and gold', swatch:'#C9AE84', v:{base:'#8A6E4E',high:'#E8D2AE',textColor:'#2C2A26',subColor:'#4A433A',trackColor:'#2C2A26',fineColor:'#5A5148',frame:'#D3B57E',lume:'#FBF6E8',logoColor:'#D3B57E'}},
+  {name:'Ice white', swatch:'#E4E8EA', v:{base:'#AEB6BA',high:'#F7F9FA',textColor:'#1F2A30',subColor:'#3E4A50',trackColor:'#1F2A30',fineColor:'#55636A',frame:'#9AA2A7',lume:'#FFFFFF',brush:0.7,logoColor:'#9AA2A7'}},
+];
+const TYPE_PRESETS = [
+  {name:'Classic luxury', v:{font:'ebg',weight:'600',subWeight:'500',caps:'upper',tracking:200,subTracking:200,subRatio:60,lineSpacing:100,textColor:'#FFFFFF',subColor:'#D9D9D9',kerning:'normal',brandSize:8}},
+  {name:'Bold luxury', v:{font:'ebg',weight:'700',subWeight:'600',caps:'upper',tracking:220,subTracking:230,subRatio:58,lineSpacing:100,brandSize:8.4}},
+  {name:'Modern', v:{font:'sans',weight:'500',subWeight:'400',caps:'upper',tracking:320,subTracking:300,subRatio:55,lineSpacing:110,brandSize:6.6}},
 ];
 const FONTS = {
+  ebg:'"EB Garamond","Adobe Garamond Pro",Garamond,"Cormorant Garamond",Sabon,Baskerville,Georgia,serif',
+  cormorant:'"Cormorant Garamond","EB Garamond",Garamond,Georgia,serif',
+  baskerville:'"Libre Baskerville",Baskerville,"Baskerville Old Face",Georgia,serif',
   serif:'Georgia,"Times New Roman",serif',
-  didone:'Didot,"Bodoni 72","Bodoni MT","Bodoni 72 Oldstyle",Georgia,serif',
+  didone:'Didot,"Bodoni 72","Bodoni MT",Georgia,serif',
   sans:'"Helvetica Neue",Helvetica,Arial,sans-serif',
   geo:'Futura,"Century Gothic",Avenir,"Trebuchet MS",sans-serif',
   custom:'"UserFont",Georgia,serif'
 };
+const WEBFONT = {ebg:'EB Garamond', cormorant:'Cormorant Garamond', baskerville:'Libre Baskerville'};
 let state = {...DEFAULTS};
 
 // ---------- helpers ----------
@@ -188,7 +248,7 @@ const rgb2hex=a=>'#'+a.map(v=>Math.round(clamp(v,0,255)).toString(16).padStart(2
 const tint=(hex,amt)=>{const c=hex2rgb(hex);return rgb2hex(c.map(v=>amt>=0?v+(255-v)*amt:v*(1+amt)))};
 
 // ---------- sunburst background (cached) ----------
-const bgCache = new Map();
+const bgCache=new Map();
 function makeBg(S){
   const key=[S,state.base,state.high,state.brush,state.sweep,state.light,state.edge].join('|');
   if(bgCache.has(key)) return bgCache.get(key);
@@ -201,13 +261,10 @@ function makeBg(S){
     for(let x=0;x<S;x++){
       const dx=x+0.5-c, dist=Math.sqrt(dx*dx+dy*dy);
       if(dist>c+1) continue;
-      const r=dist/c, a=Math.atan2(dy,dx);
-      const circ=6.2832*dist, aa=k=>clamp((circ/k-2)/3,0,1); // fade texture where it would alias
+      const r=dist/c, a=Math.atan2(dy,dx), circ=6.2832*dist, aa=k=>clamp((circ/k-2)/3,0,1);
       const fine=br*(0.035*aa(720)*Math.sin(a*720+1.3)+0.025*aa(1440)*Math.sin(a*1440+4.1)+0.03*aa(360)*Math.sin(a*360+2.7));
-      let shade=(1-0.55*Math.pow(r,1.6))*(1+sw*Math.cos(2*(a+L))+fine);
-      shade=clamp(shade,0,1.4);
-      const t=clamp((shade-0.45)/0.95,0,1);
-      const e=clamp(1.08-ed*clamp(r-0.8,0,1)/0.2,0.45,1.1);
+      const shade=clamp((1-0.55*Math.pow(r,1.6))*(1+sw*Math.cos(2*(a+L))+fine),0,1.4);
+      const t=clamp((shade-0.45)/0.95,0,1), e=clamp(1.08-ed*clamp(r-0.8,0,1)/0.2,0.45,1.1);
       const i=(y*S+x)*4;
       d[i]=(b[0]+(h[0]-b[0])*t)*e; d[i+1]=(b[1]+(h[1]-b[1])*t)*e; d[i+2]=(b[2]+(h[2]-b[2])*t)*e;
       d[i+3]=255*clamp(c-dist+0.5,0,1);
@@ -215,181 +272,290 @@ function makeBg(S){
   }
   ctx.putImageData(img,0,0);
   if(bgCache.size>6) bgCache.delete(bgCache.keys().next().value);
-  bgCache.set(key,cv);
-  return cv;
+  bgCache.set(key,cv); return cv;
 }
 
 // ---------- geometry ----------
 function P(c,ang,rad){const t=(ang-90)*Math.PI/180;return[c+rad*Math.cos(t),c+rad*Math.sin(t)]}
 function quad(c,ang,r0,r1,w0,w1){
-  const t=(ang-90)*Math.PI/180, nx=-Math.sin(t), ny=Math.cos(t);
-  const p0=P(c,ang,r0), p1=P(c,ang,r1);
+  const t=(ang-90)*Math.PI/180,nx=-Math.sin(t),ny=Math.cos(t),p0=P(c,ang,r0),p1=P(c,ang,r1);
   return[[p0[0]+nx*w0,p0[1]+ny*w0],[p1[0]+nx*w1,p1[1]+ny*w1],[p1[0]-nx*w1,p1[1]-ny*w1],[p0[0]-nx*w0,p0[1]-ny*w0]];
 }
 function poly(ctx,pts){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath()}
-
-// Each marker: {type:'poly'|'circle', outer, inner}
 function markers(c,R){
-  const out=[], k=state.markerScale, outerR=R*0.885;
-  const baton=(ang,len,w,iw)=>({type:'poly',
-    outer:quad(c,ang,outerR-R*len*k,outerR,R*w*k,R*w*k),
-    inner:quad(c,ang,outerR-R*len*k+R*0.022,outerR-R*0.02,R*iw*k,R*iw*k)});
+  const out=[],k=state.markerScale,oR=R*0.885;
+  const baton=(ang,len,w,iw)=>({type:'poly',outer:quad(c,ang,oR-R*len*k,oR,R*w*k,R*w*k),inner:quad(c,ang,oR-R*len*k+R*0.022,oR-R*0.02,R*iw*k,R*iw*k)});
   const dot=(ang,rr,ir)=>{const p=P(c,ang,R*0.80);return{type:'circle',x:p[0],y:p[1],outer:R*rr*k,inner:R*ir*k}};
   for(let hr=1;hr<12;hr++){
-    const ang=hr*30, major=hr%3===0;
+    const ang=hr*30,major=hr%3===0;
     if(state.indexStyle==='baton') out.push(major?baton(ang,0.265,0.040,0.024):baton(ang,0.205,0.026,0.012));
     else if(state.indexStyle==='round') out.push(major?dot(ang,0.058,0.042):dot(ang,0.044,0.030));
   }
   if(state.indexStyle!=='none'){
     if(state.twelve==='twin'){
-      for(const off of[-3.2,3.2]) out.push({type:'poly',
-        outer:quad(c,off,outerR-R*0.285*k,outerR,R*0.022*k,R*0.034*k),
-        inner:quad(c,off,outerR-R*0.285*k+R*0.025,outerR-R*0.02,R*0.010*k,R*0.020*k)});
-    }else if(state.twelve==='single'){
-      out.push(baton(0,0.285,0.058,0.040));
-    }else{
-      out.push({type:'poly',outer:[P(c,0,outerR-R*0.25*k),...quad(c,0,outerR,outerR,R*0.075*k,R*0.075*k).slice(1,3)].map(p=>p),
-        inner:[P(c,0,outerR-R*0.25*k+R*0.05),...quad(c,0,outerR-R*0.02,outerR-R*0.02,R*0.05*k,R*0.05*k).slice(1,3)]});
-    }
+      for(const off of[-3.2,3.2]) out.push({type:'poly',outer:quad(c,off,oR-R*0.285*k,oR,R*0.022*k,R*0.034*k),inner:quad(c,off,oR-R*0.285*k+R*0.025,oR-R*0.02,R*0.010*k,R*0.020*k)});
+    }else if(state.twelve==='single') out.push(baton(0,0.285,0.058,0.040));
+    else out.push({type:'poly',outer:[P(c,0,oR-R*0.25*k),...quad(c,0,oR,oR,R*0.075*k,R*0.075*k).slice(1,3)],
+      inner:[P(c,0,oR-R*0.25*k+R*0.05),...quad(c,0,oR-R*0.02,oR-R*0.02,R*0.05*k,R*0.05*k).slice(1,3)]});
   }
   return out;
 }
-function shapePath(ctx,m,which){
-  if(m.type==='circle'){ctx.beginPath();ctx.arc(m.x,m.y,which==='outer'?m.outer:m.inner,0,Math.PI*2)}
-  else poly(ctx,m[which]);
+function shapePath(ctx,m,w){if(m.type==='circle'){ctx.beginPath();ctx.arc(m.x,m.y,w==='outer'?m.outer:m.inner,0,Math.PI*2)}else poly(ctx,m[w])}
+
+// ---------- emblems (drawn in a 100 × 100 box) ----------
+function facets(ctx,list,gap){
+  list.forEach(f=>{
+    const cx=f.reduce((s,p)=>s+p[0],0)/f.length, cy=f.reduce((s,p)=>s+p[1],0)/f.length;
+    ctx.beginPath();
+    f.forEach((p,i)=>{const dx=p[0]-cx,dy=p[1]-cy,l=Math.hypot(dx,dy)||1,s=Math.max(0,l-gap)/l;
+      const x=cx+dx*s,y=cy+dy*s; i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+    ctx.closePath();ctx.fill();
+  });
+}
+const LOGOS = {
+  none:{label:'None',draw(){}},
+  crown:{label:'Crown',draw(ctx){
+    ctx.fill(new Path2D('M14 70 L19 30 L35 49 L50 16 L65 49 L81 30 L86 70 Z M13 76 H87 V89 H13 Z M50 78.5 L54.5 82.5 L50 86.5 L45.5 82.5 Z M50 46 L54 52 L50 58 L46 52 Z'),'evenodd');
+  }},
+  diamond:{label:'Diamond',draw(ctx){
+    const A=[33,22],B=[67,22],M=[50,22],C=[18,40],D=[82,40],G1=[39,40],G2=[61,40],E=[50,86];
+    facets(ctx,[[C,A,G1],[A,M,G1],[G1,M,G2],[M,B,G2],[G2,B,D],[C,G1,E],[G1,G2,E],[G2,D,E]],1.6);
+  }},
+  star:{label:'Star',draw(ctx){
+    ctx.fill(new Path2D('M50 8 L57.5 42.5 L92 50 L57.5 57.5 L50 92 L42.5 57.5 L8 50 L42.5 42.5 Z'));
+  }},
+  compass:{label:'Compass',draw(ctx){
+    ctx.lineWidth=3.2;ctx.beginPath();ctx.arc(50,50,40,0,Math.PI*2);ctx.stroke();
+    ctx.fill(new Path2D('M50 14 L55 45 L86 50 L55 55 L50 86 L45 55 L14 50 L45 45 Z'));
+    ctx.fill(new Path2D('M50 50 L71 29 L56 50 L71 71 L50 50 L29 71 L44 50 L29 29 Z'));
+  }},
+  anchor:{label:'Anchor',draw(ctx){
+    ctx.fill(new Path2D('M58 18 A8 8 0 1 0 42 18 A8 8 0 1 0 58 18 Z M54 18 A4 4 0 1 1 46 18 A4 4 0 1 1 54 18 Z'),'evenodd');
+    ctx.fillRect(46.5,25,7,60); ctx.fillRect(31,33,38,6);
+    ctx.lineWidth=6;ctx.lineCap='butt';ctx.beginPath();ctx.moveTo(20,60);ctx.quadraticCurveTo(24,86,50,86);ctx.quadraticCurveTo(76,86,80,60);ctx.stroke();
+    ctx.fill(new Path2D('M12 66 L20 50 L29 64 Z M88 66 L80 50 L71 64 Z'));
+  }},
+  wave:{label:'Wave',draw(ctx){
+    ctx.lineWidth=5.5;ctx.lineCap='round';
+    for(let i=0;i<3;i++){const y=34+i*15;ctx.beginPath();ctx.moveTo(12,y);
+      for(let s=0;s<4;s++){const x=12+s*19;ctx.quadraticCurveTo(x+4.75,y-8,x+9.5,y);ctx.quadraticCurveTo(x+14.25,y+8,x+19,y)}
+      ctx.stroke()}
+  }},
+  shield:{label:'Shield',draw(ctx){
+    ctx.fill(new Path2D('M50 8 L84 18 V46 C84 68 70 82 50 92 C30 82 16 68 16 46 V18 Z M30 42 L50 56 L70 42 V51 L50 65 L30 51 Z'),'evenodd');
+  }},
+  monogram:{label:'Monogram',draw(ctx){
+    ctx.lineWidth=3;ctx.beginPath();ctx.arc(50,50,42,0,Math.PI*2);ctx.stroke();
+    ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(50,50,36.5,0,Math.PI*2);ctx.stroke();
+    let t=(state.monogram||'M'); if(state.caps==='upper') t=t.toUpperCase();
+    const px=t.length>2?30:t.length>1?38:46;
+    ctx.font=`${state.weight} ${px}px ${FONTS[state.font]}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    const m=ctx.measureText(t),cap=m.actualBoundingBoxAscent||px*0.66;
+    ctx.fillText(t,50,50+cap/2);
+  }},
+  custom:{label:'Upload',draw(ctx){
+    if(!logoImage||!logoImage.complete||!logoImage.naturalWidth){ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.strokeRect(14,14,72,72);return}
+    const iw=logoImage.naturalWidth,ih=logoImage.naturalHeight,s=100/Math.max(iw,ih);
+    const w=iw*s,h=ih*s,x=50-w/2,y=50-h/2;
+    if(state.logoFinish==='flat'||state._tint){
+      const t=document.createElement('canvas');t.width=Math.ceil(w*8);t.height=Math.ceil(h*8);
+      const tc=t.getContext('2d');tc.drawImage(logoImage,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';
+      tc.fillStyle=ctx.fillStyle;tc.fillRect(0,0,t.width,t.height);ctx.drawImage(t,x,y,w,h);
+    }else ctx.drawImage(logoImage,x,y,w,h);
+  }},
+};
+let logoImage=null;
+function setLogoImage(src){
+  if(!src){logoImage=null;return}
+  logoImage=new Image();logoImage.onload=schedule;logoImage.src=src;
+}
+function drawEmblem(ctx,cx,cy,size,R,{thumb=false}={}){
+  const L=LOGOS[state.logo]; if(!L||state.logo==='none') return;
+  ctx.save();
+  ctx.translate(cx-size/2,cy-size/2); ctx.scale(size/100,size/100);
+  let paint=state.logoColor;
+  if(state.logoFinish==='metal'){
+    const g=ctx.createLinearGradient(0,0,0,100);
+    g.addColorStop(0,tint(state.logoColor,0.45));g.addColorStop(0.5,tint(state.logoColor,-0.28));g.addColorStop(1,tint(state.logoColor,0.3));
+    paint=g;
+    if(!thumb){ctx.shadowColor='rgba(0,12,10,0.55)';ctx.shadowBlur=R*0.022;ctx.shadowOffsetX=R*0.009;ctx.shadowOffsetY=R*0.014}
+  }
+  ctx.fillStyle=paint; ctx.strokeStyle=paint;
+  if(state.logo==='custom'&&state.logoFinish==='metal'){ctx.fillStyle=state.logoColor}
+  L.draw(ctx);
+  ctx.restore();
 }
 
-function spacedText(ctx,txt,y,px,color,spacing,family,weight){
+// ---------- typography ----------
+function prep(t){return state.caps==='upper'?t.toUpperCase():t}
+function textLine(ctx,txt,cy,px,color,tracking,weight){
   if(!txt) return;
-  ctx.font=`${weight} ${px}px ${family}`; ctx.fillStyle=color; ctx.textBaseline='middle'; ctx.textAlign='left';
-  const chars=[...txt], w=chars.map(ch=>ctx.measureText(ch).width);
-  const total=w.reduce((a,b)=>a+b,0)+spacing*(chars.length-1);
-  let x=ctx.canvas.width/2-total/2;
-  chars.forEach((ch,i)=>{ctx.fillText(ch,x,y);x+=w[i]+spacing});
+  txt=prep(txt);
+  const fam=FONTS[state.font]||FONTS.serif, S=ctx.canvas.width, ls=px*tracking/1000;
+  ctx.font=`${weight} ${px}px ${fam}`; ctx.fillStyle=color; ctx.textBaseline='alphabetic'; ctx.textAlign='left';
+  if('fontKerning' in ctx) ctx.fontKerning=state.kerning;
+  const cap=ctx.measureText('H').actualBoundingBoxAscent||px*0.68;
+  const y=cy+cap/2;
+  if('letterSpacing' in ctx){
+    ctx.letterSpacing=ls+'px';
+    const w=ctx.measureText(txt).width;
+    ctx.fillText(txt,S/2-(w-ls)/2,y);
+    ctx.letterSpacing='0px';
+  }else{
+    const chars=[...txt],ws=chars.map(ch=>ctx.measureText(ch).width),tot=ws.reduce((a,b)=>a+b,0)+ls*(chars.length-1);
+    let x=S/2-tot/2; chars.forEach((ch,i)=>{ctx.fillText(ch,x,y);x+=ws[i]+ls});
+  }
+  return cap;
 }
 
 // ---------- full render ----------
 function render(S){
-  const cv=document.createElement('canvas'); cv.width=cv.height=S;
-  const ctx=cv.getContext('2d'); const c=S/2, R=S/2;
+  const cv=document.createElement('canvas');cv.width=cv.height=S;
+  const ctx=cv.getContext('2d'),c=S/2,R=S/2;
   if(state.transparent!=='true'){ctx.fillStyle='#000';ctx.fillRect(0,0,S,S)}
   ctx.drawImage(makeBg(S),0,0);
 
-  // minute track
-  if(state.track){
+  if(state.track==='on'){
     ctx.fillStyle=state.fineColor;
     for(let i=0;i<240;i++){if(i%4===0)continue;poly(ctx,quad(c,i*1.5,R*0.935,R*0.955,R*0.0018,R*0.0018));ctx.fill()}
     ctx.fillStyle=state.trackColor;
     for(let i=0;i<60;i++){if(i%5===0)continue;poly(ctx,quad(c,i*6,R*0.905,R*0.955,R*0.0045,R*0.0045));ctx.fill()}
-    ctx.strokeStyle=state.fineColor; ctx.lineWidth=R*0.004;
-    ctx.beginPath();ctx.arc(c,c,R*0.958,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=state.fineColor;ctx.lineWidth=R*0.004;ctx.beginPath();ctx.arc(c,c,R*0.958,0,Math.PI*2);ctx.stroke();
   }
 
-  // applied markers
   const ms=markers(c,R);
   const g=ctx.createLinearGradient(0,0,0,S);
-  g.addColorStop(0,tint(state.frame,0.25)); g.addColorStop(0.5,tint(state.frame,-0.32)); g.addColorStop(1,tint(state.frame,0.18));
-  ctx.save();
-  ctx.shadowColor='rgba(0,12,10,0.55)'; ctx.shadowBlur=R*0.028; ctx.shadowOffsetX=R*0.012; ctx.shadowOffsetY=R*0.018;
-  ctx.fillStyle=g; ms.forEach(m=>{shapePath(ctx,m,'outer');ctx.fill()});
-  ctx.restore();
-  ctx.fillStyle=state.lume; ms.forEach(m=>{shapePath(ctx,m,'inner');ctx.fill()});
+  g.addColorStop(0,tint(state.frame,0.25));g.addColorStop(0.5,tint(state.frame,-0.32));g.addColorStop(1,tint(state.frame,0.18));
+  ctx.save();ctx.shadowColor='rgba(0,12,10,0.55)';ctx.shadowBlur=R*0.028;ctx.shadowOffsetX=R*0.012;ctx.shadowOffsetY=R*0.018;
+  ctx.fillStyle=g;ms.forEach(m=>{shapePath(ctx,m,'outer');ctx.fill()});ctx.restore();
+  ctx.fillStyle=state.lume;ms.forEach(m=>{shapePath(ctx,m,'inner');ctx.fill()});
 
-  // text
-  const fam=FONTS[state.font]||FONTS.serif, off=R*state.textOffset/100;
-  spacedText(ctx,state.brand,c-R*0.36+off,R*state.brandSize/100,state.textColor,R*state.brandSpacing/100,fam,state.weight);
-  spacedText(ctx,state.sub,c-R*0.27+off+R*(state.brandSize-7.5)/200,R*state.subSize/100,state.subColor,R*0.012,fam,'400');
-  spacedText(ctx,state.bottom,c+R*0.34,R*state.subSize*1.05/100,state.subColor,R*0.010,fam,'400');
-  spacedText(ctx,state.bottom2,c+R*0.42,R*state.subSize*0.9/100,state.subColor,R*0.010,fam,'400');
+  // top text block: emblem, name, secondary line
+  const namePx=R*state.brandSize/100, subPx=namePx*state.subRatio/100;
+  const gapLines=(state.lineSpacing/100)*(namePx*0.75+subPx*0.75);
+  const nameY=c-R*0.36+R*state.textOffset/100;
+  const nameCap=textLine(ctx,state.brand,nameY,namePx,state.textColor,state.tracking,state.weight)||namePx*0.68;
+  textLine(ctx,state.sub,nameY+gapLines,subPx,state.subColor,state.subTracking,state.subWeight);
+  const ls=R*state.logoSize/100;
+  drawEmblem(ctx,c,nameY-nameCap/2-R*state.logoGap/100-ls/2,ls,R);
+
+  // lower text block
+  const lowY=c+R*0.34+R*state.lowerOffset/100;
+  textLine(ctx,state.bottom,lowY,subPx,state.subColor,state.subTracking,state.subWeight);
+  textLine(ctx,state.bottom2,lowY+(state.lineSpacing/100)*subPx*1.5,subPx*0.9,state.subColor,state.subTracking,state.subWeight);
   return cv;
 }
-
-// Supersample small sizes so 466 px output stays crisp
 function renderFor(size){
   let src=render(Math.max(size,1864));
-  while(src.width/2>=size){
-    const h=document.createElement('canvas'); h.width=h.height=src.width/2;
-    const hc=h.getContext('2d'); hc.imageSmoothingQuality='high'; hc.drawImage(src,0,0,h.width,h.height); src=h;
-  }
-  if(src.width!==size){const f=document.createElement('canvas');f.width=f.height=size;
-    const fc=f.getContext('2d');fc.imageSmoothingQuality='high';fc.drawImage(src,0,0,size,size);src=f}
+  while(src.width/2>=size){const h=document.createElement('canvas');h.width=h.height=src.width/2;
+    const hc=h.getContext('2d');hc.imageSmoothingQuality='high';hc.drawImage(src,0,0,h.width,h.height);src=h}
   return src;
 }
 
 // ---------- preview ----------
-const pv=document.getElementById('preview'), pctx=pv.getContext('2d');
+const pv=document.getElementById('preview'),pctx=pv.getContext('2d');
 let raf=0;
 function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(drawPreview)}
-function drawPreview(){
-  const S=pv.width, img=render(S);
-  pctx.clearRect(0,0,S,S); pctx.drawImage(img,0,0);
-}
-// ---------- bind controls ----------
-const inputs=[...document.querySelectorAll('[data-key]')];
-function syncInputs(){
-  inputs.forEach(el=>{
-    const k=el.dataset.key,v=state[k];
-    if(el.type==='checkbox') el.checked=!!v; else el.value=String(v);
-    const out=el.parentElement.querySelector('.val'); if(out) out.textContent=Number(el.value).toFixed(el.step&&el.step<1?2:0).replace(/\.00$/,'');
+function drawPreview(){pctx.clearRect(0,0,pv.width,pv.height);pctx.drawImage(render(pv.width),0,0);drawThumbs()}
+
+// ---------- emblem picker ----------
+const logoBox=document.getElementById('logos'),thumbs={};
+Object.entries(LOGOS).forEach(([k,L])=>{
+  const b=document.createElement('button');b.type='button';b.dataset.logo=k;b.setAttribute('aria-pressed','false');
+  const cv=document.createElement('canvas');cv.width=cv.height=72;thumbs[k]=cv;
+  b.appendChild(cv);b.appendChild(document.createTextNode(L.label));
+  b.onclick=()=>{state.logo=k;updateLogoUI();schedule()};
+  logoBox.appendChild(b);
+});
+function drawThumbs(){
+  Object.entries(thumbs).forEach(([k,cv])=>{
+    const ctx=cv.getContext('2d');ctx.clearRect(0,0,72,72);
+    if(k==='none'){ctx.strokeStyle='#9AA3A0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(36,36,22,0,Math.PI*2);ctx.moveTo(20,52);ctx.lineTo(52,20);ctx.stroke();return}
+    const saved=state.logo,savedC=state.logoColor,savedF=state.logoFinish;
+    state.logo=k;state.logoColor='#1E2B29';state.logoFinish='flat';
+    drawEmblem(ctx,36,36,60,36,{thumb:true});
+    state.logo=saved;state.logoColor=savedC;state.logoFinish=savedF;
   });
 }
+function updateLogoUI(){
+  logoBox.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.logo===state.logo)));
+  document.getElementById('monoRow').hidden=state.logo!=='monogram';
+  document.getElementById('logoFileRow').hidden=state.logo!=='custom';
+}
+
+// ---------- bind controls ----------
+const inputs=[...document.querySelectorAll('[data-key]')];
+const fmt=el=>{const st=parseFloat(el.step||1);const n=Number(el.value);const d=st<0.1?2:st<1?1:0;return(el.id.toLowerCase().includes('tracking')&&n>0?'+':'')+n.toFixed(d)};
+function syncInputs(){
+  inputs.forEach(el=>{el.value=String(state[el.dataset.key]);const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el)});
+  updateLogoUI();
+}
 inputs.forEach(el=>el.addEventListener('input',()=>{
-  const k=el.dataset.key;
-  state[k]=el.type==='checkbox'?el.checked:el.type==='range'?parseFloat(el.value):el.value;
-  const out=el.parentElement.querySelector('.val'); if(out) out.textContent=Number(el.value).toFixed(el.step&&el.step<1?2:0).replace(/\.00$/,'');
+  const k=el.dataset.key;state[k]=el.type==='range'?parseFloat(el.value):el.value;
+  const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el);
+  if(k==='font'||k==='weight'||k==='subWeight') ensureFont();
   schedule();
 }));
+document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{state[b.dataset.set]=b.dataset.val;syncInputs();schedule()}));
 
 const presetBox=document.getElementById('presets');
 PRESETS.forEach(p=>{
-  const b=document.createElement('button');b.className='swatch';b.style.background=p.swatch;b.title=p.name;
-  b.innerHTML=`<span>${p.name}</span>`;b.style.position='relative';
-  b.onclick=()=>{const keep={brand:state.brand,sub:state.sub,bottom:state.bottom,bottom2:state.bottom2,font:state.font};
-    state={...DEFAULTS,...p.v,...keep};syncInputs();schedule()};
+  const b=document.createElement('button');b.className='swatch';b.style.background=p.swatch;b.title=p.name;b.innerHTML=`<span class="vh">${p.name}</span>`;
+  b.onclick=()=>{const dialKeys=['base','high','trackColor','fineColor','frame','lume','brush'];
+    const next={...state};dialKeys.forEach(k=>next[k]=DEFAULTS[k]);
+    if(p.v.textColor===undefined){next.textColor=state.textColor;next.subColor=state.subColor}
+    state={...next,...p.v};syncInputs();schedule()};
   presetBox.appendChild(b);
 });
+const tpBox=document.getElementById('typePresets');
+TYPE_PRESETS.forEach(p=>{const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=p.name;
+  b.onclick=()=>{state={...state,...p.v};syncInputs();ensureFont();schedule()};tpBox.appendChild(b)});
 
 const status=document.getElementById('status');
-document.getElementById('fontFile').addEventListener('change',async e=>{
-  const f=e.target.files[0]; if(!f) return;
+async function ensureFont(){
+  const fam=WEBFONT[state.font]; if(!fam) return;
   try{
-    const face=new FontFace('UserFont',await f.arrayBuffer()); await face.load(); document.fonts.add(face);
-    state.font='custom'; syncInputs(); schedule(); status.textContent=`Using ${f.name}.`;
-  }catch(err){status.textContent='That font file could not be read. Try a .ttf, .otf or .woff file.'}
+    await Promise.all([document.fonts.load(`${state.weight} 40px "${fam}"`),document.fonts.load(`${state.subWeight} 40px "${fam}"`)]);
+    const ok=[...document.fonts].some(f=>f.family.replace(/["']/g,'')===fam&&f.status==='loaded');
+    document.getElementById('fontNote').textContent=ok
+      ?'Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).'
+      :`${fam} couldn't be downloaded here, so a similar serif is shown. Open the file in a regular browser while online, or upload the font file.`;
+  }catch(e){}
+  schedule();
+}
+document.fonts.addEventListener&&document.fonts.addEventListener('loadingdone',schedule);
+
+document.getElementById('fontFile').addEventListener('change',async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{const face=new FontFace('UserFont',await f.arrayBuffer());await face.load();document.fonts.add(face);
+    state.font='custom';syncInputs();schedule();status.textContent=`Using ${f.name}.`}
+  catch{status.textContent='That font file could not be read. Try a .ttf, .otf or .woff file.'}
+});
+document.getElementById('logoFile').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{state.logoImg=r.result;state.logo='custom';setLogoImage(r.result);updateLogoUI();schedule();status.textContent=`Emblem loaded from ${f.name}.`};
+  r.readAsDataURL(f);
 });
 
-function download(blob,name){
-  const url=URL.createObjectURL(blob),a=document.createElement('a');
-  a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(url),60000);
-}
+function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
 document.getElementById('exportBtn').onclick=()=>{
   const size=parseInt(document.getElementById('size').value);
   status.textContent=size>=1864?'Rendering… large sizes take a few seconds.':'Rendering…';
-  setTimeout(()=>{
-    const cv=renderFor(size);
-    cv.toBlob(blob=>{
-      const name=`${(state.brand||'dial').toLowerCase().replace(/[^a-z0-9]+/g,'-')}_dial_${size}.png`;
-      download(blob,name);
-      const img=document.getElementById('result'); img.src=URL.createObjectURL(blob); img.style.display='block';
-      document.getElementById('resultHint').hidden=false;
-      status.textContent=`Exported ${name}.`;
-    },'image/png');
-  },30);
+  setTimeout(()=>{renderFor(size).toBlob(blob=>{
+    const name=`${(state.brand||'dial').toLowerCase().replace(/[^a-z0-9]+/g,'-')}_dial_${size}.png`;
+    download(blob,name);const img=document.getElementById('result');img.src=URL.createObjectURL(blob);img.style.display='block';
+    document.getElementById('resultHint').hidden=false;status.textContent=`Exported ${name}.`},'image/png')},30);
 };
-document.getElementById('saveBtn').onclick=()=>{
-  download(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'dial_settings.json');
-  status.textContent='Settings saved as dial_settings.json.';
-};
+document.getElementById('saveBtn').onclick=()=>{download(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'dial_settings.json');status.textContent='Settings saved as dial_settings.json.'};
 document.getElementById('loadBtn').onclick=()=>document.getElementById('loadFile').click();
 document.getElementById('loadFile').addEventListener('change',async e=>{
-  const f=e.target.files[0]; if(!f) return;
-  try{state={...DEFAULTS,...JSON.parse(await f.text())};syncInputs();schedule();status.textContent=`Loaded ${f.name}.`}
+  const f=e.target.files[0];if(!f)return;
+  try{state={...DEFAULTS,...JSON.parse(await f.text())};setLogoImage(state.logoImg);syncInputs();ensureFont();schedule();status.textContent=`Loaded ${f.name}.`}
   catch{status.textContent='That file is not a valid settings file.'}
 });
-document.getElementById('resetBtn').onclick=()=>{state={...DEFAULTS};syncInputs();schedule();status.textContent='Reset to the original design.'};
+document.getElementById('resetBtn').onclick=()=>{state={...DEFAULTS};setLogoImage('');syncInputs();ensureFont();schedule();status.textContent='Reset to the original design.'};
 
-syncInputs(); drawPreview();
+syncInputs();drawPreview();ensureFont();
 </script>
 </body>
 </html>
