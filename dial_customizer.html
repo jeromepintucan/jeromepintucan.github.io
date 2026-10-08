@@ -8,331 +8,244 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root{--bench:#DCDFDB;--panel:#F3F4F1;--ink:#1E2B29;--muted:#5D6A67;--line:#C5CAC5;--brass:#9C7A45;--stage:#262B2A}
+  :root{--bench:#DCDFDB;--panel:#F3F4F1;--ink:#1E2B29;--muted:#5D6A67;--line:#C9CEC9;--brass:#9C7A45}
   *{box-sizing:border-box}
   [hidden]{display:none!important}
-  body{margin:0;background:var(--bench);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 420px;min-height:100vh}
-  .stage{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:28px;
-    background:radial-gradient(circle at 50% 42%,#343B39 0%,var(--stage) 62%,#1A1E1D 100%)}
-  .case{width:min(72vh,82vw,600px);aspect-ratio:1;border-radius:50%;padding:3.2%;
-    background:conic-gradient(from 20deg,#8C9294,#E3E6E6,#7E8486,#D2D6D6,#8C9294);
+  body{margin:0;background:var(--bench);color:var(--ink);font:14.5px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 450px;height:100vh}
+  .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:radial-gradient(circle at 50% 42%,#343B39 0%,#262B2A 62%,#1A1E1D 100%);color:#DDE3E1}
+  .toolbar{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;padding:10px 16px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .toolbar .grp{display:flex;gap:6px;align-items:center}
+  .toolbar .lbl{color:#9FAAA7}
+  .tb{background:transparent;border:1px solid rgba(255,255,255,.22);color:#DDE3E1;padding:4px 9px;border-radius:6px;font:inherit;cursor:pointer}
+  .tb[aria-pressed=true]{background:#DDE3E1;color:#1E2B29;border-color:#DDE3E1}
+  .toolbar label{display:flex;gap:5px;align-items:center;cursor:pointer}
+  .viewport{flex:1;overflow:auto;display:grid;place-items:center;padding:30px;min-height:0}
+  .case{position:relative;border-radius:50%;background:conic-gradient(from 20deg,#8C9294,#E3E6E6,#7E8486,#D2D6D6,#8C9294);
     box-shadow:0 30px 60px rgba(0,0,0,.45),inset 0 0 0 2px rgba(255,255,255,.25)}
-  .case canvas{width:100%;height:100%;display:block;border-radius:50%;background:#000}
-  .case.rect{width:auto;height:min(74vh,640px);max-width:82vw;aspect-ratio:408/480;border-radius:22%/19%;padding:4.2%;
-    background:linear-gradient(135deg,#B7BCBE,#E8EBEB 30%,#8D9395 60%,#D4D8D9)}
-  .case.rect canvas{border-radius:var(--cr,19%)/var(--crv,16%)}
+  .case.rect{border-radius:22%/19%;background:linear-gradient(135deg,#B7BCBE,#E8EBEB 30%,#8D9395 60%,#D4D8D9)}
+  .screen{position:relative;border-radius:50%;overflow:hidden;background:#000}
+  .case.rect .screen{border-radius:var(--cr,19%)/var(--crv,16%)}
+  .screen canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #preview{cursor:pointer}
+  #guides{pointer-events:none}
+  .caption{text-align:center;color:#B9C2BF;font-size:12.5px;padding:0 0 12px}
+  aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:22px 22px 60px}
+  h1{font:600 25px/1.15 "EB Garamond","Iowan Old Style",Palatino,Georgia,serif;margin:0 0 4px}
+  .intro{color:var(--muted);margin:0 0 12px;max-width:44ch}
+  details.sec{border-top:1px solid var(--line)}
+  details.sec > summary{cursor:pointer;list-style:none;padding:13px 0;font:600 17.5px "EB Garamond","Iowan Old Style",Palatino,Georgia,serif;display:flex;justify-content:space-between;align-items:center}
+  details.sec > summary::after{content:"+";font:400 18px system-ui;color:var(--muted)}
+  details.sec[open] > summary::after{content:"–"}
+  details.sec > .body{padding:0 0 16px}
+  .row{display:grid;grid-template-columns:138px 1fr;gap:10px;align-items:center;margin:7px 0}
+  .row > *{min-width:0}
+  .row > label{color:var(--muted);font-size:13px}
+  input[type=text],input[type=number],select{width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;font:inherit;color:var(--ink)}
+  input[type=color]{width:40px;height:28px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;flex:none}
+  .pair{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  input[type=range]{flex:1;min-width:0;accent-color:var(--brass)}
+  .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:42px;text-align:right}
+  button{font:inherit;padding:7px 12px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
+  button.ghost{background:transparent;color:var(--ink)}
+  button.chip{padding:3px 9px;font-size:12.5px;background:#fff;color:var(--ink);border-color:var(--line)}
+  .hint{font-size:12.5px;color:var(--muted);margin:6px 0}
+  .sub{font:600 15px "EB Garamond",Georgia,serif;margin:14px 0 2px}
+  .presets{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 8px}
+  .swatch{width:36px;height:36px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+  .vh{position:absolute;left:-9999px}
+  .picker{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:4px 0 8px}
+  .picker button{background:#fff;border:1px solid var(--line);color:var(--ink);padding:5px 2px 4px;font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .picker button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+  .picker canvas{width:34px;height:34px}
   .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .seg button{background:#fff;color:var(--ink);border:1px solid var(--line);text-align:left;padding:9px 11px;display:flex;flex-direction:column;gap:2px}
-  .seg button b{font-weight:600;font-size:14px}
+  .seg button{background:#fff;color:var(--ink);border:1px solid var(--line);text-align:left;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
+  .seg button b{font-weight:600;font-size:13.5px}
   .seg button span{font-size:12px;color:var(--muted)}
   .seg button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-  .stage p{margin:0;color:#B9C2BF;font-size:13px}
-  aside{background:var(--panel);border-left:1px solid var(--line);padding:26px 24px 40px;overflow:auto;max-height:100vh}
-  h1{font:600 26px/1.15 "EB Garamond","Iowan Old Style",Palatino,Georgia,serif;margin:0 0 6px}
-  .intro{color:var(--muted);margin:0 0 18px;max-width:42ch}
-  fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:16px 0 18px}
-  legend{font:600 18px "EB Garamond","Iowan Old Style",Palatino,Georgia,serif;padding:0 0 4px}
-  .row{display:grid;grid-template-columns:128px 1fr;gap:10px;align-items:center;margin:9px 0}
-  .row > *{min-width:0}
-  .row > label{color:var(--muted);font-size:13.5px}
-  input[type=text],select{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:#fff;font:inherit;color:var(--ink)}
-  input[type=color]{width:44px;height:30px;padding:0;border:1px solid var(--line);border-radius:6px;background:#fff;flex:none}
-  .pair{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  input[type=range]{flex:1;min-width:0;accent-color:var(--brass)}
-  .val{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px;min-width:38px;text-align:right}
-  .presets{display:flex;gap:10px;flex-wrap:wrap;margin:6px 0 2px}
-  .swatch{width:38px;height:38px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
-  .vh{position:absolute;left:-9999px}
-  button{font:inherit;padding:8px 13px;border-radius:7px;border:1px solid var(--ink);background:var(--ink);color:#fff;cursor:pointer}
-  button.ghost{background:transparent;color:var(--ink)}
-  button.chip{padding:4px 10px;font-size:13px;background:#fff;color:var(--ink);border-color:var(--line)}
-  .logos{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-  .logos button{background:#fff;border:1px solid var(--line);color:var(--ink);padding:6px 2px 4px;font-size:11.5px;display:flex;flex-direction:column;align-items:center;gap:2px}
-  .logos button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
-  .logos canvas{width:36px;height:36px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+  .tabs button{background:#fff;color:var(--ink);border:1px solid var(--line);padding:5px 12px}
+  .tabs button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+  details.line{border:1px solid var(--line);border-radius:8px;background:#fff;margin:8px 0;padding:0 12px}
+  details.line[open]{padding-bottom:8px}
+  details.line summary{cursor:pointer;padding:9px 0;font:600 15px "EB Garamond",Georgia,serif}
+  details.line summary span{font:400 12.5px system-ui,sans-serif;color:var(--muted);margin-left:6px}
+  .layers{list-style:none;margin:6px 0;padding:0}
+  .layers li{display:grid;grid-template-columns:18px 22px 1fr 76px 92px 24px 24px;gap:6px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:7px;padding:5px 7px;margin:5px 0;font-size:12.5px}
+  .layers li.drag{opacity:.4}
+  .layers li.over{border-color:var(--brass);box-shadow:0 -2px 0 var(--brass)}
+  .layers .handle{cursor:grab;color:var(--muted);text-align:center;user-select:none}
+  .layers select{padding:3px 4px;font-size:12px}
+  .layers input[type=range]{width:100%}
+  .layers .mv{padding:0;width:24px;height:24px;background:#fff;color:var(--ink);border-color:var(--line);font-size:12px}
   .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
   :focus-visible{outline:2px solid var(--brass);outline-offset:2px}
   .status{font-size:13px;color:var(--muted);min-height:1.4em;margin-top:8px}
-  #result{max-width:160px;margin-top:10px;display:none;border-radius:50%}
-  .hint{font-size:12.5px;color:var(--muted);margin:4px 0 0}
-  .file{font-size:13px}
+  #result{max-width:150px;margin-top:10px;display:none}
+  .file{font-size:12.5px}
   .flash{animation:flash 1.2s ease-out}
   @keyframes flash{0%{background:#E9DFC9}100%{background:transparent}}
   @media (prefers-reduced-motion:reduce){.flash{animation:none}}
-  #preview{cursor:pointer}
-  details.line{border:1px solid var(--line);border-radius:8px;background:#fff;margin:8px 0;padding:0 12px}
-  details.line[open]{padding-bottom:8px}
-  details.line summary{cursor:pointer;padding:10px 0;font:600 15px "EB Garamond",Georgia,serif;list-style-position:inside}
-  details.line summary span{font:400 12.5px system-ui,sans-serif;color:var(--muted);margin-left:6px}
-  .sub{font:600 15px "EB Garamond",Georgia,serif;margin:14px 0 2px;color:var(--ink)}
-  @media (max-width:900px){
-    .wrap{grid-template-columns:1fr}
-    .stage{position:relative;height:auto;padding:24px 16px}
-    .case{width:min(86vw,520px)}
-    aside{max-height:none;border-left:0;border-top:1px solid var(--line)}
+  @media (max-width:980px){
+    .wrap{grid-template-columns:1fr;height:auto}
+    .stage{height:78vh;position:sticky;top:0;z-index:2}
+    aside{border-left:0;border-top:1px solid var(--line)}
   }
 </style>
 </head>
 <body>
 <div class="wrap">
   <section class="stage" aria-label="Preview">
-    <div class="case" id="case"><canvas id="preview" width="932" height="932" aria-label="Dial preview"></canvas></div>
-    <p id="caption">Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px</p>
+    <div class="toolbar">
+      <div class="grp" role="group" aria-label="Preview zoom"><span class="lbl">Zoom</span>
+        <button class="tb" data-zoom="1" aria-pressed="true">100%</button>
+        <button class="tb" data-zoom="2" aria-pressed="false">200%</button>
+        <button class="tb" data-zoom="4" aria-pressed="false">400%</button>
+        <button class="tb" data-zoom="actual" aria-pressed="false">Actual pixels</button>
+      </div>
+      <div class="grp"><span class="lbl">Preview</span>
+        <label><input type="checkbox" data-ui="lightPrev" checked> Lighting</label>
+        <label><input type="checkbox" data-ui="texPrev" checked> Texture</label>
+      </div>
+      <div class="grp"><span class="lbl">Guides</span>
+        <label><input type="checkbox" data-ui="gCenter"> Center lines</label>
+        <label><input type="checkbox" data-ui="gGrid"> Hour grid</label>
+        <label><input type="checkbox" data-ui="gSafe"> Safe area</label>
+      </div>
+    </div>
+    <div class="viewport" id="viewport">
+      <div class="case" id="case"><div class="screen" id="screen">
+        <canvas id="preview" width="932" height="932" aria-label="Dial preview"></canvas>
+        <canvas id="guides" width="932" height="932" aria-hidden="true"></canvas>
+      </div></div>
+    </div>
+    <div class="caption" id="caption"></div>
   </section>
 
-  <aside>
+  <aside id="panel">
     <h1>Dial customizer</h1>
-    <p class="intro">Change the emblem, text, finish and markers, then export a background for Theme Studio.</p>
-
-    <fieldset>
-      <legend>Watch</legend>
-      <div class="seg" role="group" aria-label="Watch shape">
-        <button type="button" data-shape="round" aria-pressed="true"><b>Round</b><span>GT 7 Pro · 466 × 466</span></button>
-        <button type="button" data-shape="rect" aria-pressed="false"><b>43.2 × 36.3 × 9.9 mm</b><span>Watch Fit 3 · 408 × 480</span></button>
-      </div>
-      <div class="row" id="cornerRow"><label for="cornerR">Screen corners</label><div class="pair"><input type="range" id="cornerR" data-key="cornerR" min="20" max="160" step="1"><span class="val"></span></div></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Dial color</legend>
-      <div class="presets" id="presets"></div>
-    </fieldset>
-
-    <fieldset id="twelveSet">
-      <legend>Top hour marker (12 o'clock)</legend>
-      <p class="hint" style="margin:0 0 8px">Tip: click the top marker on the watch preview to jump here.</p>
-      <div class="logos" id="twelveBox" role="group" aria-label="12 o'clock marker shape"></div>
-      <div class="row" id="m12FileRow"><label for="m12File">Your image</label><input class="file" type="file" id="m12File" accept=".png,.svg,.webp,image/png,image/svg+xml,image/webp"></div>
-      <div class="row" id="m12ModeRow"><label for="m12ImgMode">Image color</label>
-        <select id="m12ImgMode" data-key="m12ImgMode"><option value="original">Original colors</option><option value="metal">Metal (frame color)</option><option value="fill">Fill color</option></select></div>
-      <div class="row"><label for="m12Len">Length</label><div class="pair"><input type="range" id="m12Len" data-key="m12Len" min="0.10" max="0.40" step="0.005"><span class="val"></span></div></div>
-      <div class="row"><label for="m12Width">Width</label><div class="pair"><input type="range" id="m12Width" data-key="m12Width" min="0.010" max="0.070" step="0.001"><span class="val"></span></div></div>
-      <div class="row" id="gapRow"><label for="m12Gap">Spacing between</label><div class="pair"><input type="range" id="m12Gap" data-key="m12Gap" min="1" max="8" step="0.1"><span class="val"></span></div></div>
-      <div class="row"><label for="m12Taper">Taper</label><div class="pair"><input type="range" id="m12Taper" data-key="m12Taper" min="0" max="0.85" step="0.01"><span class="val"></span></div></div>
-      <div class="row"><label for="m12Frame">Frame thickness</label><div class="pair"><input type="range" id="m12Frame" data-key="m12Frame" min="0.003" max="0.030" step="0.001"><span class="val"></span></div></div>
-      <div class="row"><label for="m12Fill">Inside</label>
-        <select id="m12Fill" data-key="m12Fill"><option value="lume">Lume fill</option><option value="polished">Polished facet</option><option value="solid">Solid metal</option></select></div>
-      <div class="row"><label for="m12Colors">Colors</label>
-        <select id="m12Colors" data-key="m12Colors"><option value="match">Same as other markers</option><option value="custom">Custom</option></select></div>
-      <div class="row" id="m12ColorRow"><label>Custom colors</label><div class="pair">
-        <input type="color" data-key="m12FrameC" aria-label="12 o'clock frame color">
-        <input type="color" data-key="m12LumeC" aria-label="12 o'clock fill color">
-        <span class="hint">Frame, fill</span></div></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Emblem</legend>
-      <div class="logos" id="logos" role="group" aria-label="Emblem"></div>
-      <div class="row" id="monoRow"><label for="monogram">Monogram letters</label><input type="text" id="monogram" data-key="monogram" maxlength="3"></div>
-      <div class="row" id="logoFileRow"><label for="logoFile">Your own emblem</label><input class="file" type="file" id="logoFile" accept=".png,.svg,.webp,image/png,image/svg+xml,image/webp"></div>
-      <div class="row"><label for="logoFinish">Finish</label>
-        <select id="logoFinish" data-key="logoFinish"><option value="metal">Applied metal</option><option value="flat">Printed</option></select></div>
-      <div class="row"><label>Color</label><div class="pair">
-        <input type="color" data-key="logoColor" aria-label="Emblem color">
-        <button class="chip" data-set="logoColor" data-val="#FFFFFF">White</button>
-        <button class="chip" data-set="logoColor" data-val="#D9D9D9">Silver</button>
-        <button class="chip" data-set="logoColor" data-val="#D3B57E">Gold</button></div></div>
-      <div class="row"><label for="logoSize">Size</label><div class="pair"><input type="range" id="logoSize" data-key="logoSize" min="5" max="22" step="0.1"><span class="val"></span></div></div>
-      <div class="row"><label for="logoGap">Gap above name</label><div class="pair"><input type="range" id="logoGap" data-key="logoGap" min="-2" max="10" step="0.1"><span class="val"></span></div></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Typography</legend>
-      <div class="row"><label>Type style</label><div class="pair" id="typePresets"></div></div>
-      <div class="row"><label for="font">Font family</label>
-        <select id="font" data-key="font">
-          <option value="ebg">EB Garamond</option>
-          <option value="cormorant">Cormorant Garamond</option>
-          <option value="baskerville">Baskerville</option>
-          <option value="serif">Georgia</option>
-          <option value="didone">Didot / Bodoni</option>
-          <option value="sans">Helvetica</option>
-          <option value="geo">Futura</option>
-          <option value="custom">Uploaded font</option>
-        </select></div>
-      <div class="row"><label for="fontFile">Upload a font</label><input class="file" type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2"></div>
-      <div class="row"><label for="caps">Case</label>
-        <select id="caps" data-key="caps"><option value="upper">ALL CAPS</option><option value="asis">As typed</option></select></div>
-      <div class="row"><label for="kerning">Kerning</label>
-        <select id="kerning" data-key="kerning"><option value="normal">Font kerning on</option><option value="none">Off</option></select></div>
-      <div class="row"><label for="lineSpacing">Line spacing (%)</label><div class="pair"><input type="range" id="lineSpacing" data-key="lineSpacing" min="70" max="160" step="1"><span class="val"></span></div></div>
-      <p class="hint" id="fontNote">Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).</p>
-    </fieldset>
-
-    <fieldset>
-      <legend>Text lines</legend>
-      <p class="hint" style="margin:0 0 6px">Each line has its own size, weight, spacing, width and color. Leave the text empty to hide a line.</p>
-      <div id="lineEditors"></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Dial finish</legend>
-      <div class="row"><label>Colors</label><div class="pair">
-        <input type="color" data-key="base" aria-label="Dial shadow color">
-        <input type="color" data-key="high" aria-label="Dial highlight color">
-        <span class="hint">Shadow, highlight</span></div></div>
-      <div class="row"><label for="brush">Sunburst texture</label><div class="pair"><input type="range" id="brush" data-key="brush" min="0" max="2.5" step="0.05"><span class="val"></span></div></div>
-      <div class="row"><label for="sweep">Light reflection</label><div class="pair"><input type="range" id="sweep" data-key="sweep" min="0" max="0.5" step="0.01"><span class="val"></span></div></div>
-      <div class="row"><label for="light">Light angle</label><div class="pair"><input type="range" id="light" data-key="light" min="0" max="180" step="1"><span class="val"></span></div></div>
-      <div class="row"><label for="edge">Edge shading</label><div class="pair"><input type="range" id="edge" data-key="edge" min="0" max="0.8" step="0.01"><span class="val"></span></div></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Hour markers</legend>
-      <div class="row"><label for="indexStyle">Shape</label>
-        <select id="indexStyle" data-key="indexStyle"><option value="baton">Batons</option><option value="round">Round</option><option value="none">None</option></select></div>
-      <div class="row"><label>Colors</label><div class="pair">
-        <input type="color" data-key="frame" aria-label="Marker frame color">
-        <input type="color" data-key="lume" aria-label="Marker fill color">
-        <span class="hint">Frame, fill</span></div></div>
-      <div class="row"><label for="markerScale">Marker size</label><div class="pair"><input type="range" id="markerScale" data-key="markerScale" min="0.7" max="1.3" step="0.01"><span class="val"></span></div></div>
-      <div class="row"><label for="m369">At 3, 6 and 9</label>
-        <select id="m369" data-key="m369"><option value="single">Single marker</option><option value="double">Double baton</option></select></div>
-      <div class="row" id="m369GapRow"><label for="m369Gap">Double spacing</label><div class="pair"><input type="range" id="m369Gap" data-key="m369Gap" min="1" max="6" step="0.1"><span class="val"></span></div></div>
-      <div class="row"><label for="depth">Raised depth</label><div class="pair"><input type="range" id="depth" data-key="depth" min="0" max="2" step="0.05"><span class="val"></span></div></div>
-      <p class="hint">Depth adds a contact shadow, beveled metal edges and a recessed lume fill so markers look applied to the dial.</p>
-    </fieldset>
-
-    <fieldset>
-      <legend>Center</legend>
-      <div class="row"><label for="centerCap">Center detail</label>
-        <select id="centerCap" data-key="centerCap"><option value="none">None</option><option value="pinion">Central pinion</option><option value="cap">Circular cap</option><option value="ring">Metallic ring</option></select></div>
-      <div class="row"><label for="centerSize">Size</label><div class="pair"><input type="range" id="centerSize" data-key="centerSize" min="0.5" max="2.5" step="0.05"><span class="val"></span></div></div>
-      <div class="row"><label>Color</label><div class="pair">
-        <input type="color" data-key="centerColor" aria-label="Center color">
-        <button class="chip" data-set="centerColor" data-val="#C8CDD0">Steel</button>
-        <button class="chip" data-set="centerColor" data-val="#D3B57E">Gold</button>
-        <button class="chip" data-set="centerColor" data-val="#3A3F42">Black</button></div></div>
-      <p class="hint">This sits on the background layer, under the hands you add in Theme Studio.</p>
-    </fieldset>
-
-
-    <fieldset>
-      <legend>Minute track</legend>
-      <div class="row"><label for="track">Show track</label><select id="track" data-key="track"><option value="on">On</option><option value="off">Off</option></select></div>
-      <div class="row"><label>Colors</label><div class="pair">
-        <input type="color" data-key="trackColor" aria-label="Minute tick color">
-        <input type="color" data-key="fineColor" aria-label="Fine tick color">
-        <span class="hint">Minutes, fine ticks</span></div></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>Export</legend>
-      <div class="row"><label for="size">Size</label>
-        <select id="size">
-          <option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option>
-        </select></div>
-      <div class="row"><label for="transparent">Outside circle</label>
-        <select id="transparent" data-key="transparent"><option value="false">Black</option><option value="true">Transparent</option></select></div>
-      <div class="btns">
-        <button id="exportBtn">Export PNG</button>
-        <button class="ghost" id="saveBtn">Save settings</button>
-        <button class="ghost" id="loadBtn">Load settings</button>
-        <button class="ghost" id="resetBtn">Reset</button>
-        <input type="file" id="loadFile" accept=".json" hidden>
-      </div>
-      <div class="status" id="status" role="status"></div>
-      <img id="result" alt="Exported dial">
-      <p class="hint" id="resultHint" hidden>If the download didn't start, right-click or long-press the image to save it.</p>
-    </fieldset>
+    <p class="intro">Build the dial layer by layer, then export a background for Theme Studio. Hands and date are added there separately.</p>
+    <div id="sections"></div>
   </aside>
 </div>
 
 <script>
-const DEFAULTS = {
-  logo:'none', monogram:'M', logoImg:'', logoFinish:'metal', logoColor:'#D9D9D9', logoSize:14, logoGap:3,
-  brand:'MERIDIAN', sub:'AUTOMATIC', bottom:'200 M', bottom2:'',
-  font:'ebg', caps:'upper', kerning:'normal',
-  brandSize:8, brandWeight:'600', brandTrack:200, brandStretch:100, brandColor:'#FFFFFF', brandY:0,
-  subSize:4.8, subWeight:'500', subTrack:200, subStretch:100, subColor:'#D9D9D9', subY:0,
-  bottomSize:4.2, bottomWeight:'500', bottomTrack:200, bottomStretch:100, bottomColor:'#D9D9D9', bottomY:0,
-  bottom2Size:3.6, bottom2Weight:'500', bottom2Track:200, bottom2Stretch:100, bottom2Color:'#D9D9D9', bottom2Y:0,
-  swiss:'SWISS MADE', swissSize:2.6, swissWeight:'500', swissTrack:150, swissStretch:100, swissColor:'#D9D9D9',
-  swissMode:'split', swissR:0.86, swissGap:5,
-  lineSpacing:100,
-  shape:'round', cornerR:80,
-  m369:'single', m369Gap:2.6, depth:1, centerCap:'none', centerSize:1, centerColor:'#C8CDD0',
-  base:'#125C54', high:'#46AA96', brush:1, sweep:0.22, light:34, edge:0.35,
-  indexStyle:'baton', twelve:'twin', m12Len:0.285, m12Width:0.034, m12Gap:3.2, m12Taper:0.35, m12Frame:0.013, m12Fill:'lume', m12Img:'', m12ImgMode:'original', m12Colors:'match', m12FrameC:'#C8CDD0', m12LumeC:'#F2EEDC', frame:'#C8CDD0', lume:'#F2EEDC', markerScale:1,
-  track:'on', trackColor:'#ECE6D2', fineColor:'#C8CDC3', transparent:'false'
+/* =====================================================================
+   Model
+   ===================================================================== */
+const LINES=[{id:'brand',label:'Name',open:true},{id:'sub',label:'Line under name'},{id:'bottom',label:'Lower line'},
+  {id:'bottom2',label:'Second lower line'},{id:'swiss',label:'Bottom text',note:'near 6 o\'clock'}];
+const GROUPS=[{id:'m12',label:'12'},{id:'m3',label:'3'},{id:'m6',label:'6'},{id:'m9',label:'9'},{id:'mo',label:'Other hours'}];
+const LAYER_DEFS=[['dial','Dial surface'],['rehaut','Rehaut'],['track','Minute track'],['markers','Hour markers'],['m12','12 o\'clock marker'],
+  ['emblem','Emblem'],['textTop','Name and line under'],['textLower','Lower lines'],['textBottom','Bottom text'],['center','Center detail']];
+const BLENDS={normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',soft:'soft-light'};
+
+const D={
+  shape:'round',cornerR:80,seed:1234,transparent:'false',
+  base:'#125C54',high:'#46AA96',
+  material:'sunburst',texDensity:55,texFine:50,texContrast:50,texOpacity:70,texRot:0,metallic:60,grain:1.5,texCX:0,texCY:0,
+  lightType:'softbox',lightAngle:320,lightWidth:55,lightSoft:65,lightInt:55,hlX:-25,hlY:-30,asym:20,specular:35,gloss:40,
+  vigStr:45,vigSize:25,vigSoft:60,edgeColor:'#052A25',innerGlow:8,centerBright:35,
+  rehaut:'off',rehautMat:'polished',rehautW:35,rehautDepth:40,rehautAngle:15,rehautRefl:50,rehautShadow:50,engrave:'none',engraveText:'MERIDIAN',engraveSpacing:40,
+  track:'on',trackR:95.8,trackEdge:4.5,tickLen:5,tickTh:0.9,fineLen:2,fineTh:0.36,fiveLen:0,tickOpacity:100,tickSharp:85,trackRot:0,trackColor:'#ECE6D2',fineColor:'#C8CDC3',
+  mMat:'polished',frame:'#C8CDD0',frameBright:50,frameThick:50,bevelSize:40,bevelSoft:50,raised:50,contact:60,reflect:45,lume:'#F2EEDC',lumeWarm:50,lumeRecess:50,
+  m12Colors:'match',m12FrameC:'#D3B57E',m12LumeC:'#F2EEDC',imgMode:'original',
+  logo:'none',monogram:'M',logoImg:'',logoFinish:'metal',logoColor:'#D9D9D9',logoSize:14,logoGap:3,
+  font:'ebg',caps:'upper',kerning:'normal',lineSpacing:100,
+  centerCap:'none',centerSize:1,centerColor:'#C8CDD0',
+  impNoise:0.8,impSurface:1,impRefl:1,impTexRand:1.5,impShadow:0.8,
+  swissMode:'split',swissR:86,swissGap:5
+};
+const GD={
+  m12:{Shape:'double',Len:28.5,Width:5.7,Taper:35,Rot:0,Dist:88.5,Frame:1.3,Sharp:90,Fill:'lume',Gap:3.2,Img:''},
+  m3:{Mode:'single',Shape:'triangle',Len:26.5,Width:4,Taper:0,Rot:0,Dist:88.5,Frame:1.6,Sharp:90,Fill:'lume',Gap:2.6,Img:''},
+  mo:{Shape:'single',Len:20.5,Width:2.6,Taper:0,Rot:0,Dist:88.5,Frame:1.4,Sharp:90,Fill:'lume',Gap:2.6,Img:''}
+};
+GD.m6={...GD.m3};GD.m9={...GD.m3};
+for(const g in GD) for(const k in GD[g]) D[g+k]=GD[g][k];
+const LD={brand:{t:'MERIDIAN',Size:8,Weight:'600',Color:'#FFFFFF',Shadow:15},sub:{t:'AUTOMATIC',Size:4.8},bottom:{t:'200 M',Size:4.2},
+  bottom2:{t:'',Size:3.6},swiss:{t:'SWISS MADE',Size:2.6,Track:150}};
+for(const L of LINES){const o={Size:4,Weight:'500',Track:200,Stretch:100,Color:'#D9D9D9',Render:'ink',Ink:100,Thick:0,Soft:0.3,Shadow:10,Curve:0,X:0,Y:0,...LD[L.id]};
+  D[L.id]=o.t;delete o.t;for(const k in o) D[L.id+k]=o[k];}
+D.layers=LAYER_DEFS.map(([id])=>({id,visible:true,opacity:100,blend:'normal'}));
+
+let state=JSON.parse(JSON.stringify(D));
+const UI={zoom:'1',lightPrev:true,texPrev:true,gCenter:false,gGrid:false,gSafe:false,group:'m12'};
+
+const MATERIAL_PRESETS={
+  flat:{texOpacity:0,metallic:0,specular:10,gloss:20,lightType:'directional',lightInt:25,grain:0.5},
+  sunburst:{texDensity:55,texFine:50,texContrast:50,texOpacity:70,metallic:60,specular:35,gloss:40,lightType:'softbox',lightInt:55,grain:1.5},
+  radial:{texDensity:45,texFine:40,texContrast:45,texOpacity:60,metallic:55,specular:30,gloss:35,lightType:'softbox',lightInt:50,grain:1.2},
+  satin:{texDensity:60,texFine:70,texContrast:30,texOpacity:45,metallic:35,specular:20,gloss:25,lightType:'directional',lightInt:45,grain:1.5},
+  lacquer:{texOpacity:15,metallic:0,specular:75,gloss:85,lightType:'studio',lightInt:45,grain:0.3},
+  matte:{texOpacity:0,metallic:0,specular:0,gloss:0,lightType:'directional',lightInt:30,grain:4},
+  enamel:{texDensity:40,texFine:30,texContrast:25,texOpacity:35,metallic:0,specular:55,gloss:70,lightType:'softbox',lightInt:40,grain:0.5}
 };
 const SMALL=['sub','bottom','bottom2','swiss'];
-const txt=(a,b)=>{const o={brandColor:a};SMALL.forEach(k=>o[k+'Color']=b);return o};
-const PRESETS = [
-  {name:'Teal sunburst', swatch:'#2E8C7B', v:{...txt('#FFFFFF','#D9D9D9')}},
-  {name:'Midnight blue', swatch:'#25385E', v:{...txt('#FFFFFF','#D9D9D9'),base:'#101C34',high:'#46639C',trackColor:'#EDEFF3',fineColor:'#AEB8CC'}},
-  {name:'Graphite', swatch:'#4A4F52', v:{...txt('#FFFFFF','#D9D9D9'),base:'#1C1F21',high:'#6E767B',trackColor:'#ECECE8',fineColor:'#9EA4A6'}},
-  {name:'Sand and gold', swatch:'#C9AE84', v:{base:'#8A6E4E',high:'#E8D2AE',...txt('#2C2A26','#4A433A'),trackColor:'#2C2A26',fineColor:'#5A5148',frame:'#D3B57E',lume:'#FBF6E8',logoColor:'#D3B57E'}},
-  {name:'Ice white', swatch:'#E4E8EA', v:{base:'#AEB6BA',high:'#F7F9FA',...txt('#1F2A30','#3E4A50'),trackColor:'#1F2A30',fineColor:'#55636A',frame:'#9AA2A7',lume:'#FFFFFF',brush:0.7,logoColor:'#9AA2A7'}},
+const txtC=(a,b)=>{const o={brandColor:a};SMALL.forEach(k=>o[k+'Color']=b);return o};
+const PRESETS=[
+  {name:'Teal sunburst',swatch:'#2E8C7B',v:{base:'#125C54',high:'#46AA96',edgeColor:'#052A25',...txtC('#FFFFFF','#D9D9D9'),trackColor:'#ECE6D2',fineColor:'#C8CDC3',mMat:'polished',lume:'#F2EEDC',logoColor:'#D9D9D9'}},
+  {name:'Midnight blue',swatch:'#25385E',v:{base:'#101C34',high:'#46639C',edgeColor:'#050A16',...txtC('#FFFFFF','#D9D9D9'),trackColor:'#EDEFF3',fineColor:'#AEB8CC',mMat:'whitegold'}},
+  {name:'Graphite',swatch:'#4A4F52',v:{base:'#1C1F21',high:'#6E767B',edgeColor:'#08090A',...txtC('#FFFFFF','#D9D9D9'),trackColor:'#ECECE8',fineColor:'#9EA4A6',mMat:'polished'}},
+  {name:'Sand and gold',swatch:'#C9AE84',v:{base:'#8A6E4E',high:'#E8D2AE',edgeColor:'#4A3722',...txtC('#2C2A26','#4A433A'),trackColor:'#2C2A26',fineColor:'#5A5148',mMat:'yellowgold',lume:'#FBF6E8',logoColor:'#D3B57E'}},
+  {name:'Ice white',swatch:'#E4E8EA',v:{base:'#AEB6BA',high:'#F7F9FA',edgeColor:'#7E888D',...txtC('#1F2A30','#3E4A50'),trackColor:'#1F2A30',fineColor:'#55636A',mMat:'brushed',lume:'#FFFFFF',logoColor:'#9AA2A7'}}
 ];
 const typeSet=(font,bw,sw,bt,st,bs,ss,ls)=>{const o={font,caps:'upper',kerning:'normal',lineSpacing:ls,brandWeight:bw,brandTrack:bt,brandSize:bs};
-  SMALL.forEach(k=>{o[k+'Weight']=sw;o[k+'Track']=k==='swiss'?Math.round(st*0.75):st});o.subSize=ss;o.bottomSize=ss*0.88;o.bottom2Size=ss*0.75;return o};
-const TYPE_PRESETS = [
-  {name:'Classic luxury', v:typeSet('ebg','600','500',200,200,8,4.8,100)},
-  {name:'Bold luxury', v:typeSet('ebg','700','600',220,230,8.4,4.9,100)},
-  {name:'Modern', v:typeSet('sans','500','400',320,300,6.6,3.6,110)},
+  SMALL.forEach(k=>{o[k+'Weight']=sw;o[k+'Track']=k==='swiss'?Math.round(st*0.75):st});o.subSize=ss;o.bottomSize=+(ss*0.88).toFixed(1);o.bottom2Size=+(ss*0.75).toFixed(1);return o};
+const TYPE_PRESETS=[
+  {name:'Classic luxury',v:typeSet('ebg','600','500',200,200,8,4.8,100)},
+  {name:'Bold luxury',v:typeSet('ebg','700','600',220,230,8.4,4.9,100)},
+  {name:'Modern',v:typeSet('sans','500','400',320,300,6.6,3.6,110)}
 ];
-const FONTS = {
+const FONTS={
   ebg:'"EB Garamond","Adobe Garamond Pro",Garamond,"Cormorant Garamond",Sabon,Baskerville,Georgia,serif',
   cormorant:'"Cormorant Garamond","EB Garamond",Garamond,Georgia,serif',
   baskerville:'"Libre Baskerville",Baskerville,"Baskerville Old Face",Georgia,serif',
-  serif:'Georgia,"Times New Roman",serif',
-  didone:'Didot,"Bodoni 72","Bodoni MT",Georgia,serif',
-  sans:'"Helvetica Neue",Helvetica,Arial,sans-serif',
-  geo:'Futura,"Century Gothic",Avenir,"Trebuchet MS",sans-serif',
-  custom:'"UserFont",Georgia,serif'
+  serif:'Georgia,"Times New Roman",serif',didone:'Didot,"Bodoni 72","Bodoni MT",Georgia,serif',
+  sans:'"Helvetica Neue",Helvetica,Arial,sans-serif',geo:'Futura,"Century Gothic",Avenir,"Trebuchet MS",sans-serif',custom:'"UserFont",Georgia,serif'
 };
-const WEBFONT = {ebg:'EB Garamond', cormorant:'Cormorant Garamond', baskerville:'Libre Baskerville'};
-let state = {...DEFAULTS};
+const WEBFONT={ebg:'EB Garamond',cormorant:'Cormorant Garamond',baskerville:'Libre Baskerville'};
+const METALS={
+  polished:{c:'#D3D7DA',stops:[[0,.55],[.3,-.35],[.48,.6],[.62,-.4],[1,.25]],brushed:0},
+  brushed:{c:'#B9BEC1',stops:[[0,.32],[.5,-.15],[1,.22]],brushed:1},
+  whitegold:{c:'#DDD8CD',stops:[[0,.5],[.35,-.3],[.5,.5],[.7,-.3],[1,.2]],brushed:0},
+  yellowgold:{c:'#CFA65A',stops:[[0,.5],[.35,-.35],[.5,.45],[.7,-.35],[1,.2]],brushed:0},
+  black:{c:'#2B2E31',stops:[[0,.28],[.35,-.45],[.5,.38],[.7,-.5],[1,.12]],brushed:0}
+};
+const BASE=()=>state.shape==='rect'?[408,480]:[466,466];
 
-// ---------- helpers ----------
+/* =====================================================================
+   Helpers
+   ===================================================================== */
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
-const hex2rgb=h=>{h=h.replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]};
+const hex2rgb=h=>{h=(h||'#000').replace('#','');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]};
 const rgb2hex=a=>'#'+a.map(v=>Math.round(clamp(v,0,255)).toString(16).padStart(2,'0')).join('');
 const tint=(hex,amt)=>{const c=hex2rgb(hex);return rgb2hex(c.map(v=>amt>=0?v+(255-v)*amt:v*(1+amt)))};
+const mix=(a,b,t)=>{const x=hex2rgb(a),y=hex2rgb(b);return rgb2hex(x.map((v,i)=>v+(y[i]-v)*t))};
+const smooth=t=>t*t*(3-2*t);
+function hashI(x,y,s){let h=(Math.imul(x|0,374761393)+Math.imul(y|0,668265263)+Math.imul(s|0,982451653))|0;h=Math.imul(h^(h>>>13),1274126177);h^=h>>>16;return(h>>>0)/4294967296*2-1}
+function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeGrid(seed,n){const r=rng(seed),g=new Float32Array((n+1)*(n+1));for(let i=0;i<g.length;i++)g[i]=r()*2-1;return{n,g}}
+function sampleGrid(G,u,v){const n=G.n;u=clamp(u,0,0.99999)*n;v=clamp(v,0,0.99999)*n;const x0=u|0,y0=v|0,fx=smooth(u-x0),fy=smooth(v-y0),w=n+1,g=G.g;
+  const a=g[y0*w+x0],b=g[y0*w+x0+1],c=g[(y0+1)*w+x0],d=g[(y0+1)*w+x0+1];return a+(b-a)*fx+(c-a)*fy+(a-b-c+d)*fx*fy}
+function prep(t){return state.caps==='upper'?t.toUpperCase():t}
 
-// ---------- sunburst background (cached) ----------
-const bgCache=new Map();
-function makeBg(W,H){
-  const key=[W,H,GEO.rect,GEO.cr,state.base,state.high,state.brush,state.sweep,state.light,state.edge].join('|');
-  if(bgCache.has(key)) return bgCache.get(key);
-  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
-  const ctx=cv.getContext('2d'),img=ctx.createImageData(W,H),d=img.data;
-  const cx=W/2,cy=H/2,R=GEO.R,b=hex2rgb(state.base),h=hex2rgb(state.high);
-  const L=state.light*Math.PI/180,br=state.brush,sw=state.sweep,ed=state.edge;
-  for(let y=0;y<H;y++){
-    const dy=y+0.5-cy;
-    for(let x=0;x<W;x++){
-      const dx=x+0.5-cx,sd=sdRR(dx,dy);
-      if(sd>1) continue;
-      const dist=Math.sqrt(dx*dx+dy*dy),r=Math.max(0,1+sd/R),a=Math.atan2(dy,dx),circ=6.2832*dist,aa=k=>clamp((circ/k-2)/3,0,1);
-      const fine=br*(0.035*aa(720)*Math.sin(a*720+1.3)+0.025*aa(1440)*Math.sin(a*1440+4.1)+0.03*aa(360)*Math.sin(a*360+2.7));
-      const shade=clamp((1-0.55*Math.pow(r,1.6))*(1+sw*Math.cos(2*(a+L))+fine),0,1.4);
-      const t=clamp((shade-0.45)/0.95,0,1),e=clamp(1.08-ed*clamp(r-0.8,0,1)/0.2,0.45,1.1);
-      const i=(y*W+x)*4;
-      d[i]=(b[0]+(h[0]-b[0])*t)*e;d[i+1]=(b[1]+(h[1]-b[1])*t)*e;d[i+2]=(b[2]+(h[2]-b[2])*t)*e;
-      d[i+3]=255*clamp(0.5-sd,0,1);
-    }
-  }
-  ctx.putImageData(img,0,0);
-  if(bgCache.size>6) bgCache.delete(bgCache.keys().next().value);
-  bgCache.set(key,cv); return cv;
-}
-
-// ---------- geometry ----------
-// GEO describes the current screen. Round: a circle of radius R. Rect: a rounded rectangle.
-// Radial positions are written for a circle of radius R; on a rectangle they are measured
-// inward from the screen edge along the same ray, so markers and ticks follow the edge.
+/* =====================================================================
+   Geometry: GEO describes the current screen (circle or rounded rectangle).
+   Radial positions are written for a circle of radius R; on a rectangle they are
+   measured inward from the screen edge along the same ray.
+   ===================================================================== */
 let GEO={cx:0,cy:0,R:1,rect:false,hw:1,hh:1,cr:0,cache:new Map()};
+let LV=[0,-1],LANG=-Math.PI/2;
 function setGeo(W,H,scale){
   const rect=state.shape==='rect';
   GEO={cx:W/2,cy:H/2,R:Math.min(W,H)/2,rect,hw:W/2,hh:H/2,cr:rect?Math.min(state.cornerR*scale,Math.min(W,H)/2):0,cache:new Map()};
+  const p=state.lightAngle*Math.PI/180;LV=[Math.sin(p),-Math.cos(p)];LANG=Math.atan2(LV[1],LV[0]);
 }
-function sdRR(x,y,g=GEO){
-  if(!g.rect) return Math.hypot(x,y)-g.R;
-  const qx=Math.abs(x)-g.hw+g.cr,qy=Math.abs(y)-g.hh+g.cr;
-  return Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0)-g.cr;
+function sdRR(x,y){
+  if(!GEO.rect) return Math.hypot(x,y)-GEO.R;
+  const qx=Math.abs(x)-GEO.hw+GEO.cr,qy=Math.abs(y)-GEO.hh+GEO.cr;
+  return Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0)-GEO.cr;
 }
 function edgeDist(ang){
   if(!GEO.rect) return GEO.R;
@@ -341,518 +254,805 @@ function edgeDist(ang){
   for(let i=0;i<28;i++){const m=(lo+hi)/2;sdRR(dx*m,dy*m)>0?hi=m:lo=m}
   GEO.cache.set(key,lo);return lo;
 }
-function P(c,ang,rad){
-  const t=(ang-90)*Math.PI/180,r=GEO.rect?edgeDist(ang)-(GEO.R-rad):rad;
-  return[GEO.cx+r*Math.cos(t),GEO.cy+r*Math.sin(t)];
-}
-function quad(c,ang,r0,r1,w0,w1){
-  const t=(ang-90)*Math.PI/180,nx=-Math.sin(t),ny=Math.cos(t),p0=P(c,ang,r0),p1=P(c,ang,r1);
+function P(ang,rad){const t=(ang-90)*Math.PI/180,r=GEO.rect?edgeDist(ang)-(GEO.R-rad):rad;return[GEO.cx+r*Math.cos(t),GEO.cy+r*Math.sin(t)]}
+function quad(ang,r0,r1,w0,w1){
+  const t=(ang-90)*Math.PI/180,nx=-Math.sin(t),ny=Math.cos(t),p0=P(ang,r0),p1=P(ang,r1);
   return[[p0[0]+nx*w0,p0[1]+ny*w0],[p1[0]+nx*w1,p1[1]+ny*w1],[p1[0]-nx*w1,p1[1]-ny*w1],[p0[0]-nx*w0,p0[1]-ny*w0]];
 }
-function poly(ctx,pts){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath()}
-function markers(c,R){
-  const out=[],k=state.markerScale,oR=R*0.885;
-  const baton=(ang,len,w,iw)=>({type:'poly',outer:quad(c,ang,oR-R*len*k,oR,R*w*k,R*w*k),inner:quad(c,ang,oR-R*len*k+R*0.022,oR-R*0.02,R*iw*k,R*iw*k)});
-  const dot=(ang,rr,ir)=>{const p=P(c,ang,R*0.80);return{type:'circle',x:p[0],y:p[1],outer:R*rr*k,inner:R*ir*k}};
-  for(let hr=1;hr<12;hr++){
-    const ang=hr*30,major=hr%3===0;
-    const dbl=major&&state.m369==='double';
-    if(state.indexStyle==='baton'){
-      if(dbl) for(const o of[-1,1]) out.push(baton(ang+o*state.m369Gap,0.265,0.024,0.011));
-      else out.push(major?baton(ang,0.265,0.040,0.024):baton(ang,0.205,0.026,0.012));
-    }else if(state.indexStyle==='round'){
-      if(dbl) for(const o of[-1,1]) out.push(dot(ang+o*state.m369Gap*1.4,0.042,0.029));
-      else out.push(major?dot(ang,0.058,0.042):dot(ang,0.044,0.030));
-    }
-  }
-  return out;
+function screenPath(ctx){
+  ctx.beginPath();
+  if(!GEO.rect){ctx.arc(GEO.cx,GEO.cy,GEO.R,0,Math.PI*2);return}
+  const x=GEO.cx-GEO.hw,y=GEO.cy-GEO.hh,w=GEO.hw*2,h=GEO.hh*2,r=GEO.cr;
+  ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
 }
+function ringPath(ctx,rad,step=0.5){for(let a=0;a<=360;a+=step){const p=P(a,rad);a?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])}ctx.closePath()}
 function offsetConvex(pts,d){
   const n=pts.length,cx=pts.reduce((a,p)=>a+p[0],0)/n,cy=pts.reduce((a,p)=>a+p[1],0)/n,lines=[];
-  for(let i=0;i<n;i++){
-    const a=pts[i],b=pts[(i+1)%n];let dx=b[0]-a[0],dy=b[1]-a[1];const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;
-    let nx=-dy,ny=dx; if((cx-a[0])*nx+(cy-a[1])*ny<0){nx=-nx;ny=-ny}
-    lines.push({px:a[0]+nx*d,py:a[1]+ny*d,dx,dy});
-  }
-  return lines.map((L2,i)=>{const L1=lines[(i-1+n)%n],den=L1.dx*L2.dy-L1.dy*L2.dx;
-    if(Math.abs(den)<1e-9) return[L2.px,L2.py];
-    const t=((L2.px-L1.px)*L2.dy-(L2.py-L1.py)*L2.dx)/den; return[L1.px+L1.dx*t,L1.py+L1.dy*t]});
+  for(let i=0;i<n;i++){const a=pts[i],b=pts[(i+1)%n];let dx=b[0]-a[0],dy=b[1]-a[1];const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;
+    let nx=-dy,ny=dx;if((cx-a[0])*nx+(cy-a[1])*ny<0){nx=-nx;ny=-ny}lines.push({px:a[0]+nx*d,py:a[1]+ny*d,dx,dy})}
+  return lines.map((L2,i)=>{const L1=lines[(i-1+n)%n],den=L1.dx*L2.dy-L1.dy*L2.dx;if(Math.abs(den)<1e-9)return[L2.px,L2.py];
+    const t=((L2.px-L1.px)*L2.dy-(L2.py-L1.py)*L2.dx)/den;return[L1.px+L1.dx*t,L1.py+L1.dy*t]});
 }
-function twelveShapes(c,R,shape){
-  const k=state.markerScale,oR=R*0.885,L=R*state.m12Len*k,W=R*state.m12Width*k,tp=state.m12Taper,top=oR-L,out=[];
-  const bat=(ang,w)=>({type:'poly',outer:quad(c,ang,top,oR,w*(1-tp),w)});
-  const s=shape||state.twelve;
-  if(s==='twin') for(const o of[-1,1]) out.push(bat(o*state.m12Gap,W));
-  else if(s==='triple') for(const o of[-1,0,1]) out.push(bat(o*state.m12Gap*1.5,W*0.8));
-  else if(s==='single') out.push(bat(0,W*1.7));
-  else if(s==='triangle') out.push({type:'poly',outer:[P(c,0,top),...quad(c,0,oR,oR,W*2.2,W*2.2).slice(1,3)]});
-  else if(s==='arrow'){const sh=quad(c,0,oR-L*0.45,oR-L*0.45,W*2,W*2),bs=quad(c,0,oR,oR,W*1.1*(1-tp*0.6),W*1.1*(1-tp*0.6));
-    out.push({type:'poly',outer:[P(c,0,top),sh[1],bs[1],bs[2],sh[2]]})}
-  else if(s==='diamond'){const m=quad(c,0,oR-L*0.5,oR-L*0.5,W*1.8,W*1.8);out.push({type:'poly',outer:[P(c,0,top),m[1],P(c,0,oR),m[2]]})}
-  else if(s==='round'){const p=P(c,0,oR-L/2);out.push({type:'circle',x:p[0],y:p[1],r:Math.min(L/2,W*2.2)})}
-  else if(s==='square'){const h=Math.min(L/2,W*2),p=P(c,0,oR-L/2);out.push({type:'poly',outer:[[p[0]-h,p[1]-h],[p[0]+h,p[1]-h],[p[0]+h,p[1]+h],[p[0]-h,p[1]+h]]})}
-  else if(s==='crown'){const p=P(c,0,oR-L/2),h=L*0.78,w=Math.max(h*0.9,W*6.2);out.push({type:'crown',x:p[0],y:p[1],w,h})}
-  else if(s==='custom'){const p=P(c,0,oR-L/2);const im=m12Image&&m12Image.complete?m12Image:null;
-    const ar=im&&im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:1;const h=L*0.9,w=Math.max(h*ar*(state.m12Width/0.034),1);
-    out.push({type:'image',x:p[0],y:p[1],w,h})}
-  else if(s==='n12'||s==='nXII'){const p=P(c,0,oR-L/2);out.push({type:'text',x:p[0],y:p[1],txt:s==='n12'?'12':'XII',px:L*0.8})}
-  const d=R*state.m12Frame;
-  out.forEach(m=>{if(m.type==='poly')m.inner=offsetConvex(m.outer,d);if(m.type==='circle'){m.outer=m.r;m.inner=Math.max(0,m.r-d)}});
+function roundPoly(pts,r){
+  const p=new Path2D(),n=pts.length;
+  if(r<=0.01){pts.forEach((q,i)=>i?p.lineTo(q[0],q[1]):p.moveTo(q[0],q[1]));p.closePath();return p}
+  const mid=(a,b)=>[(a[0]+b[0])/2,(a[1]+b[1])/2],s=mid(pts[n-1],pts[0]);p.moveTo(s[0],s[1]);
+  for(let i=0;i<n;i++){const a=pts[i],b=pts[(i+1)%n],pr=pts[(i-1+n)%n];
+    const lim=Math.min(Math.hypot(a[0]-pr[0],a[1]-pr[1]),Math.hypot(b[0]-a[0],b[1]-a[1]))*0.5;p.arcTo(a[0],a[1],b[0],b[1],Math.min(r,lim))}
+  p.closePath();return p;
+}
+function rotatePts(pts,cx,cy,deg){if(!deg)return pts;const t=deg*Math.PI/180,c=Math.cos(t),s=Math.sin(t);return pts.map(([x,y])=>[cx+(x-cx)*c-(y-cy)*s,cy+(x-cx)*s+(y-cy)*c])}
+
+/* =====================================================================
+   Dial surface (material, texture, lighting, edge shading, imperfections)
+   ===================================================================== */
+const DIAL_KEYS=['shape','cornerR','seed','base','high','material','texDensity','texFine','texContrast','texOpacity','texRot','metallic','grain','texCX','texCY',
+  'lightType','lightAngle','lightWidth','lightSoft','lightInt','hlX','hlY','asym','specular','gloss','vigStr','vigSize','vigSoft','edgeColor','innerGlow','centerBright',
+  'impNoise','impSurface','impRefl','impTexRand'];
+const dialCache=new Map();
+function makeLight(){
+  const w=0.15+state.lightWidth/100*1.2,soft=state.lightSoft/100,hx=state.hlX/100,hy=state.hlY/100,lx=LV[0],ly=LV[1],type=state.lightType,asym=state.asym/100;
+  const fall=t=>{t=t<0?-t:t;const hard=t<0.7?1:t>1?0:1-smooth((t-0.7)/0.3);return hard+(Math.exp(-t*t*2.2)-hard)*soft};
+  const hp=hx*lx+hy*ly,a2k=0.55-state.asym/250;
+  return(u,v)=>{
+    let band=0,diff=0;
+    if(type==='directional'){const p=u*lx+v*ly;diff=clamp(p/(0.35+soft*1.4),-1,1);band=clamp((p-hp)/(w*1.2)+0.5,0,1);band*=band}
+    else if(type==='radial'){band=fall(Math.hypot(u-hx,v-hy)/w);diff=band*2-0.8}
+    else if(type==='studio'){const a1=fall(((u-hx-lx*0.09)*lx+(v-hy-ly*0.09)*ly)/(w*0.45))*fall(((u-hx)*-ly+(v-hy)*lx)/(w*2.2));
+      const a2=fall(((u+hx*0.6+lx*0.45)*lx+(v+hy*0.6+ly*0.45)*ly)/(w*0.35))*fall((u*-ly+v*lx)/(w*2.4))*a2k;band=Math.max(a1,a2);diff=a1+a2-0.55}
+    else{band=fall(((u-hx)*lx+(v-hy)*ly)/w)*fall(((u-hx)*-ly+(v-hy)*lx)/(w*2.6));diff=band*1.9-0.7}
+    diff*=1+asym*(u*lx+v*ly);
+    return[diff,band];
+  };
+}
+function makeDial(W,H,scale,flags){
+  const key=DIAL_KEYS.map(k=>state[k]).join('|')+`|${W}x${H}|${flags.light}|${flags.tex}`;
+  if(dialCache.has(key)) return dialCache.get(key);
+  const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+  const ctx=cv.getContext('2d'),img=ctx.createImageData(W,H),d=img.data;
+  const {cx,cy,R}=GEO,b=hex2rgb(state.base),h=hex2rgb(state.high),ec=hex2rgb(state.edgeColor),seed=state.seed|0;
+  const gS1=makeGrid(seed+11,5),gS2=makeGrid(seed+23,13),gR=makeGrid(seed+37,9),gP=makeGrid(seed+51,42),gL=makeGrid(seed+67,7);
+  const mat=state.material,tex=flags.tex&&mat!=='flat',lit=flags.light;
+  const dens=state.texDensity/100,fine=state.texFine/100,contrast=state.texContrast/100,opac=state.texOpacity/100,rot=state.texRot*Math.PI/180;
+  const metal=state.metallic/100,grain=state.grain/100,tcx=cx+state.texCX/100*R,tcy=cy+state.texCY/100*R;
+  const spec=state.specular/100,glossExp=1+state.gloss/100*30,lint=state.lightInt/100;
+  const vigS=state.vigStr/100,vigW=0.02+state.vigSize/100*0.6,vigE=0.5+(1-state.vigSoft/100)*3,glow=state.innerGlow/100,cb=state.centerBright/100;
+  const nNoise=state.impNoise/100,nSurf=state.impSurface/100,nRefl=state.impRefl/100,rnd=clamp(0.3+state.impTexRand*0.12,0,1);
+  const gs=Math.max(1,Math.round(scale/2)),cexp=1.6-contrast*1.2,lightShape=makeLight();
+  const f1=120+dens*1200,f2=f1*(1.8+fine*1.2),f3=f1*0.37;
+  const ringN=60+dens*800,lineN=80+dens*1000,cr=Math.cos(rot),sr=Math.sin(rot);
+  for(let y=0;y<H;y++){
+    const dy=y+0.5-cy,ty=y+0.5-tcy;
+    for(let x=0;x<W;x++){
+      const dx=x+0.5-cx,sd=sdRR(dx,dy);
+      if(sd>1) continue;
+      const e=clamp(-sd/R,0,1),rn=1-e,u=dx/R,v=dy/R;
+      let T=0,aniso=0;
+      if(tex){
+        const tx=x+0.5-tcx,tr=Math.hypot(tx,ty);
+        if(mat==='sunburst'){
+          const ta=Math.atan2(ty,tx),th=ta+rot,circ=6.2832*tr,aa=k=>clamp((circ/k-2)/3,0,1);
+          const s=(1-fine)*Math.sin(th*f3+1.3)*aa(f3)+fine*Math.sin(th*f2+4.1)*aa(f2)+0.6*Math.sin(th*f1+2.7)*aa(f1);
+          const idx=Math.floor((th/6.2832+2)*f1),rr=hashI(idx,7,seed)*aa(f1);
+          T=s*(1-rnd)*0.75+rr*rnd;aniso=Math.cos(2*(ta-LANG));
+        }else if(mat==='radial'){
+          const ring=tr/R*ringN,sp=R/ringN,aa=k=>clamp((sp/k-1.2)/2,0,1);
+          const s=(1-fine)*Math.sin(ring*0.31*6.2832)*aa(1/0.31)+fine*Math.sin(ring*2.1*6.2832)*aa(1/2.1)+0.6*Math.sin(ring*6.2832)*aa(1);
+          T=s*(1-rnd)*0.75+hashI(Math.floor(ring),3,seed)*aa(1)*rnd;aniso=-Math.cos(2*(Math.atan2(ty,tx)-LANG));
+        }else if(mat==='satin'){
+          const vv=(-tx*sr+ty*cr)/R*lineN,uu=(tx*cr+ty*sr)/R,sp=R/lineN,aa=clamp((sp-1.2)/2,0,1);
+          const li=Math.floor(vv),hv=hashI(li,Math.floor(uu*6+hashI(li,1,seed)*3),seed);
+          T=(hv*rnd+Math.sin(vv*6.2832*(1+fine))*(1-rnd)*0.6)*aa+sampleGrid(gL,(tx/R+1)/2,(vv/lineN+1)/2)*0.25;aniso=0.4*Math.cos(2*(rot+Math.PI/2-LANG));
+        }else if(mat==='enamel'){T=sampleGrid(gP,x/W,y/H)*0.45}
+        else if(mat==='lacquer'){T=sampleGrid(gS2,x/W,y/H)*0.35}
+        T=Math.sign(T)*Math.pow(Math.abs(T),cexp)*opac;
+      }
+      let L=0,M=0,S=0;
+      if(lit){const ls=lightShape(u,v);L=ls[0]*lint;M=metal*aniso*(0.35+0.65*lint);
+        const rv=1+nRefl*12*sampleGrid(gR,x/W,y/H);
+        S=spec*Math.pow(clamp(ls[1],0,1),glossExp)*rv*(aniso?0.6+0.4*Math.max(0,aniso):1);}
+      const surf=nSurf*(sampleGrid(gS1,x/W,y/H)*0.7+sampleGrid(gS2,x/W,y/H)*0.3)*5;
+      const shade=clamp(0.42+cb*0.3*Math.exp(-((rn/0.55)**2))+0.42*L+0.32*M+0.24*T+surf,0,1);
+      let r=b[0]+(h[0]-b[0])*shade,g=b[1]+(h[1]-b[1])*shade,bl=b[2]+(h[2]-b[2])*shade;
+      const s2=clamp(S,0,1);r+=(255-r)*s2;g+=(255-g)*s2;bl+=(255-bl)*s2;
+      if(glow>0){const gl=glow*0.55*Math.exp(-((e/0.035)**2));r+=(h[0]-r+40)*gl;g+=(h[1]-g+40)*gl;bl+=(h[2]-bl+40)*gl}
+      const vg=vigS*Math.pow(1-smooth(clamp(e/vigW,0,1)),vigE);
+      r+=(ec[0]-r)*vg;g+=(ec[1]-g)*vg;bl+=(ec[2]-bl)*vg;
+      const gx=(x/gs)|0,gy=(y/gs)|0,gn=grain*255*hashI(gx,gy,seed+5)*0.6;
+      const mn=nNoise*255*1.2;
+      r+=gn+mn*hashI(x,y,seed+101);g+=gn+mn*hashI(x,y,seed+102);bl+=gn+mn*hashI(x,y,seed+103);
+      const i=(y*W+x)*4;d[i]=r;d[i+1]=g;d[i+2]=bl;d[i+3]=255*clamp(0.5-sd,0,1);
+    }
+  }
+  ctx.putImageData(img,0,0);
+  if(dialCache.size>4) dialCache.delete(dialCache.keys().next().value);
+  dialCache.set(key,cv);return cv;
+}
+
+/* =====================================================================
+   Rehaut and minute track
+   ===================================================================== */
+function drawRehaut(ctx,env){
+  if(state.rehaut!=='on') return;
+  const R=GEO.R,rw=R*(0.012+state.rehautW/100*0.085),inner=R-rw,ang=state.rehautAngle/30,refl=state.rehautRefl/100;
+  const base={polished:'#CDD2D5',brushed:'#AEB3B6',dial:mix(state.base,state.high,0.45),black:'#1B1D1F'}[state.rehautMat];
+  const la=state.lightAngle;
+  const st=GEO.rect?0.4:1;
+  for(let a=0;a<360;a+=st){
+    const q=[P(a,R+1),P(a+st*1.05,R+1),P(a+st*1.05,inner),P(a,inner)];
+    const diff=Math.cos((a-la)*Math.PI/180),sp=Math.pow(Math.max(0,diff),14)*refl+Math.pow(Math.max(0,-diff),20)*refl*0.35;
+    const k=-0.25+0.5*(0.5+0.5*diff)*ang+(state.rehautMat==='brushed'?0.1*hashI(a,2,state.seed):0);
+    const g=ctx.createLinearGradient(q[0][0],q[0][1],q[3][0],q[3][1]);
+    g.addColorStop(0,tint(base,clamp(k-0.15+sp,-1,1)));g.addColorStop(0.55,tint(base,clamp(k+sp*0.8,-1,1)));g.addColorStop(1,tint(base,clamp(k-0.3,-1,1)));
+    ctx.fillStyle=g;ctx.beginPath();q.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill();
+  }
+  // inner shadow cast onto the dial
+  const depth=state.rehautDepth/100,sh=state.rehautShadow/100;
+  if(sh>0&&depth>0){
+    ctx.save();ctx.beginPath();ringPath(ctx,inner);ctx.clip();
+    ctx.shadowColor=`rgba(0,0,0,${0.85*sh})`;ctx.shadowBlur=R*0.05*depth;ctx.shadowOffsetX=-LV[0]*R*0.02*depth;ctx.shadowOffsetY=-LV[1]*R*0.02*depth;
+    ctx.beginPath();ctx.rect(-env.W,-env.H,env.W*3,env.H*3);ringPath(ctx,inner);ctx.fillStyle='#000';ctx.fill('evenodd');ctx.restore();
+  }
+  // edge line between rehaut and dial
+  ctx.strokeStyle='rgba(0,0,0,.35)';ctx.lineWidth=R*0.003;ctx.beginPath();ringPath(ctx,inner);ctx.stroke();
+  // engraving
+  if(state.engrave==='custom'&&state.engraveText.trim()){
+    const px=rw*0.42,mid=inner+rw*0.5,o={px,weight:'500',stretch:1,track:120};
+    ctx.save();setFont(ctx,o);
+    const unit=prep(state.engraveText.trim()),gapEm=0.5+state.engraveSpacing/100*4;
+    const chars=[...unit],ws=chars.map(c=>ctx.measureText(c).width),ls=px*0.12;
+    const unitW=ws.reduce((a,b)=>a+b,0)+ls*chars.length+gapEm*px,circ=2*Math.PI*mid*(GEO.rect?1.12:1),reps=Math.max(1,Math.floor(circ/unitW));
+    const step=360/reps,cap=ctx.measureText('H').actualBoundingBoxAscent||px*0.68;
+    const dark=tint(base,-0.55),light='rgba(255,255,255,.55)';
+    for(let r=0;r<reps;r++){
+      let a=r*step-(unitW-gapEm*px)/2/mid*180/Math.PI;
+      chars.forEach((c,i)=>{const p=P(a+ws[i]/2/mid*180/Math.PI,mid),p1=P(a,mid),p2=P(a+ws[i]/mid*180/Math.PI,mid),rot=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
+        ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(rot);ctx.textAlign='center';
+        ctx.fillStyle=light;ctx.fillText(c,-LV[0]*px*0.04,cap/2-LV[1]*px*0.04);ctx.fillStyle=dark;ctx.fillText(c,0,cap/2);ctx.restore();
+        a+=(ws[i]+ls)/mid*180/Math.PI});
+    }
+    ctx.restore();
+  }
+}
+function drawTrack(ctx){
+  if(state.track!=='on') return;
+  const R=GEO.R,outer=R*(1-state.trackEdge/100),rot=state.trackRot;
+  ctx.save();ctx.globalAlpha=state.tickOpacity/100;
+  const soft=(1-state.tickSharp/100)*R*0.006;
+  if(soft>0.05){ctx.shadowBlur=soft;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0}
+  const tick=(a,len,th,col)=>{if(len<=0||th<=0)return;ctx.fillStyle=col;if(soft>0.05)ctx.shadowColor=col;const q=quad(a+rot,outer-R*len/100,outer,R*th/200,R*th/200);
+    ctx.beginPath();q.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()};
+  for(let i=0;i<240;i++){if(i%4===0)continue;tick(i*1.5,state.fineLen,state.fineTh,state.fineColor)}
+  for(let i=0;i<60;i++){if(i%5===0)tick(i*6,state.fiveLen,state.tickTh*1.4,state.trackColor);else tick(i*6,state.tickLen,state.tickTh,state.trackColor)}
+  if(state.trackR>0){ctx.strokeStyle=state.fineColor;if(soft>0.05)ctx.shadowColor=state.fineColor;ctx.lineWidth=Math.max(0.5,R*state.fineTh/100*1.1);
+    ctx.beginPath();ringPath(ctx,R*state.trackR/100);ctx.stroke()}
+  ctx.restore();
+}
+
+/* =====================================================================
+   Markers
+   ===================================================================== */
+const CROWN_PATH=new Path2D('M14 70 L19 30 L35 49 L50 16 L65 49 L81 30 L86 70 Z M13 76 H87 V89 H13 Z M50 78.5 L54.5 82.5 L50 86.5 L45.5 82.5 Z M50 46 L54 52 L50 58 L46 52 Z');
+const ROMAN=['','I','II','III','IIII','V','VI','VII','VIII','IX','X','XI','XII'];
+const images={};
+function setImage(key,src){if(!src){delete images[key];return}const im=new Image();im.onload=schedule;im.src=src;images[key]=im}
+const gp=(g,k)=>state[g+k];
+function effShape(g){if(g==='m12'||g==='mo')return gp(g,'Shape');const m=gp(g,'Mode');return m==='custom'?gp(g,'Shape'):m}
+function buildMarker(g,ang,hour){
+  const R=GEO.R,k=state.frameThick/50,L=R*gp(g,'Len')/100,W=R*gp(g,'Width')/100,tp=gp(g,'Taper')/100,oR=R*gp(g,'Dist')/100,top=oR-L;
+  const fr=R*gp(g,'Frame')/100*k,sharp=gp(g,'Sharp')/100,gap=gp(g,'Gap'),rot=gp(g,'Rot'),shape=effShape(g),out=[];
+  const poly=pts=>out.push({type:'poly',outer:pts});
+  const bat=(a,w)=>poly(quad(a,top,oR,w*(1-tp),w));
+  switch(shape){
+    case 'single':bat(ang,W);break;
+    case 'double':for(const o of[-1,1])bat(ang+o*gap,W*0.6);break;
+    case 'triple':for(const o of[-1,0,1])bat(ang+o*gap*1.5,W*0.47);break;
+    case 'triangle':poly([P(ang,top),...quad(ang,oR,oR,W*1.3,W*1.3).slice(1,3)]);break;
+    case 'arrow':{const sh=quad(ang,oR-L*0.45,oR-L*0.45,W*1.2,W*1.2),bs=quad(ang,oR,oR,W*0.65*(1-tp*0.6),W*0.65*(1-tp*0.6));poly([P(ang,top),sh[1],bs[1],bs[2],sh[2]]);break}
+    case 'diamond':{const m=quad(ang,oR-L*0.5,oR-L*0.5,W*1.05,W*1.05);poly([P(ang,top),m[1],P(ang,oR),m[2]]);break}
+    case 'round':{const p=P(ang,oR-L/2);out.push({type:'circle',x:p[0],y:p[1],r:Math.min(L/2,W*1.3)});break}
+    case 'square':{const h=Math.min(L/2,W*1.2);poly(quad(ang,oR-L/2-h,oR-L/2+h,h,h));break}
+    case 'numeral':case 'roman':{const p=P(ang,oR-L/2);out.push({type:'text',x:p[0],y:p[1],txt:shape==='roman'?ROMAN[hour]:String(hour),px:L*(shape==='roman'&&hour%12!==0&&ROMAN[hour].length>2?0.62:0.8)});break}
+    case 'crown':{const p=P(ang,oR-L/2),h=L*0.78;out.push({type:'crown',x:p[0],y:p[1],w:Math.max(h*0.9,W*3.6),h});break}
+    case 'image':{const p=P(ang,oR-L/2),im=images[g],ar=im&&im.naturalWidth?im.naturalWidth/im.naturalHeight:1,h=L*0.9;out.push({type:'image',x:p[0],y:p[1],w:Math.max(h*ar*(W/(R*0.034)),1),h,img:g});break}
+  }
+  const c=P(ang,oR-L/2);
+  out.forEach(m=>{
+    m.g=g;m.rot=rot;m.rnd=hashI(hour,ang|0,state.seed+9);
+    if(m.type==='poly'){
+      m.outer=rotatePts(m.outer,c[0],c[1],rot);
+      let me=1e9;m.outer.forEach((p,i)=>{const q=m.outer[(i+1)%m.outer.length];me=Math.min(me,Math.hypot(q[0]-p[0],q[1]-p[1]))});
+      m.cr=(1-sharp)*me*0.5;m.inner=offsetConvex(m.outer,fr);m.icr=Math.max(0,m.cr-fr);
+      m.oPath=roundPoly(m.outer,m.cr);m.iPath=roundPoly(m.inner,m.icr);
+    }else if(m.type==='circle'){m.ri=Math.max(0,m.r-fr);m.oPath=new Path2D();m.oPath.arc(m.x,m.y,m.r,0,Math.PI*2);m.iPath=new Path2D();m.iPath.arc(m.x,m.y,m.ri,0,Math.PI*2)}
+    else if(m.type==='crown'){const t=new DOMMatrix().translate(m.x,m.y).rotate(rot).translate(-m.w/2,-m.h/2-m.h*0.025).scale(m.w/74,m.h/73).translate(-13,-16);
+      m.oPath=new Path2D();m.oPath.addPath(CROWN_PATH,t);m.fill='evenodd'}
+  });
   return out;
 }
-const CROWN_PATH=new Path2D('M14 70 L19 30 L35 49 L50 16 L65 49 L81 30 L86 70 Z M13 76 H87 V89 H13 Z M50 78.5 L54.5 82.5 L50 86.5 L45.5 82.5 Z M50 46 L54 52 L50 58 L46 52 Z');
-function crownXf(ctx,m){ctx.translate(m.x-m.w/2,m.y-m.h/2-m.h*0.025);ctx.scale(m.w/74,m.h/73);ctx.translate(-13,-16)}
-function paintMarkers(ctx,list,frame,fillColor,fill,R,S,shadow=true){
-  if(!list.length) return;
-  const g=ctx.createLinearGradient(0,0,0,S);
-  g.addColorStop(0,tint(frame,0.25));g.addColorStop(0.5,tint(frame,-0.32));g.addColorStop(1,tint(frame,0.18));
-  const dp=shadow?state.depth:0;
-  const drawOuter=()=>list.forEach(m=>{
-    if(m.type==='text'){ctx.font=`${state.brandWeight} ${m.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
-      if('letterSpacing' in ctx)ctx.letterSpacing='0px';
-      const cap=ctx.measureText('H').actualBoundingBoxAscent||m.px*0.68;ctx.fillText(m.txt,m.x,m.y+cap/2)}
-    else if(m.type==='crown'){ctx.save();crownXf(ctx,m);ctx.fill(CROWN_PATH,'evenodd');ctx.restore()}
-    else if(m.type==='image'){
-      const im=m12Image;
-      if(!im||!im.complete||!im.naturalWidth){ctx.save();ctx.shadowColor='transparent';ctx.strokeStyle='#9AA3A0';ctx.lineWidth=Math.max(1,m.h*0.04);ctx.setLineDash([m.h*0.08,m.h*0.06]);ctx.strokeRect(m.x-m.h/2,m.y-m.h/2,m.h,m.h);ctx.restore();return}
-      const mode=state.m12ImgMode,px=Math.abs(ctx.getTransform().a)||1;
-      if(mode==='original') ctx.drawImage(im,m.x-m.w/2,m.y-m.h/2,m.w,m.h);
-      else{const t=document.createElement('canvas');t.width=Math.max(1,Math.ceil(m.w*px));t.height=Math.max(1,Math.ceil(m.h*px));
-        const tc=t.getContext('2d');tc.drawImage(im,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';
-        if(mode==='metal'){const lg=tc.createLinearGradient(0,0,0,t.height);lg.addColorStop(0,tint(frame,0.45));lg.addColorStop(0.5,tint(frame,-0.28));lg.addColorStop(1,tint(frame,0.3));tc.fillStyle=lg}
-        else tc.fillStyle=fillColor;
-        tc.fillRect(0,0,t.width,t.height);ctx.drawImage(t,m.x-m.w/2,m.y-m.h/2,m.w,m.h)}
-    }
-    else{shapePath(ctx,m,'outer');ctx.fill()}
-  });
-  if(dp>0){
-    ctx.save();ctx.fillStyle=g;ctx.shadowColor=`rgba(0,10,8,${0.3+0.15*dp})`;ctx.shadowBlur=R*0.022*dp;ctx.shadowOffsetX=R*0.008*dp;ctx.shadowOffsetY=R*0.013*dp;drawOuter();ctx.restore();
-    ctx.save();ctx.fillStyle=g;ctx.shadowColor='rgba(0,6,5,0.8)';ctx.shadowBlur=R*0.0035;ctx.shadowOffsetX=R*0.0012*dp;ctx.shadowOffsetY=R*0.002*dp;drawOuter();ctx.restore();
-    list.forEach(m=>bevel(ctx,m,R,dp));
-  }else{ctx.save();ctx.fillStyle=g;drawOuter();ctx.restore()}
-  if(fill==='solid') return;
-  if(fill==='polished'){const g2=ctx.createLinearGradient(0,0,0,S);g2.addColorStop(0,tint(frame,0.6));g2.addColorStop(0.5,tint(frame,0.05));g2.addColorStop(1,tint(frame,0.5));ctx.fillStyle=g2}
-  else ctx.fillStyle=fillColor;
-  const inside=ctx.fillStyle;
-  list.forEach(m=>{
-    if(m.type==='text'||m.type==='image') return;
-    if(m.type==='crown'){
-      ctx.save();crownXf(ctx,m);ctx.clip(CROWN_PATH,'evenodd');
-      ctx.fillStyle=inside;ctx.fill(CROWN_PATH,'evenodd');
-      ctx.strokeStyle=g;ctx.lineJoin='miter';ctx.lineWidth=2*R*state.m12Frame/((m.w/74+m.h/73)/2);ctx.stroke(CROWN_PATH);
-      ctx.restore();return;
-    }
-    shapePath(ctx,m,'inner');ctx.fill();
-    if(dp>0){ctx.save();shapePath(ctx,m,'inner');ctx.clip();edgeLight(ctx,ptsOf(m,'inner'),R*0.006*dp,0.5,true);ctx.restore();ctx.fillStyle=inside}
-  });
+function allMarkers(){
+  const res={markers:[],m12:[]};
+  for(let hr=1;hr<=12;hr++){const ang=(hr*30)%360,g=hr===12?'m12':hr===3?'m3':hr===6?'m6':hr===9?'m9':'mo';
+    const list=buildMarker(g,ang,hr);(g==='m12'?res.m12:res.markers).push(...list)}
+  return res;
 }
 function ptsOf(m,which){
-  if(m.type==='circle'){const r=m[which],pts=[];for(let i=0;i<48;i++){const t=i/48*Math.PI*2;pts.push([m.x+r*Math.cos(t),m.y+r*Math.sin(t)])}return pts}
+  if(m.type==='circle'){const r=which==='outer'?m.r:m.ri,pts=[];for(let i=0;i<48;i++){const t=i/48*Math.PI*2;pts.push([m.x+r*Math.cos(t),m.y+r*Math.sin(t)])}return pts}
   return m[which];
 }
-const LIGHT=[-0.42,-0.91];
 function edgeLight(ctx,pts,w,str,inv){
-  const n=pts.length,cx=pts.reduce((a,p)=>a+p[0],0)/n,cy=pts.reduce((a,p)=>a+p[1],0)/n;
-  ctx.lineWidth=w;ctx.lineCap='round';
-  for(let i=0;i<n;i++){
-    const a=pts[i],b=pts[(i+1)%n];let nx=-(b[1]-a[1]),ny=b[0]-a[0];const l=Math.hypot(nx,ny)||1;nx/=l;ny/=l;
+  const n=pts.length,cx=pts.reduce((a,p)=>a+p[0],0)/n,cy=pts.reduce((a,p)=>a+p[1],0)/n;ctx.lineWidth=w;ctx.lineCap='round';
+  for(let i=0;i<n;i++){const a=pts[i],b=pts[(i+1)%n];let nx=-(b[1]-a[1]),ny=b[0]-a[0];const l=Math.hypot(nx,ny)||1;nx/=l;ny/=l;
     if(((a[0]+b[0])/2-cx)*nx+((a[1]+b[1])/2-cy)*ny<0){nx=-nx;ny=-ny}
-    const k=(nx*LIGHT[0]+ny*LIGHT[1])*(inv?-1:1);
+    const k=(nx*LV[0]+ny*LV[1])*(inv?-1:1);
     ctx.strokeStyle=k>0?`rgba(255,255,255,${(k*str).toFixed(3)})`:`rgba(0,0,0,${(-k*str*0.75).toFixed(3)})`;
-    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
-  }
+    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
 }
-function bevel(ctx,m,R,dp){
-  if(m.type==='poly'||m.type==='circle'){ctx.save();shapePath(ctx,m,'outer');ctx.clip();edgeLight(ctx,ptsOf(m,'outer'),R*0.008*Math.min(dp,1.5),0.75,false);ctx.restore()}
-  else if(m.type==='crown'){
-    ctx.save();crownXf(ctx,m);ctx.clip(CROWN_PATH,'evenodd');
-    const gr=ctx.createLinearGradient(13,16,87,89);gr.addColorStop(0,'rgba(255,255,255,.7)');gr.addColorStop(.45,'rgba(255,255,255,0)');gr.addColorStop(.6,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.5)');
-    ctx.strokeStyle=gr;ctx.lineWidth=R*0.008*Math.min(dp,1.5)/((m.w/74+m.h/73)/2);ctx.stroke(CROWN_PATH);ctx.restore();
-  }
+function metalFor(g){
+  if(g==='m12'&&state.m12Colors==='custom') return{c:state.m12FrameC,stops:METALS.polished.stops,brushed:0};
+  if(state.mMat==='custom') return{c:state.frame,stops:METALS.polished.stops,brushed:0};
+  return METALS[state.mMat];
 }
-function drawCenter(ctx,c,R){
-  const t=state.centerCap;if(t==='none')return;
-  ctx.save();ctx.translate(GEO.cx-c,GEO.cy-c);
-  const k=state.centerSize,col=state.centerColor,dp=Math.max(state.depth,0.4);
-  const metal=(r)=>{const g=ctx.createRadialGradient(c-r*0.35,c-r*0.4,r*0.05,c,c,r);g.addColorStop(0,tint(col,0.7));g.addColorStop(0.55,col);g.addColorStop(1,tint(col,-0.45));return g};
-  ctx.save();
-  ctx.shadowColor='rgba(0,8,6,0.6)';ctx.shadowBlur=R*0.015*dp;ctx.shadowOffsetX=R*0.005*dp;ctx.shadowOffsetY=R*0.008*dp;
-  if(t==='pinion'){
-    const r=R*0.022*k;ctx.fillStyle=metal(r);ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.fill();
-    ctx.shadowColor='transparent';const h=ctx.createRadialGradient(c,c,0,c,c,r*0.38);h.addColorStop(0,'#050606');h.addColorStop(1,'#2B3031');
-    ctx.fillStyle=h;ctx.beginPath();ctx.arc(c,c,r*0.38,0,Math.PI*2);ctx.fill();
-  }else if(t==='cap'){
-    const r=R*0.045*k;ctx.fillStyle=metal(r);ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.fill();
-    ctx.shadowColor='transparent';ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=R*0.002*k;ctx.beginPath();ctx.arc(c,c,r*0.72,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle=tint(col,0.55);ctx.beginPath();ctx.arc(c-r*0.3,c-r*0.35,r*0.12,0,Math.PI*2);ctx.globalAlpha=0.6;ctx.fill();
-  }else{
-    const r=R*0.07*k,g=ctx.createLinearGradient(c-r,c-r,c+r,c+r);
-    g.addColorStop(0,tint(col,0.6));g.addColorStop(0.5,tint(col,-0.4));g.addColorStop(1,tint(col,0.35));
-    ctx.strokeStyle=g;ctx.lineWidth=R*0.008*k;ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.stroke();
-  }
-  ctx.restore();ctx.restore();
+function metalGradient(ctx,mt,R){
+  const {cx,cy}=GEO,g=ctx.createLinearGradient(cx+LV[0]*R,cy+LV[1]*R,cx-LV[0]*R,cy-LV[1]*R),br=(state.frameBright-50)/100;
+  mt.stops.forEach(([o,v])=>g.addColorStop(o,tint(mt.c,clamp(v+br,-0.95,0.95))));return g;
 }
-function shapePath(ctx,m,w){if(m.type==='circle'){ctx.beginPath();ctx.arc(m.x,m.y,w==='outer'?m.outer:m.inner,0,Math.PI*2)}else poly(ctx,m[w])}
-
-// ---------- emblems (drawn in a 100 × 100 box) ----------
-function facets(ctx,list,gap){
-  list.forEach(f=>{
-    const cx=f.reduce((s,p)=>s+p[0],0)/f.length, cy=f.reduce((s,p)=>s+p[1],0)/f.length;
-    ctx.beginPath();
-    f.forEach((p,i)=>{const dx=p[0]-cx,dy=p[1]-cy,l=Math.hypot(dx,dy)||1,s=Math.max(0,l-gap)/l;
-      const x=cx+dx*s,y=cy+dy*s; i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
-    ctx.closePath();ctx.fill();
+function lumeFor(g){
+  const base=g==='m12'&&state.m12Colors==='custom'?state.m12LumeC:state.lume,w=state.lumeWarm/100;
+  return w===0.5?base:mix(base,w<0.5?'#E6F1F4':'#F2DFB0',Math.abs(w-0.5)*2*0.65);
+}
+function fillShape(ctx,m,style){
+  ctx.fillStyle=style;
+  if(m.type==='text'){ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.rot*Math.PI/180);setFont(ctx,{px:m.px,weight:state.brandWeight,stretch:1,track:0});ctx.textAlign='center';
+    const cap=ctx.measureText('H').actualBoundingBoxAscent||m.px*0.68;ctx.fillText(m.txt,0,cap/2);ctx.restore();return}
+  if(m.type==='image'){const im=images[m.img];ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.rot*Math.PI/180);
+    if(!im||!im.naturalWidth){ctx.strokeStyle='#9AA3A0';ctx.lineWidth=Math.max(1,m.h*0.04);ctx.setLineDash([m.h*0.08,m.h*0.06]);ctx.strokeRect(-m.h/2,-m.h/2,m.h,m.h);ctx.restore();return}
+    if(state.imgMode==='original'&&style!=='#000') ctx.drawImage(im,-m.w/2,-m.h/2,m.w,m.h);
+    else{const t=document.createElement('canvas'),sc=Math.abs(ctx.getTransform().a)||1;t.width=Math.max(1,Math.ceil(m.w*sc));t.height=Math.max(1,Math.ceil(m.h*sc));
+      const tc=t.getContext('2d');tc.drawImage(im,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';
+      tc.fillStyle=style==='#000'?'#000':state.imgMode==='fill'?lumeFor(m.g):style;
+      if(state.imgMode==='metal'&&style!=='#000'&&typeof style!=='string'){const mt=metalFor(m.g),lg=tc.createLinearGradient(0,0,0,t.height);lg.addColorStop(0,tint(mt.c,.45));lg.addColorStop(.5,tint(mt.c,-.3));lg.addColorStop(1,tint(mt.c,.3));tc.fillStyle=lg}
+      tc.fillRect(0,0,t.width,t.height);ctx.drawImage(t,-m.w/2,-m.h/2,m.w,m.h)}
+    ctx.restore();return}
+  ctx.fill(m.oPath,m.fill||'nonzero');
+}
+const BIG=20000;
+function paintMarkers(ctx,list,opts={}){
+  if(!list.length) return;
+  const R=opts.R||GEO.R,thumb=!!opts.thumb;
+  // shadows (drawn without the shape itself so they can vary per marker)
+  if(!thumb){
+    const rh=state.raised/100,ct=state.contact/100,vr=state.impShadow/100*8;
+    list.forEach(m=>{
+      const v=1+m.rnd*vr;
+      if(rh>0){ctx.save();ctx.shadowColor=`rgba(0,8,6,${clamp(0.5*v,0,0.95)})`;ctx.shadowBlur=R*(0.004+0.035*rh)*v;
+        ctx.shadowOffsetX=-LV[0]*R*0.022*rh*v+BIG;ctx.shadowOffsetY=-LV[1]*R*0.022*rh*v;ctx.translate(-BIG,0);fillShape(ctx,m,'#000');ctx.restore()}
+      if(ct>0){ctx.save();ctx.shadowColor=`rgba(0,5,4,${clamp(0.85*ct*v,0,1)})`;ctx.shadowBlur=R*0.0035;
+        ctx.shadowOffsetX=-LV[0]*R*0.0025*(0.4+rh)+BIG;ctx.shadowOffsetY=-LV[1]*R*0.0025*(0.4+rh);ctx.translate(-BIG,0);fillShape(ctx,m,'#000');ctx.restore()}
+    });
+  }
+  list.forEach(m=>{
+    const mt=thumb?{c:'#7C8582',stops:[[0,0],[1,0]],brushed:0}:metalFor(m.g),g=thumb?'#5E6764':metalGradient(ctx,mt,R);
+    fillShape(ctx,m,g);
+    if(thumb||m.type==='text'||m.type==='image') {if(!thumb&&m.type==='text')bevelText(ctx,m,R);return}
+    ctx.save();ctx.clip(m.oPath,m.fill||'nonzero');
+    if(mt.brushed){ctx.globalAlpha=0.18;const b=ptsOf(m,'outer').reduce((a,p)=>[Math.min(a[0],p[0]),Math.min(a[1],p[1]),Math.max(a[2],p[0]),Math.max(a[3],p[1])],[1e9,1e9,-1e9,-1e9]);
+      for(let i=0;i<40;i++){const t=hashI(i,m.rnd*1000|0,state.seed);ctx.strokeStyle=t>0?'#fff':'#000';ctx.lineWidth=R*0.0012;ctx.beginPath();
+        const yy=b[1]+(i/40)*(b[3]-b[1]);ctx.moveTo(b[0]-5,yy);ctx.lineTo(b[2]+5,yy+(b[2]-b[0])*0.15);ctx.stroke()}ctx.globalAlpha=1}
+    const rf=state.reflect/100;
+    if(rf>0){const c=m.type==='circle'?[m.x,m.y]:ptsOf(m,'outer').reduce((a,p)=>[a[0]+p[0]/ptsOf(m,'outer').length,a[1]+p[1]/ptsOf(m,'outer').length],[0,0]);
+      const off=R*0.02*(m.rnd*0.6),gx=c[0]+LV[0]*off,gy=c[1]+LV[1]*off,span=R*0.05;
+      const rg=ctx.createLinearGradient(gx-LV[1]*span-LV[0]*span,gy+LV[0]*span-LV[1]*span,gx+LV[1]*span+LV[0]*span,gy-LV[0]*span+LV[1]*span);
+      rg.addColorStop(0,'rgba(255,255,255,0)');rg.addColorStop(0.47,`rgba(255,255,255,${0.75*rf})`);rg.addColorStop(0.53,`rgba(255,255,255,${0.75*rf})`);rg.addColorStop(1,'rgba(255,255,255,0)');
+      ctx.fillStyle=rg;ctx.fillRect(c[0]-R*0.3,c[1]-R*0.3,R*0.6,R*0.6)}
+    const bs=R*(0.002+state.bevelSize/100*0.012),n=1+Math.round(state.bevelSoft/100*4);
+    if(state.bevelSize>0){
+      if(m.type==='crown'){const b=ctx.createLinearGradient(m.x+LV[0]*m.w/2,m.y+LV[1]*m.h/2,m.x-LV[0]*m.w/2,m.y-LV[1]*m.h/2);
+        b.addColorStop(0,'rgba(255,255,255,.7)');b.addColorStop(.45,'rgba(255,255,255,0)');b.addColorStop(.6,'rgba(0,0,0,0)');b.addColorStop(1,'rgba(0,0,0,.5)');
+        ctx.strokeStyle=b;ctx.lineWidth=bs*2;ctx.stroke(m.oPath)}
+      else for(let i=0;i<n;i++) edgeLight(ctx,ptsOf(m,'outer'),bs*2*(i+1)/n,0.8/n*(n===1?1:1.6),false);
+    }
+    ctx.restore();
+    // inside
+    const fill=gp(m.g,'Fill');
+    if(fill==='solid'||!m.iPath) return;
+    if(fill==='polished'){const g2=ctx.createLinearGradient(GEO.cx+LV[0]*R,GEO.cy+LV[1]*R,GEO.cx-LV[0]*R,GEO.cy-LV[1]*R);
+      g2.addColorStop(0,tint(mt.c,.7));g2.addColorStop(.5,tint(mt.c,.1));g2.addColorStop(1,tint(mt.c,.55));ctx.fillStyle=g2}
+    else ctx.fillStyle=lumeFor(m.g);
+    ctx.fill(m.iPath);
+    const rc=state.lumeRecess/100;
+    if(rc>0){ctx.save();ctx.clip(m.iPath);edgeLight(ctx,ptsOf(m,'inner'),R*0.007*rc,0.6*rc+0.1,true);ctx.restore()}
   });
 }
-const LOGOS = {
-  none:{label:'None',draw(){}},
-  crown:{label:'Crown',draw(ctx){
-    ctx.fill(new Path2D('M14 70 L19 30 L35 49 L50 16 L65 49 L81 30 L86 70 Z M13 76 H87 V89 H13 Z M50 78.5 L54.5 82.5 L50 86.5 L45.5 82.5 Z M50 46 L54 52 L50 58 L46 52 Z'),'evenodd');
-  }},
-  diamond:{label:'Diamond',draw(ctx){
-    const A=[33,22],B=[67,22],M=[50,22],C=[18,40],D=[82,40],G1=[39,40],G2=[61,40],E=[50,86];
-    facets(ctx,[[C,A,G1],[A,M,G1],[G1,M,G2],[M,B,G2],[G2,B,D],[C,G1,E],[G1,G2,E],[G2,D,E]],1.6);
-  }},
-  star:{label:'Star',draw(ctx){
-    ctx.fill(new Path2D('M50 8 L57.5 42.5 L92 50 L57.5 57.5 L50 92 L42.5 57.5 L8 50 L42.5 42.5 Z'));
-  }},
-  compass:{label:'Compass',draw(ctx){
-    ctx.lineWidth=3.2;ctx.beginPath();ctx.arc(50,50,40,0,Math.PI*2);ctx.stroke();
-    ctx.fill(new Path2D('M50 14 L55 45 L86 50 L55 55 L50 86 L45 55 L14 50 L45 45 Z'));
-    ctx.fill(new Path2D('M50 50 L71 29 L56 50 L71 71 L50 50 L29 71 L44 50 L29 29 Z'));
-  }},
-  anchor:{label:'Anchor',draw(ctx){
-    ctx.fill(new Path2D('M58 18 A8 8 0 1 0 42 18 A8 8 0 1 0 58 18 Z M54 18 A4 4 0 1 1 46 18 A4 4 0 1 1 54 18 Z'),'evenodd');
-    ctx.fillRect(46.5,25,7,60); ctx.fillRect(31,33,38,6);
-    ctx.lineWidth=6;ctx.lineCap='butt';ctx.beginPath();ctx.moveTo(20,60);ctx.quadraticCurveTo(24,86,50,86);ctx.quadraticCurveTo(76,86,80,60);ctx.stroke();
-    ctx.fill(new Path2D('M12 66 L20 50 L29 64 Z M88 66 L80 50 L71 64 Z'));
-  }},
-  wave:{label:'Wave',draw(ctx){
-    ctx.lineWidth=5.5;ctx.lineCap='round';
-    for(let i=0;i<3;i++){const y=34+i*15;ctx.beginPath();ctx.moveTo(12,y);
-      for(let s=0;s<4;s++){const x=12+s*19;ctx.quadraticCurveTo(x+4.75,y-8,x+9.5,y);ctx.quadraticCurveTo(x+14.25,y+8,x+19,y)}
-      ctx.stroke()}
-  }},
-  shield:{label:'Shield',draw(ctx){
-    ctx.fill(new Path2D('M50 8 L84 18 V46 C84 68 70 82 50 92 C30 82 16 68 16 46 V18 Z M30 42 L50 56 L70 42 V51 L50 65 L30 51 Z'),'evenodd');
-  }},
-  monogram:{label:'Monogram',draw(ctx){
-    ctx.lineWidth=3;ctx.beginPath();ctx.arc(50,50,42,0,Math.PI*2);ctx.stroke();
-    ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(50,50,36.5,0,Math.PI*2);ctx.stroke();
-    let t=(state.monogram||'M'); if(state.caps==='upper') t=t.toUpperCase();
-    const px=t.length>2?30:t.length>1?38:46;
-    ctx.font=`${state.brandWeight} ${px}px ${FONTS[state.font]}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
-    const m=ctx.measureText(t),cap=m.actualBoundingBoxAscent||px*0.66;
-    ctx.fillText(t,50,50+cap/2);
-  }},
-  custom:{label:'Upload',draw(ctx){
-    if(!logoImage||!logoImage.complete||!logoImage.naturalWidth){ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.strokeRect(14,14,72,72);return}
-    const iw=logoImage.naturalWidth,ih=logoImage.naturalHeight,s=100/Math.max(iw,ih);
-    const w=iw*s,h=ih*s,x=50-w/2,y=50-h/2;
-    if(state.logoFinish==='flat'||state._tint){
-      const t=document.createElement('canvas');t.width=Math.ceil(w*8);t.height=Math.ceil(h*8);
-      const tc=t.getContext('2d');tc.drawImage(logoImage,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';
-      tc.fillStyle=ctx.fillStyle;tc.fillRect(0,0,t.width,t.height);ctx.drawImage(t,x,y,w,h);
-    }else ctx.drawImage(logoImage,x,y,w,h);
-  }},
-};
-let logoImage=null,m12Image=null;
-function setM12Image(src){if(!src){m12Image=null;return}m12Image=new Image();m12Image.onload=schedule;m12Image.src=src}
-function setLogoImage(src){
-  if(!src){logoImage=null;return}
-  logoImage=new Image();logoImage.onload=schedule;logoImage.src=src;
-}
-function drawEmblem(ctx,cx,cy,size,R,{thumb=false}={}){
-  const L=LOGOS[state.logo]; if(!L||state.logo==='none') return;
-  ctx.save();
-  ctx.translate(cx-size/2,cy-size/2); ctx.scale(size/100,size/100);
-  let paint=state.logoColor;
-  if(state.logoFinish==='metal'){
-    const g=ctx.createLinearGradient(0,0,0,100);
-    g.addColorStop(0,tint(state.logoColor,0.45));g.addColorStop(0.5,tint(state.logoColor,-0.28));g.addColorStop(1,tint(state.logoColor,0.3));
-    paint=g;
-    if(!thumb&&state.depth>0){const dp=state.depth;ctx.shadowColor=`rgba(0,10,8,${0.35+0.15*dp})`;ctx.shadowBlur=R*0.018*dp;ctx.shadowOffsetX=R*0.007*dp;ctx.shadowOffsetY=R*0.011*dp}
-  }
-  ctx.fillStyle=paint; ctx.strokeStyle=paint;
-  if(state.logo==='custom'&&state.logoFinish==='metal'){ctx.fillStyle=state.logoColor}
-  L.draw(ctx);
-  ctx.restore();
+function bevelText(ctx,m,R){
+  const s=R*0.0025*(state.bevelSize/40);
+  ctx.save();ctx.globalAlpha=0.5;ctx.translate(LV[0]*s,LV[1]*s);fillShape(ctx,m,'rgba(255,255,255,.55)');ctx.restore();
+  fillShape(ctx,m,metalGradient(ctx,metalFor(m.g),R));
 }
 
-// ---------- typography ----------
-function prep(t){return state.caps==='upper'?t.toUpperCase():t}
-function lineOpts(id,R){return{px:R*state[id+'Size']/100,color:state[id+'Color'],track:state[id+'Track'],weight:state[id+'Weight'],stretch:state[id+'Stretch']/100}}
+/* =====================================================================
+   Emblems
+   ===================================================================== */
+function facets(ctx,list,gap){list.forEach(f=>{const cx=f.reduce((s,p)=>s+p[0],0)/f.length,cy=f.reduce((s,p)=>s+p[1],0)/f.length;ctx.beginPath();
+  f.forEach((p,i)=>{const dx=p[0]-cx,dy=p[1]-cy,l=Math.hypot(dx,dy)||1,s=Math.max(0,l-gap)/l,x=cx+dx*s,y=cy+dy*s;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.closePath();ctx.fill()})}
+const LOGOS={
+  none:{label:'None',draw(){}},
+  crown:{label:'Crown',draw(ctx){ctx.fill(CROWN_PATH,'evenodd')}},
+  diamond:{label:'Diamond',draw(ctx){const A=[33,22],B=[67,22],M=[50,22],C=[18,40],Dd=[82,40],G1=[39,40],G2=[61,40],E=[50,86];
+    facets(ctx,[[C,A,G1],[A,M,G1],[G1,M,G2],[M,B,G2],[G2,B,Dd],[C,G1,E],[G1,G2,E],[G2,Dd,E]],1.6)}},
+  star:{label:'Star',draw(ctx){ctx.fill(new Path2D('M50 8 L57.5 42.5 L92 50 L57.5 57.5 L50 92 L42.5 57.5 L8 50 L42.5 42.5 Z'))}},
+  compass:{label:'Compass',draw(ctx){ctx.lineWidth=3.2;ctx.beginPath();ctx.arc(50,50,40,0,Math.PI*2);ctx.stroke();
+    ctx.fill(new Path2D('M50 14 L55 45 L86 50 L55 55 L50 86 L45 55 L14 50 L45 45 Z'));ctx.fill(new Path2D('M50 50 L71 29 L56 50 L71 71 L50 50 L29 71 L44 50 L29 29 Z'))}},
+  anchor:{label:'Anchor',draw(ctx){ctx.fill(new Path2D('M58 18 A8 8 0 1 0 42 18 A8 8 0 1 0 58 18 Z M54 18 A4 4 0 1 1 46 18 A4 4 0 1 1 54 18 Z'),'evenodd');
+    ctx.fillRect(46.5,25,7,60);ctx.fillRect(31,33,38,6);ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(20,60);ctx.quadraticCurveTo(24,86,50,86);ctx.quadraticCurveTo(76,86,80,60);ctx.stroke();
+    ctx.fill(new Path2D('M12 66 L20 50 L29 64 Z M88 66 L80 50 L71 64 Z'))}},
+  wave:{label:'Wave',draw(ctx){ctx.lineWidth=5.5;ctx.lineCap='round';for(let i=0;i<3;i++){const y=34+i*15;ctx.beginPath();ctx.moveTo(12,y);
+    for(let s=0;s<4;s++){const x=12+s*19;ctx.quadraticCurveTo(x+4.75,y-8,x+9.5,y);ctx.quadraticCurveTo(x+14.25,y+8,x+19,y)}ctx.stroke()}}},
+  shield:{label:'Shield',draw(ctx){ctx.fill(new Path2D('M50 8 L84 18 V46 C84 68 70 82 50 92 C30 82 16 68 16 46 V18 Z M30 42 L50 56 L70 42 V51 L50 65 L30 51 Z'),'evenodd')}},
+  monogram:{label:'Monogram',draw(ctx){ctx.lineWidth=3;ctx.beginPath();ctx.arc(50,50,42,0,Math.PI*2);ctx.stroke();ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(50,50,36.5,0,Math.PI*2);ctx.stroke();
+    const t=prep(state.monogram||'M'),px=t.length>2?30:t.length>1?38:46;ctx.font=`${state.brandWeight} ${px}px ${FONTS[state.font]}`;ctx.textAlign='center';
+    const cap=ctx.measureText(t).actualBoundingBoxAscent||px*0.66;ctx.fillText(t,50,50+cap/2)}},
+  custom:{label:'Upload',draw(ctx){const im=images.logo;
+    if(!im||!im.naturalWidth){ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.strokeRect(14,14,72,72);return}
+    const s=100/Math.max(im.naturalWidth,im.naturalHeight),w=im.naturalWidth*s,h=im.naturalHeight*s;
+    const t=document.createElement('canvas');t.width=Math.ceil(w*8);t.height=Math.ceil(h*8);const tc=t.getContext('2d');tc.drawImage(im,0,0,t.width,t.height);
+    if(state.logoFinish==='flat'||ctx._tint){tc.globalCompositeOperation='source-in';tc.fillStyle=ctx.fillStyle;tc.fillRect(0,0,t.width,t.height)}
+    ctx.drawImage(t,50-w/2,50-h/2,w,h)}}
+};
+function drawEmblem(ctx,cx,cy,size,R,{thumb=false}={}){
+  const L=LOGOS[state.logo];if(!L||state.logo==='none')return;
+  const draw=(paint,dx=0,dy=0)=>{ctx.save();ctx.translate(cx-size/2+dx,cy-size/2+dy);ctx.scale(size/100,size/100);ctx.fillStyle=paint;ctx.strokeStyle=paint;L.draw(ctx);ctx.restore()};
+  if(thumb){draw(state.logoColor);return}
+  if(state.logoFinish==='metal'){
+    const rh=state.raised/100;
+    if(rh>0){ctx.save();ctx.shadowColor='rgba(0,8,6,.55)';ctx.shadowBlur=R*(0.004+0.03*rh);ctx.shadowOffsetX=-LV[0]*R*0.018*rh+BIG;ctx.shadowOffsetY=-LV[1]*R*0.018*rh;draw('#000',-BIG,0);ctx.restore()}
+    draw('rgba(255,255,255,.6)',LV[0]*R*0.002,LV[1]*R*0.002);
+    const g=ctx.createLinearGradient(0,cy-size/2,0,cy+size/2);g.addColorStop(0,tint(state.logoColor,.45));g.addColorStop(.5,tint(state.logoColor,-.28));g.addColorStop(1,tint(state.logoColor,.3));
+    ctx.save();ctx.translate(cx-size/2,cy-size/2);ctx.scale(size/100,size/100);
+    const lg=ctx.createLinearGradient(0,0,0,100);lg.addColorStop(0,tint(state.logoColor,.45));lg.addColorStop(.5,tint(state.logoColor,-.28));lg.addColorStop(1,tint(state.logoColor,.3));
+    ctx.fillStyle=lg;ctx.strokeStyle=lg;if(state.logo==='custom')ctx.fillStyle=state.logoColor;L.draw(ctx);ctx.restore();
+  }else draw(state.logoColor);
+}
+
+/* =====================================================================
+   Text
+   ===================================================================== */
+function lineStyle(id){const R=GEO.R;return{id,px:R*state[id+'Size']/100,color:state[id+'Color'],track:state[id+'Track'],weight:state[id+'Weight'],stretch:state[id+'Stretch']/100,
+  render:state[id+'Render'],ink:state[id+'Ink']/100,thick:state[id+'Thick']/100,soft:state[id+'Soft'],shadow:state[id+'Shadow']/100,curve:state[id+'Curve']}}
 function setFont(ctx,o){
-  ctx.font=`${o.weight} ${o.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.fillStyle=o.color;ctx.textBaseline='alphabetic';ctx.textAlign='left';
-  if('fontKerning' in ctx) ctx.fontKerning=state.kerning;
-  if('letterSpacing' in ctx) ctx.letterSpacing='0px';
+  ctx.font=`${o.weight} ${o.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.textBaseline='alphabetic';ctx.textAlign='left';
+  if('fontKerning' in ctx)ctx.fontKerning=state.kerning;if('letterSpacing' in ctx)ctx.letterSpacing='0px';
   return ctx.measureText('H').actualBoundingBoxAscent||o.px*0.68;
 }
-function textLine(ctx,txt,cy,o){
-  if(!txt) return 0;
-  txt=prep(txt);
-  ctx.save();
-  const cap=setFont(ctx,o),ls=o.px*o.track/1000;
-  ctx.translate(ctx.canvas.width/2,cy+cap/2);ctx.scale(o.stretch,1);
-  if('letterSpacing' in ctx){ctx.letterSpacing=ls+'px';const w=ctx.measureText(txt).width;ctx.fillText(txt,-(w-ls)/2,0)}
-  else{const ch=[...txt],ws=ch.map(x=>ctx.measureText(x).width),tot=ws.reduce((a,b)=>a+b,0)+ls*(ch.length-1);let x=-tot/2;ch.forEach((t,i)=>{ctx.fillText(t,x,0);x+=ws[i]+ls})}
-  ctx.restore();
-  return cap;
+function layoutLine(ctx,txt,x,y,o){
+  ctx.save();const cap=setFont(ctx,o);const ls=o.px*o.track/1000;
+  if(!o.curve){ctx.restore();return{type:'str',txt,x,y:y+cap/2,ls,o,cy:y}}
+  const ch=[...txt],ws=ch.map(c=>ctx.measureText(c).width*o.stretch),tw=ws.reduce((a,b)=>a+b,0)+ls*(ch.length-1);ctx.restore();
+  const s=Math.abs(o.curve)/10*0.14*tw,rr=(tw*tw/4+s*s)/(2*s),up=o.curve>0,y0=y+cap/2,gl=[];let pos=-tw/2;
+  ch.forEach((c,i)=>{const mid=pos+ws[i]/2,t=mid/rr;gl.push({ch:c,x:x+rr*Math.sin(t),y:up?y0+rr-rr*Math.cos(t):y0-rr+rr*Math.cos(t),rot:up?t:-t});pos+=ws[i]+ls});
+  return{type:'gl',gl,o,cy:y};
 }
-// text along the bottom arc, reading left to right, tops toward the center
-function arcText(ctx,c,R,txt,o){
-  ctx.save();
-  const cap=setFont(ctx,o),ls=o.px*o.track/1000,rad=R*state.swissR,toDeg=180/Math.PI;
-  const r180=Math.hypot(P(c,180,rad)[0]-GEO.cx,P(c,180,rad)[1]-GEO.cy);
+function layoutArc(ctx,txt,o){
+  ctx.save();const cap=setFont(ctx,o),ls=o.px*o.track/1000,rad=GEO.R*state.swissR/100,toDeg=180/Math.PI,shift=state.swissX*0.5;
+  const effR=a=>{const p=P(a,rad);return Math.hypot(p[0]-GEO.cx,p[1]-GEO.cy)},r180=effR(180),gl=[];
   const widthDeg=str=>{const ch=[...str];return(ch.reduce((a,x)=>a+ctx.measureText(x).width*o.stretch,0)+ls*Math.max(0,ch.length-1))/r180*toDeg};
-  const effR=ang=>{const p=P(c,ang,rad);return Math.hypot(p[0]-GEO.cx,p[1]-GEO.cy)};
-  const seg=(str,startDeg)=>{let a=startDeg;[...str].forEach(ch=>{const er=effR(a),w=ctx.measureText(ch).width*o.stretch,wd=w/er*toDeg,mid=a-wd/2,p=P(c,mid,rad);
-    const p1=P(c,mid+0.4,rad),p2=P(c,mid-0.4,rad),rot=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
-    ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(rot);ctx.scale(o.stretch,1);ctx.textAlign='center';ctx.fillText(ch,0,cap/2);ctx.restore();
-    a-=wd+ls/er*toDeg})};
-  if(state.swissMode==='split'){
-    const t=txt.trim(),mid=t.length/2;let best=-1;
-    [...t].forEach((ch,i)=>{if(ch===' '&&(best<0||Math.abs(i-mid)<Math.abs(best-mid)))best=i});
-    if(best<0){seg(t,180+widthDeg(t)/2)}
-    else{const L=t.slice(0,best).trim(),Rt=t.slice(best+1).trim();seg(L,180+state.swissGap+widthDeg(L));seg(Rt,180-state.swissGap)}
-  }else seg(txt,180+widthDeg(txt)/2);
+  const seg=(str,start)=>{let a=start;[...str].forEach(c=>{const er=effR(a),w=ctx.measureText(c).width*o.stretch,wd=w/er*toDeg,mid=a-wd/2,p=P(mid,rad),p1=P(mid+0.4,rad),p2=P(mid-0.4,rad);
+    gl.push({ch:c,x:p[0],y:p[1],rot:Math.atan2(p2[1]-p1[1],p2[0]-p1[0]),center:true,cap});a-=wd+ls/er*toDeg})};
+  if(state.swissMode==='split'){const t=txt.trim(),m=t.length/2;let best=-1;[...t].forEach((c,i)=>{if(c===' '&&(best<0||Math.abs(i-m)<Math.abs(best-m)))best=i});
+    if(best<0)seg(t,180+shift+widthDeg(t)/2);else{const L=t.slice(0,best).trim(),Rt=t.slice(best+1).trim();seg(L,180+shift+state.swissGap+widthDeg(L));seg(Rt,180+shift-state.swissGap)}}
+  else seg(txt,180+shift+widthDeg(txt)/2);
+  ctx.restore();return{type:'gl',gl,o,cy:P(180,rad)[1],arc:true};
+}
+function drawLayout(ctx,lay,method){
+  const o=lay.o;const cap=setFont(ctx,o);
+  if(lay.type==='str'){ctx.save();ctx.translate(lay.x,lay.y);ctx.scale(o.stretch,1);
+    if('letterSpacing' in ctx){ctx.letterSpacing=lay.ls+'px';const w=ctx.measureText(lay.txt).width;method==='stroke'?ctx.strokeText(lay.txt,-(w-lay.ls)/2,0):ctx.fillText(lay.txt,-(w-lay.ls)/2,0)}
+    else{const ch=[...lay.txt],ws=ch.map(c=>ctx.measureText(c).width),tot=ws.reduce((a,b)=>a+b,0)+lay.ls*(ch.length-1);let x=-tot/2;ch.forEach((c,i)=>{method==='stroke'?ctx.strokeText(c,x,0):ctx.fillText(c,x,0);x+=ws[i]+lay.ls})}
+    ctx.restore();return}
+  lay.gl.forEach(g=>{ctx.save();ctx.translate(g.x,g.y);ctx.rotate(g.rot);ctx.scale(o.stretch,1);ctx.textAlign='center';const yy=g.center?cap/2:0;
+    method==='stroke'?ctx.strokeText(g.ch,0,yy):ctx.fillText(g.ch,0,yy);ctx.restore()});
+}
+function paintText(ctx,lay){
+  const o=lay.o,R=GEO.R,canFilter='filter' in ctx;
+  const pass=(style,dx,dy,alpha,method='fill')=>{ctx.save();ctx.globalAlpha=alpha;ctx.translate(dx,dy);ctx.fillStyle=style;ctx.strokeStyle=style;drawLayout(ctx,lay,method);ctx.restore()};
+  if(o.shadow>0){ctx.save();ctx.shadowColor=`rgba(0,0,0,${0.8*o.shadow})`;ctx.shadowBlur=o.px*0.1*(0.4+o.shadow);
+    ctx.shadowOffsetX=-LV[0]*o.px*0.07*(0.3+o.shadow)+BIG;ctx.shadowOffsetY=-LV[1]*o.px*0.07*(0.3+o.shadow);ctx.translate(-BIG,0);ctx.fillStyle='#000';drawLayout(ctx,lay,'fill');ctx.restore()}
+  const d=o.px*0.035;
+  if(o.render==='raised'){
+    pass(tint(o.color,-0.65),-LV[0]*d,-LV[1]*d,0.85);pass(tint(o.color,0.75),LV[0]*d*0.8,LV[1]*d*0.8,0.9);
+    const g=ctx.createLinearGradient(0,lay.cy-o.px*0.6,0,lay.cy+o.px*0.6);g.addColorStop(0,tint(o.color,.5));g.addColorStop(.5,tint(o.color,-.3));g.addColorStop(1,tint(o.color,.35));pass(g,0,0,o.ink);
+  }else if(o.render==='engraved'){
+    pass('rgba(255,255,255,.45)',-LV[0]*d,-LV[1]*d,1);pass('rgba(0,0,0,.6)',LV[0]*d*0.6,LV[1]*d*0.6,1);pass(mix(o.color,'#000000',0.35),0,0,o.ink);
+  }else{
+    ctx.save();ctx.globalAlpha=o.ink;if(o.soft>0&&canFilter)ctx.filter=`blur(${(o.soft*R/233*0.35).toFixed(2)}px)`;
+    ctx.fillStyle=o.color;drawLayout(ctx,lay,'fill');
+    if(o.thick>0){ctx.lineWidth=o.thick*o.px*0.07;ctx.lineJoin='round';ctx.strokeStyle=o.color;drawLayout(ctx,lay,'stroke')}
+    ctx.restore();
+  }
+}
+
+/* =====================================================================
+   Center detail
+   ===================================================================== */
+function drawCenter(ctx){
+  const t=state.centerCap;if(t==='none')return;const {cx,cy,R}=GEO,k=state.centerSize,col=state.centerColor,dp=Math.max(state.raised/50,0.4);
+  const metal=r=>{const g=ctx.createRadialGradient(cx+LV[0]*r*0.4,cy+LV[1]*r*0.4,r*0.05,cx,cy,r);g.addColorStop(0,tint(col,.7));g.addColorStop(.55,col);g.addColorStop(1,tint(col,-.45));return g};
+  ctx.save();ctx.shadowColor='rgba(0,8,6,.6)';ctx.shadowBlur=R*0.015*dp;ctx.shadowOffsetX=-LV[0]*R*0.008*dp;ctx.shadowOffsetY=-LV[1]*R*0.008*dp;
+  if(t==='pinion'){const r=R*0.022*k;ctx.fillStyle=metal(r);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.shadowColor='transparent';
+    const h=ctx.createRadialGradient(cx,cy,0,cx,cy,r*0.38);h.addColorStop(0,'#050606');h.addColorStop(1,'#2B3031');ctx.fillStyle=h;ctx.beginPath();ctx.arc(cx,cy,r*0.38,0,Math.PI*2);ctx.fill()}
+  else if(t==='cap'){const r=R*0.045*k;ctx.fillStyle=metal(r);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.shadowColor='transparent';
+    ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=R*0.002*k;ctx.beginPath();ctx.arc(cx,cy,r*0.72,0,Math.PI*2);ctx.stroke()}
+  else{const r=R*0.07*k,g=ctx.createLinearGradient(cx+LV[0]*r,cy+LV[1]*r,cx-LV[0]*r,cy-LV[1]*r);g.addColorStop(0,tint(col,.6));g.addColorStop(.5,tint(col,-.4));g.addColorStop(1,tint(col,.35));
+    ctx.strokeStyle=g;ctx.lineWidth=R*0.008*k;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke()}
   ctx.restore();
 }
 
-// ---------- full render ----------
-function render(W,H,scale=W/(state.shape==='rect'?408:466)){
-  const cv=document.createElement('canvas');
-  cv.width=W;cv.height=H;setGeo(W,H,scale);
-  const ctx=cv.getContext('2d'),c=GEO.R,R=GEO.R,S=H,cx=GEO.cx,cy=GEO.cy,hh=GEO.hh;
-  if(state.transparent!=='true'){ctx.fillStyle='#000';ctx.fillRect(0,0,W,H)}
-  ctx.drawImage(makeBg(W,H),0,0);
-
-  if(state.track==='on'){
-    ctx.fillStyle=state.fineColor;
-    for(let i=0;i<240;i++){if(i%4===0)continue;poly(ctx,quad(c,i*1.5,R*0.935,R*0.955,R*0.0018,R*0.0018));ctx.fill()}
-    ctx.fillStyle=state.trackColor;
-    for(let i=0;i<60;i++){if(i%5===0)continue;poly(ctx,quad(c,i*6,R*0.905,R*0.955,R*0.0045,R*0.0045));ctx.fill()}
-    ctx.strokeStyle=state.fineColor;ctx.lineWidth=R*0.004;ctx.beginPath();for(let a=0;a<=360;a+=0.5){const p=P(c,a,R*0.958);a?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])}ctx.closePath();ctx.stroke();
-  }
-
-  paintMarkers(ctx,markers(c,R),state.frame,state.lume,'lume',R,S);
-  const cust=state.m12Colors==='custom';
-  paintMarkers(ctx,twelveShapes(c,R),cust?state.m12FrameC:state.frame,cust?state.m12LumeC:state.lume,state.m12Fill,R,S);
-
-  drawCenter(ctx,c,R);
-
-  // top text block: emblem, name, line under name
-  const sp=state.lineSpacing/100,oN=lineOpts('brand',R),oS=lineOpts('sub',R),oB=lineOpts('bottom',R),oB2=lineOpts('bottom2',R),oW=lineOpts('swiss',R);
+/* =====================================================================
+   Render pipeline (layers, opacity, blend modes)
+   ===================================================================== */
+function render(W,H,scale,flags={light:true,tex:true}){
+  setGeo(W,H,scale);
+  const out=document.createElement('canvas');out.width=W;out.height=H;const octx=out.getContext('2d');
+  const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;const t=tmp.getContext('2d');
+  const env={W,H,scale};const R=GEO.R,{cx,cy,hh}=GEO;
+  const mk=allMarkers();
+  // text layout
+  const sp=state.lineSpacing/100,oN=lineStyle('brand'),oS=lineStyle('sub'),oB=lineStyle('bottom'),oB2=lineStyle('bottom2'),oW=lineStyle('swiss');
   const nameY=cy-hh*0.36+R*state.brandY/100;
-  const nameCap=textLine(ctx,state.brand,nameY,oN)||oN.px*0.68;
-  textLine(ctx,state.sub,nameY+sp*(oN.px+oS.px)*0.75+R*state.subY/100,oS);
-  const ls=R*state.logoSize/100;
-  drawEmblem(ctx,cx,nameY-nameCap/2-R*state.logoGap/100-ls/2,ls,R);
-
-  // lower text block
+  t.save();const nameCap=state.brand?setFont(t,oN):oN.px*0.68;t.restore();
+  const lay={};
+  if(state.brand) lay.brand=layoutLine(t,prep(state.brand),cx+R*state.brandX/100,nameY,oN);
+  if(state.sub) lay.sub=layoutLine(t,prep(state.sub),cx+R*state.subX/100,nameY+sp*(oN.px+oS.px)*0.75+R*state.subY/100,oS);
   const lowY=cy+hh*0.34+R*state.bottomY/100;
-  textLine(ctx,state.bottom,lowY,oB);
-  textLine(ctx,state.bottom2,lowY+sp*(oB.px+oB2.px)*0.75+R*state.bottom2Y/100,oB2);
-
-  // bottom text near 6 o'clock
-  if(state.swiss){
-    if(state.swissMode==='straight') textLine(ctx,state.swiss,P(c,180,R*state.swissR)[1],oW);
-    else arcText(ctx,c,R,prep(state.swiss),oW);
-  }
-  return cv;
+  if(state.bottom) lay.bottom=layoutLine(t,prep(state.bottom),cx+R*state.bottomX/100,lowY,oB);
+  if(state.bottom2) lay.bottom2=layoutLine(t,prep(state.bottom2),cx+R*state.bottom2X/100,lowY+sp*(oB.px+oB2.px)*0.75+R*state.bottom2Y/100,oB2);
+  if(state.swiss) lay.swiss=state.swissMode==='straight'?layoutLine(t,prep(state.swiss),cx+R*state.swissX/100,P(180,R*state.swissR/100)[1],oW):layoutArc(t,prep(state.swiss),oW);
+  const ls=R*state.logoSize/100;
+  const L={
+    dial:c=>c.drawImage(makeDial(W,H,scale,flags),0,0),
+    rehaut:c=>drawRehaut(c,env),
+    track:c=>drawTrack(c),
+    markers:c=>paintMarkers(c,mk.markers),
+    m12:c=>paintMarkers(c,mk.m12),
+    emblem:c=>drawEmblem(c,cx+R*state.brandX/100,nameY-nameCap/2-R*state.logoGap/100-ls/2,ls,R),
+    textTop:c=>{lay.brand&&paintText(c,lay.brand);lay.sub&&paintText(c,lay.sub)},
+    textLower:c=>{lay.bottom&&paintText(c,lay.bottom);lay.bottom2&&paintText(c,lay.bottom2)},
+    textBottom:c=>{lay.swiss&&paintText(c,lay.swiss)},
+    center:c=>drawCenter(c)
+  };
+  state.layers.forEach(ly=>{
+    if(!ly.visible||!L[ly.id]) return;
+    t.setTransform(1,0,0,1,0,0);t.clearRect(0,0,W,H);
+    t.save();if(ly.id!=='dial'){screenPath(t);t.clip()}L[ly.id](t);t.restore();
+    octx.globalAlpha=ly.opacity/100;octx.globalCompositeOperation=BLENDS[ly.blend]||'source-over';octx.drawImage(tmp,0,0);
+  });
+  octx.globalAlpha=1;
+  // keep everything inside the screen, then add black outside unless transparent
+  octx.globalCompositeOperation='destination-in';octx.fillStyle='#000';screenPath(octx);octx.fill();
+  octx.globalCompositeOperation='destination-over';
+  if(state.transparent!=='true'){octx.fillStyle='#000';octx.fillRect(0,0,W,H)}
+  octx.globalCompositeOperation='source-over';
+  return out;
 }
-const BASE=()=>state.shape==='rect'?[408,480]:[466,466];
 function renderFor(scale){
-  const [bw,bh]=BASE(),ss=Math.max(scale,4);
-  let src=render(bw*ss,bh*ss,ss);
+  const [bw,bh]=BASE(),ss=Math.max(scale,4);let src=render(bw*ss,bh*ss,ss);
   while(src.width/2>=bw*scale-0.5){const h=document.createElement('canvas');h.width=src.width/2;h.height=src.height/2;
     const hc=h.getContext('2d');hc.imageSmoothingQuality='high';hc.drawImage(src,0,0,h.width,h.height);src=h}
   return src;
 }
-function applyShape(){
-  const [bw,bh]=BASE(),cs=document.getElementById('case');
-  pv.width=bw*2;pv.height=bh*2;
-  cs.classList.toggle('rect',state.shape==='rect');
-  if(state.shape==='rect'){cs.style.setProperty('--cr',(state.cornerR/bw*100)+'%');cs.style.setProperty('--crv',(state.cornerR/bh*100)+'%')}
-  document.getElementById('caption').textContent=state.shape==='rect'
-    ?'43.2 × 36.3 × 9.9 mm · Huawei Watch Fit 3 · 1.82″ · 408 × 480 px'
-    :'Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px';
-  document.querySelectorAll('[data-shape]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shape===state.shape)));
-  document.getElementById('cornerRow').hidden=state.shape!=='rect';
-  const sel=document.getElementById('size');
-  [...sel.options].forEach(o=>{const k=+o.value;o.textContent=`${bw*k} × ${bh*k}`+(k===1?' (Theme Studio)':k===8?' (master)':'')});
-}
 
-// ---------- preview ----------
-const pv=document.getElementById('preview'),pctx=pv.getContext('2d');
-let raf=0;
-function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(drawPreview)}
-function drawPreview(){pctx.clearRect(0,0,pv.width,pv.height);pctx.drawImage(render(pv.width,pv.height,2),0,0);drawThumbs();drawTwelveThumbs();updateTwelveUI()}
-
-// ---------- emblem picker ----------
-const logoBox=document.getElementById('logos'),thumbs={};
-Object.entries(LOGOS).forEach(([k,L])=>{
-  const b=document.createElement('button');b.type='button';b.dataset.logo=k;b.setAttribute('aria-pressed','false');
-  const cv=document.createElement('canvas');cv.width=cv.height=72;thumbs[k]=cv;
-  b.appendChild(cv);b.appendChild(document.createTextNode(L.label));
-  b.onclick=()=>{state.logo=k;updateLogoUI();schedule()};
-  logoBox.appendChild(b);
-});
-function drawThumbs(){
-  Object.entries(thumbs).forEach(([k,cv])=>{
-    const ctx=cv.getContext('2d');ctx.clearRect(0,0,72,72);
-    if(k==='none'){ctx.strokeStyle='#9AA3A0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(36,36,22,0,Math.PI*2);ctx.moveTo(20,52);ctx.lineTo(52,20);ctx.stroke();return}
-    const saved=state.logo,savedC=state.logoColor,savedF=state.logoFinish;
-    state.logo=k;state.logoColor='#1E2B29';state.logoFinish='flat';
-    drawEmblem(ctx,36,36,60,36,{thumb:true});
-    state.logo=saved;state.logoColor=savedC;state.logoFinish=savedF;
-  });
-}
-function updateLogoUI(){
-  logoBox.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.logo===state.logo)));
-  document.getElementById('monoRow').hidden=state.logo!=='monogram';
-  document.getElementById('logoFileRow').hidden=state.logo!=='custom';
-}
-
-// ---------- 12 o'clock picker ----------
-const TWELVE=[['twin','Twin'],['crown','Crown'],['single','Wide'],['triple','Triple'],['triangle','Triangle'],['arrow','Arrow'],
-  ['diamond','Diamond'],['round','Round'],['square','Square'],['n12','12'],['nXII','XII'],['custom','Upload'],['none','None']];
-const twBox=document.getElementById('twelveBox'),twThumbs={};
-TWELVE.forEach(([k,label])=>{
-  const b=document.createElement('button');b.type='button';b.dataset.twelve=k;b.setAttribute('aria-pressed','false');
-  const cv=document.createElement('canvas');cv.width=cv.height=72;twThumbs[k]=cv;b.appendChild(cv);b.appendChild(document.createTextNode(label));
-  b.onclick=()=>{state.twelve=k;updateTwelveUI();schedule()};twBox.appendChild(b);
-});
-function drawTwelveThumbs(){
-  Object.entries(twThumbs).forEach(([k,cv])=>{
-    const ctx=cv.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,72,72);
-    if(k==='none'){ctx.strokeStyle='#9AA3A0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(36,36,22,0,Math.PI*2);ctx.moveTo(20,52);ctx.lineTo(52,20);ctx.stroke();return}
-    const saveGeo=GEO;GEO={cx:500,cy:500,R:500,rect:false,hw:500,hh:500,cr:0,cache:new Map()};
-    const list=twelveShapes(500,500,k);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-    list.forEach(m=>{const pts=(m.type==='crown'||m.type==='image')?[[m.x-m.w/2,m.y-m.h/2],[m.x+m.w/2,m.y+m.h/2]]:m.type==='poly'?m.outer:m.type==='circle'?[[m.x-m.r,m.y-m.r],[m.x+m.r,m.y+m.r]]:[[m.x-m.px*0.8,m.y-m.px*0.4],[m.x+m.px*0.8,m.y+m.px*0.4]];
-      pts.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])})});
-    const sc=58/Math.max(x1-x0,y1-y0);ctx.setTransform(sc,0,0,sc,36-sc*(x0+x1)/2,36-sc*(y0+y1)/2);
-    paintMarkers(ctx,list,'#5E6764','#ECE9DE',state.m12Fill==='solid'?'solid':'lume',500,1000,false);
-    GEO=saveGeo;
-  });
-}
-function updateTwelveUI(){
-  twBox.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.twelve===state.twelve)));
-  document.getElementById('gapRow').hidden=!['twin','triple'].includes(state.twelve);
-  document.getElementById('m12FileRow').hidden=state.twelve!=='custom';
-  document.getElementById('m12ModeRow').hidden=state.twelve!=='custom';
-  document.getElementById('m12ColorRow').hidden=state.m12Colors!=='custom';
-}
-
-// ---------- text line editors ----------
-const LINES=[{id:'brand',label:'Name',open:true},{id:'sub',label:'Line under name'},{id:'bottom',label:'Lower line'},{id:'bottom2',label:'Second lower line'},{id:'swiss',label:'Bottom text',note:'near 6 o\'clock'}];
+/* =====================================================================
+   Panel schema
+   ===================================================================== */
+const SHOW=[];let uid=0;
+const showAttr=fn=>fn?` data-show="${SHOW.push(fn)-1}"`:'';
+const rg=(k,label,min,max,step,show,unit='')=>`<div class="row"${showAttr(show)}><label for="c_${k}">${label}</label><div class="pair"><input type="range" id="c_${k}" data-key="${k}" min="${min}" max="${max}" step="${step}" data-unit="${unit}"><span class="val"></span></div></div>`;
+const sl=(k,label,opts,show)=>`<div class="row"${showAttr(show)}><label for="c_${k}">${label}</label><select id="c_${k}" data-key="${k}">${opts.map(o=>Array.isArray(o)?`<option value="${o[0]}">${o[1]}</option>`:`<option value="${o}">${o}</option>`).join('')}</select></div>`;
+const cl=(k,label,chips=[],show)=>`<div class="row"${showAttr(show)}><label>${label}</label><div class="pair"><input type="color" data-key="${k}" aria-label="${label}">${chips.map(([n,v])=>`<button type="button" class="chip" data-set="${k}" data-val="${v}">${n}</button>`).join('')}</div></div>`;
+const tx=(k,label,show,extra='')=>`<div class="row"${showAttr(show)}><label for="c_${k}">${label}</label><input type="text" id="c_${k}" data-key="${k}" ${extra}></div>`;
+const hint=(t,show)=>`<p class="hint"${showAttr(show)}>${t}</p>`;
+const file=(id,label,accept,show)=>`<div class="row"${showAttr(show)}><label for="${id}">${label}</label><input class="file" type="file" id="${id}" accept="${accept}"></div>`;
+const sec=(title,body,open=false,id='')=>`<details class="sec"${open?' open':''}${id?` id="${id}"`:''}><summary>${title}</summary><div class="body">${body}</div></details>`;
+const ON=[['on','On'],['off','Off']];
+const TEXTC=[['White','#FFFFFF'],['Silver','#D9D9D9'],['Gold','#D3B57E']];
 const WEIGHTS=[['400','Regular 400'],['500','Medium 500'],['600','SemiBold 600'],['700','Bold 700'],['800','ExtraBold 800']];
-document.getElementById('lineEditors').innerHTML=LINES.map(L=>{
-  const id=L.id,r=(k,label,min,max,step)=>`<div class="row"><label for="${id}${k}">${label}</label><div class="pair"><input type="range" id="${id}${k}" data-key="${id}${k}" min="${min}" max="${max}" step="${step}"><span class="val"></span></div></div>`;
-  const pos=id==='swiss'
-    ?`<div class="row"><label for="swissMode">Placement</label><select id="swissMode" data-key="swissMode"><option value="split">Curved, split around 6 marker</option><option value="curve">Curved, centered</option><option value="straight">Straight</option></select></div>`
-      +r('R','Distance from center',0.5,0.95,0.005)+`<div id="swissGapRow">${r('Gap','Gap around marker',0,15,0.1)}</div>`
-    :r('Y','Move up or down',-20,20,0.5);
-  return `<details class="line"${L.open?' open':''}><summary>${L.label}${L.note?`<span>${L.note}</span>`:''}</summary>
-    <div class="row"><label for="${id}">Text</label><input type="text" id="${id}" data-key="${id}"></div>
-    ${r('Size','Font size',1.5,14,0.1)}
-    <div class="row"><label for="${id}Weight">Weight</label><select id="${id}Weight" data-key="${id}Weight">${WEIGHTS.map(w=>`<option value="${w[0]}">${w[1]}</option>`).join('')}</select></div>
-    ${r('Track','Tracking',-50,500,5)}
-    ${r('Stretch','Letter width (%)',60,150,1)}
-    <div class="row"><label>Color</label><div class="pair"><input type="color" data-key="${id}Color" aria-label="${L.label} color">
-      <button class="chip" type="button" data-set="${id}Color" data-val="#FFFFFF">White</button><button class="chip" type="button" data-set="${id}Color" data-val="#D9D9D9">Silver</button><button class="chip" type="button" data-set="${id}Color" data-val="#D3B57E">Gold</button></div></div>
-    ${pos}</details>`;
-}).join('');
-function updateVis(){
-  document.getElementById('swissGapRow').hidden=state.swissMode!=='split';
-  document.getElementById('m369GapRow').hidden=state.m369!=='double';
-}
+const SHAPES=[['single','Single baton'],['double','Double baton'],['triple','Triple baton'],['triangle','Triangle'],['arrow','Arrow'],['diamond','Diamond'],['round','Round'],['square','Square'],['numeral','Arabic numeral'],['roman','Roman numeral'],['crown','Crown'],['image','Uploaded image'],['none','None']];
 
-// ---------- bind controls ----------
+function groupControls(g){
+  const on=s=>()=>UI.group===g&&(!s||s());
+  const sh=()=>effShape(g);
+  let h='';
+  if(g==='m12') h+=`<div${showAttr(on())}><div class="picker" id="twPicker"></div></div>`;
+  else if(g==='mo') h+=sl(g+'Shape','Shape',[['single','Baton'],['round','Round'],['triangle','Triangle'],['diamond','Diamond'],['square','Square'],['numeral','Arabic numerals'],['roman','Roman numerals'],['image','Uploaded image'],['none','None']],on());
+  else{h+=sl(g+'Mode','Marker',[['single','Single'],['double','Double'],['custom','Custom']],on());
+    h+=sl(g+'Shape','Custom shape',SHAPES.filter(s=>!['single','double'].includes(s[0])),on(()=>gp(g,'Mode')==='custom'))}
+  h+=file('file_'+g,'Your image','.png,.svg,.webp,image/png,image/svg+xml,image/webp',on(()=>sh()==='image'));
+  h+=sl('imgMode','Image color',[['original','Original colors'],['metal','Metal'],['fill','Lume color']],on(()=>sh()==='image')).replace(/c_imgMode/g,'c_imgMode_'+g);
+  h+=rg(g+'Len','Marker length',4,40,0.5,on(),'%');
+  h+=rg(g+'Width','Marker width',0.5,9,0.1,on(),'%');
+  h+=rg(g+'Gap','Spacing between',1,8,0.1,on(()=>['double','triple'].includes(sh())),'°');
+  h+=rg(g+'Taper','Marker taper',0,90,1,on());
+  h+=rg(g+'Rot','Rotation offset',-45,45,0.5,on(),'°');
+  h+=rg(g+'Dist','Distance from center',50,99,0.5,on(),'%');
+  h+=rg(g+'Frame','Frame thickness',0.2,3,0.05,on(),'%');
+  h+=rg(g+'Sharp','Corner sharpness',0,100,1,on());
+  h+=sl(g+'Fill','Inside',[['lume','Lume fill'],['polished','Polished facet'],['solid','Solid metal']],on());
+  if(g==='m12'){h+=sl('m12Colors','Colors',[['match','Same as other markers'],['custom','Custom']],on());
+    h+=cl('m12FrameC','Frame color',[['Gold','#D3B57E'],['Steel','#C8CDD0']],on(()=>state.m12Colors==='custom'));h+=cl('m12LumeC','Fill color',[],on(()=>state.m12Colors==='custom'))}
+  return h;
+}
+function lineBlock(L){
+  const id=L.id;
+  let h=`<details class="line"${L.open?' open':''}><summary>${L.label}${L.note?`<span>${L.note}</span>`:''}</summary>`;
+  h+=tx(id,'Text');
+  h+=rg(id+'Size','Font size',1.5,14,0.1);
+  h+=sl(id+'Weight','Weight',WEIGHTS);
+  h+=rg(id+'Track','Tracking',-50,500,5);
+  h+=rg(id+'Stretch','Letter width',60,150,1,null,'%');
+  h+=cl(id+'Color','Color',TEXTC);
+  h+=sl(id+'Render','Rendering',[['ink','Printed ink'],['raised','Raised metal'],['engraved','Recessed engraving']]);
+  h+=rg(id+'Ink','Ink opacity',0,100,1);
+  h+=rg(id+'Thick','Ink thickness',0,100,1,()=>state[id+'Render']==='ink');
+  h+=rg(id+'Soft','Print softness',0,5,0.1,()=>state[id+'Render']==='ink');
+  h+=rg(id+'Shadow','Text shadow',0,100,1);
+  if(id==='swiss'){
+    h+=sl('swissMode','Placement',[['split','Curved, split around 6'],['curve','Curved, centered'],['straight','Straight']]);
+    h+=rg('swissR','Distance from center',50,96,0.5,null,'%');
+    h+=rg('swissGap','Gap around marker',0,15,0.1,()=>state.swissMode==='split','°');
+    h+=rg('swissCurve','Baseline curve',-10,10,0.5,()=>state.swissMode==='straight');
+    h+=rg('swissX','X position (shift)',-40,40,0.5);
+  }else{
+    h+=rg(id+'Curve','Baseline curve',-10,10,0.5);
+    h+=rg(id+'X','X position',-60,60,0.5,null,'%');
+    h+=rg(id+'Y','Y position',-30,30,0.5,null,'%');
+  }
+  return h+'</details>';
+}
+function buildPanel(){
+  let h='';
+  h+=sec('Watch',`<div class="seg" role="group" aria-label="Watch shape">
+      <button type="button" data-shape="round" aria-pressed="true"><b>Round</b><span>GT 7 Pro · 466 × 466</span></button>
+      <button type="button" data-shape="rect" aria-pressed="false"><b>43.2 × 36.3 × 9.9 mm</b><span>Watch Fit 3 · 408 × 480</span></button></div>`
+    +rg('cornerR','Screen corners',20,160,1,()=>state.shape==='rect','px'),true);
+  h+=sec('Dial color',`<div class="presets" id="presets"></div>`+cl('base','Shadow color')+cl('high','Highlight color'),true);
+  h+=sec('Dial material and texture',
+     sl('material','Material preset',[['flat','Flat'],['sunburst','Sunburst metal'],['radial','Radial brushed metal'],['satin','Satin'],['lacquer','Lacquer'],['matte','Matte'],['enamel','Enamel']])
+    +hint('Choosing a preset sets the texture and lighting below; adjust from there.')
+    +rg('texDensity','Texture density',0,100,1)+rg('texFine','Texture fineness',0,100,1)+rg('texContrast','Texture contrast',0,100,1)+rg('texOpacity','Texture opacity',0,100,1)
+    +rg('texRot','Texture rotation',0,360,1,null,'°')+rg('metallic','Metallic intensity',0,100,1)+rg('grain','Micro-grain',0,10,0.1,null,'%')
+    +rg('texCX','Texture center X',-10,10,0.1,null,'%')+rg('texCY','Texture center Y',-10,10,0.1,null,'%'));
+  h+=sec('Dial lighting',
+     sl('lightType','Light type',[['softbox','Softbox'],['directional','Directional'],['radial','Radial'],['studio','Studio reflection']])
+    +rg('lightAngle','Light angle',0,360,1,null,'°')+rg('lightWidth','Light width',0,100,1)+rg('lightSoft','Light softness',0,100,1)+rg('lightInt','Light intensity',0,100,1)
+    +rg('hlX','Highlight position X',-100,100,1)+rg('hlY','Highlight position Y',-100,100,1)+rg('asym','Asymmetry',0,100,1)
+    +rg('specular','Specular intensity',0,100,1)+rg('gloss','Gloss',0,100,1)
+    +hint('The light angle also drives marker bevels, shadows, the rehaut and raised text.'));
+  h+=sec('Edge shading',rg('vigStr','Vignette strength',0,100,1)+rg('vigSize','Vignette size',0,100,1)+rg('vigSoft','Vignette softness',0,100,1)
+    +cl('edgeColor','Edge color')+rg('innerGlow','Inner glow',0,100,1)+rg('centerBright','Center brightness',0,100,1));
+  h+=sec('Rehaut (inner chapter ring)',sl('rehaut','Show rehaut',ON)
+    +sl('rehautMat','Rehaut material',[['polished','Polished steel'],['brushed','Brushed steel'],['dial','Dial color'],['black','Black']],()=>state.rehaut==='on')
+    +rg('rehautW','Rehaut width',0,100,1,()=>state.rehaut==='on')+rg('rehautDepth','Rehaut depth',0,100,1,()=>state.rehaut==='on')
+    +rg('rehautAngle','Rehaut angle',0,30,0.5,()=>state.rehaut==='on','°')+rg('rehautRefl','Reflection',0,100,1,()=>state.rehaut==='on')
+    +rg('rehautShadow','Inner shadow',0,100,1,()=>state.rehaut==='on')
+    +sl('engrave','Engraving',[['none','None'],['custom','Custom text']],()=>state.rehaut==='on')
+    +tx('engraveText','Engraving text',()=>state.rehaut==='on'&&state.engrave==='custom')
+    +rg('engraveSpacing','Engraving spacing',0,100,1,()=>state.rehaut==='on'&&state.engrave==='custom')
+    +hint('Raise "Distance from dial edge" in Minute track to move the ticks inside the rehaut.',()=>state.rehaut==='on'));
+  h+=sec('Minute track',sl('track','Show track',ON)
+    +rg('trackR','Track radius',80,100,0.1,null,'%')+rg('trackEdge','Distance from dial edge',0,20,0.1,null,'%')
+    +rg('tickLen','Tick length',0,12,0.1,null,'%')+rg('tickTh','Tick thickness',0.1,3,0.05,null,'%')
+    +rg('fineLen','Fine-tick length',0,8,0.1,null,'%')+rg('fineTh','Fine-tick thickness',0,2,0.02,null,'%')
+    +rg('fiveLen','Five-minute tick length',0,15,0.1,null,'%')+rg('tickOpacity','Tick opacity',0,100,1)+rg('tickSharp','Tick sharpness',0,100,1)
+    +rg('trackRot','Track rotation offset',-6,6,0.1,null,'°')+cl('trackColor','Minute tick color')+cl('fineColor','Fine tick color'));
+  h+=sec('Applied marker material',
+     sl('mMat','Marker frame material',[['polished','Polished steel'],['brushed','Brushed steel'],['whitegold','White gold'],['yellowgold','Yellow gold'],['black','Black metal'],['custom','Custom color']])
+    +cl('frame','Custom frame color',[],()=>state.mMat==='custom')
+    +rg('frameBright','Frame brightness',0,100,1)+rg('frameThick','Frame thickness',0,100,1)+rg('bevelSize','Bevel size',0,100,1)+rg('bevelSoft','Bevel softness',0,100,1)
+    +rg('raised','Raised height',0,100,1)+rg('contact','Contact shadow',0,100,1)+rg('reflect','Reflection intensity',0,100,1)
+    +cl('lume','Lume color',[['Ivory','#F2EEDC'],['White','#F7F8F6'],['Vintage','#E6D3A3']])+rg('lumeWarm','Lume warmth',0,100,1)+rg('lumeRecess','Lume recess',0,100,1)
+    +hint('Lume warmth runs from cool white (0) to warm ivory (100); 50 keeps the chosen lume color.'),false);
+  h+=sec('Hour markers',`<p class="hint" style="margin:0 0 6px">Pick a position to adjust it on its own. Tip: click a marker on the preview to jump here.</p>
+      <div class="tabs" role="tablist">${GROUPS.map(g=>`<button type="button" data-group="${g.id}" aria-pressed="${g.id===UI.group}">${g.label}</button>`).join('')}</div>`
+    +GROUPS.map(g=>groupControls(g.id)).join(''),true,'markersSec');
+  h+=sec('Emblem',`<div class="picker" id="logoPicker"></div>`+tx('monogram','Monogram letters',()=>state.logo==='monogram','maxlength="3"')
+    +file('logoFile','Your own emblem','.png,.svg,.webp,image/png,image/svg+xml,image/webp',()=>state.logo==='custom')
+    +sl('logoFinish','Finish',[['metal','Applied metal'],['flat','Printed']])+cl('logoColor','Color',[['White','#FFFFFF'],['Silver','#D9D9D9'],['Gold','#D3B57E']])
+    +rg('logoSize','Size',5,22,0.1,null,'%')+rg('logoGap','Gap above name',-2,10,0.1,null,'%'));
+  h+=sec('Typography',`<div class="row"><label>Type style</label><div class="pair" id="typePresets"></div></div>`
+    +sl('font','Font family',[['ebg','EB Garamond'],['cormorant','Cormorant Garamond'],['baskerville','Baskerville'],['serif','Georgia'],['didone','Didot / Bodoni'],['sans','Helvetica'],['geo','Futura'],['custom','Uploaded font']])
+    +file('fontFile','Upload a font','.ttf,.otf,.woff,.woff2')+sl('caps','Case',[['upper','ALL CAPS'],['asis','As typed']])
+    +sl('kerning','Kerning',[['normal','Font kerning on'],['none','Off']])+rg('lineSpacing','Line spacing',70,160,1,null,'%')
+    +`<p class="hint" id="fontNote">Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).</p>`);
+  h+=sec('Text lines',hint('Leave the text empty to hide a line.')+LINES.map(lineBlock).join(''));
+  h+=sec('Center',sl('centerCap','Center detail',[['none','None'],['pinion','Central pinion'],['cap','Circular cap'],['ring','Metallic ring']])
+    +rg('centerSize','Size',0.5,2.5,0.05,()=>state.centerCap!=='none','×')+cl('centerColor','Color',[['Steel','#C8CDD0'],['Gold','#D3B57E'],['Black','#3A3F42']],()=>state.centerCap!=='none'));
+  h+=sec('Controlled imperfections',rg('impNoise','Micro-noise',0,5,0.05,null,'%')+rg('impSurface','Surface variation',0,5,0.05,null,'%')
+    +rg('impRefl','Reflection variation',0,5,0.05,null,'%')+rg('impTexRand','Texture randomness',0,5,0.05,null,'%')+rg('impShadow','Marker shadow variation',0,3,0.05,null,'%')
+    +`<div class="row"><label for="c_seed">Random seed</label><div class="pair"><input type="number" id="c_seed" data-key="seed" min="0" max="999999" step="1" style="flex:1"><button type="button" class="chip" id="newSeed">New seed</button></div></div>`
+    +hint('The same seed always produces the same texture and imperfections.'));
+  h+=sec('Layers',hint('Drag to reorder (top of the list is drawn on top). Each layer has its own visibility, opacity and blend mode.')+`<ul class="layers" id="layers"></ul>`,false);
+  h+=sec('Export',`<div class="row"><label for="size">Size</label><select id="size"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></div>`
+    +sl('transparent','Outside screen',[['false','Black'],['true','Transparent']])
+    +`<div class="btns"><button id="exportBtn">Export PNG</button><button class="ghost" id="saveBtn">Save settings</button><button class="ghost" id="loadBtn">Load settings</button><button class="ghost" id="resetBtn">Reset</button><input type="file" id="loadFile" accept=".json" hidden></div>
+      <div class="status" id="status" role="status"></div><img id="result" alt="Exported dial"><p class="hint" id="resultHint" hidden>If the download didn't start, right-click or long-press the image to save it.</p>`,true);
+  document.getElementById('sections').innerHTML=h;
+}
+buildPanel();
+
+/* =====================================================================
+   Binding
+   ===================================================================== */
+const $=id=>document.getElementById(id);
+const status=$('status');
 const inputs=[...document.querySelectorAll('[data-key]')];
-const fmt=el=>{const st=parseFloat(el.step||1);const n=Number(el.value);const d=st<0.01?3:st<0.1?2:st<1?1:0;return(/Track$/.test(el.dataset.key||'')&&n>0?'+':'')+n.toFixed(d)};
+const fmt=el=>{const st=parseFloat(el.step||1),n=Number(el.value),d=st<0.01?3:st<0.1?2:st<1?1:0;return(/Track$/.test(el.dataset.key)&&n>0?'+':'')+n.toFixed(d)+(el.dataset.unit||'')};
+function updateVis(){document.querySelectorAll('[data-show]').forEach(el=>{el.hidden=!SHOW[+el.dataset.show]()})}
 function syncInputs(){
-  inputs.forEach(el=>{el.value=String(state[el.dataset.key]);const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el)});
-  updateLogoUI();updateVis();if(typeof applyShape==='function'&&typeof pv!=='undefined')applyShape();
+  inputs.forEach(el=>{const v=state[el.dataset.key];if(v===undefined)return;el.value=String(v);const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el)});
+  document.querySelectorAll('[data-group]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.group===UI.group)));
+  updatePickers();updateVis();renderLayers();applyShape();
 }
 inputs.forEach(el=>el.addEventListener('input',()=>{
-  const k=el.dataset.key;state[k]=el.type==='range'?parseFloat(el.value):el.value;
-  const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el);
-  if(k==='font'||/Weight$/.test(k)) ensureFont();
-  updateVis();schedule();
+  const k=el.dataset.key;let v=el.type==='range'||el.type==='number'?parseFloat(el.value):el.value;if(el.type==='number'&&isNaN(v))return;
+  state[k]=v;const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el);
+  if(k==='material'){Object.assign(state,MATERIAL_PRESETS[v]||{});syncInputs()}
+  if(k==='font'||/Weight$/.test(k))ensureFont();
+  if(k==='cornerR'||k==='shape')applyShape();
+  updateVis();el.type==='range'?scheduleFast():schedule();
 }));
 document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{state[b.dataset.set]=b.dataset.val;syncInputs();schedule()}));
+document.querySelectorAll('[data-group]').forEach(b=>b.addEventListener('click',()=>{UI.group=b.dataset.group;syncInputs()}));
+document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{state.shape=b.dataset.shape;applyShape();schedule()}));
+$('newSeed').onclick=()=>{state.seed=Math.floor(Math.random()*999999);syncInputs();schedule()};
 
-const presetBox=document.getElementById('presets');
-PRESETS.forEach(p=>{
-  const b=document.createElement('button');b.className='swatch';b.style.background=p.swatch;b.title=p.name;b.innerHTML=`<span class="vh">${p.name}</span>`;
-  b.onclick=()=>{const dialKeys=['base','high','trackColor','fineColor','frame','lume','brush'];
-    const next={...state};dialKeys.forEach(k=>next[k]=DEFAULTS[k]);
-    state={...next,...p.v};syncInputs();schedule()};
-  presetBox.appendChild(b);
-});
-const tpBox=document.getElementById('typePresets');
-TYPE_PRESETS.forEach(p=>{const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=p.name;
-  b.onclick=()=>{state={...state,...p.v};syncInputs();ensureFont();schedule()};tpBox.appendChild(b)});
+// presets
+PRESETS.forEach(p=>{const b=document.createElement('button');b.className='swatch';b.type='button';b.style.background=p.swatch;b.title=p.name;b.innerHTML=`<span class="vh">${p.name}</span>`;
+  b.onclick=()=>{Object.assign(state,p.v);syncInputs();schedule()};$('presets').appendChild(b)});
+TYPE_PRESETS.forEach(p=>{const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=p.name;b.onclick=()=>{Object.assign(state,p.v);syncInputs();ensureFont();schedule()};$('typePresets').appendChild(b)});
 
-const status=document.getElementById('status');
+// pickers (12 o'clock shapes and emblems)
+const TW=[['double','Twin'],['crown','Crown'],['single','Wide'],['triple','Triple'],['triangle','Triangle'],['arrow','Arrow'],['diamond','Diamond'],['round','Round'],['square','Square'],['numeral','12'],['roman','XII'],['image','Upload'],['none','None']];
+const twThumbs={},logoThumbs={};
+TW.forEach(([k,label])=>{const b=document.createElement('button');b.type='button';b.dataset.tw=k;const cv=document.createElement('canvas');cv.width=cv.height=68;twThumbs[k]=cv;
+  b.append(cv,document.createTextNode(label));b.onclick=()=>{state.m12Shape=k;syncInputs();schedule()};$('twPicker').appendChild(b)});
+Object.entries(LOGOS).forEach(([k,L])=>{const b=document.createElement('button');b.type='button';b.dataset.logo=k;const cv=document.createElement('canvas');cv.width=cv.height=68;logoThumbs[k]=cv;
+  b.append(cv,document.createTextNode(L.label));b.onclick=()=>{state.logo=k;syncInputs();schedule()};$('logoPicker').appendChild(b)});
+function noneIcon(ctx){ctx.strokeStyle='#9AA3A0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(34,34,21,0,Math.PI*2);ctx.moveTo(19,49);ctx.lineTo(49,19);ctx.stroke()}
+function drawThumbs(){
+  const saveGeo=GEO,saveLV=LV,saved={...state};
+  Object.entries(twThumbs).forEach(([k,cv])=>{const ctx=cv.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,68,68);if(k==='none')return noneIcon(ctx);
+    GEO={cx:500,cy:500,R:500,rect:false,hw:500,hh:500,cr:0,cache:new Map()};LV=[0,-1];state.m12Rot=0;state.m12Shape=k;
+    const list=buildMarker('m12',0,12);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    list.forEach(m=>{const pts=m.type==='poly'?m.outer:m.type==='circle'?[[m.x-m.r,m.y-m.r],[m.x+m.r,m.y+m.r]]:m.type==='text'?[[m.x-m.px*0.8,m.y-m.px*0.4],[m.x+m.px*0.8,m.y+m.px*0.4]]:[[m.x-m.w/2,m.y-m.h/2],[m.x+m.w/2,m.y+m.h/2]];
+      pts.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])})});
+    const sc=54/Math.max(x1-x0,y1-y0);ctx.setTransform(sc,0,0,sc,34-sc*(x0+x1)/2,34-sc*(y0+y1)/2);
+    list.forEach(m=>{fillShape(ctx,m,'#5E6764');if(m.iPath){ctx.fillStyle='#ECE9DE';ctx.fill(m.iPath)}});
+    Object.assign(state,saved);});
+  GEO=saveGeo;LV=saveLV;
+  Object.entries(logoThumbs).forEach(([k,cv])=>{const ctx=cv.getContext('2d');ctx.clearRect(0,0,68,68);if(k==='none')return noneIcon(ctx);
+    const sv=[state.logo,state.logoColor,state.logoFinish];state.logo=k;state.logoColor='#1E2B29';state.logoFinish='flat';drawEmblem(ctx,34,34,56,34,{thumb:true});[state.logo,state.logoColor,state.logoFinish]=sv});
+}
+function updatePickers(){
+  document.querySelectorAll('[data-tw]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.tw===state.m12Shape)));
+  document.querySelectorAll('[data-logo]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.logo===state.logo)));
+}
+
+// layers list with drag and drop
+function renderLayers(){
+  const ul=$('layers');ul.innerHTML='';
+  const names=Object.fromEntries(LAYER_DEFS);
+  [...state.layers].reverse().forEach(ly=>{
+    const li=document.createElement('li');li.draggable=true;li.dataset.id=ly.id;
+    li.innerHTML=`<span class="handle" aria-hidden="true">⋮⋮</span><input type="checkbox" ${ly.visible?'checked':''} aria-label="Show ${names[ly.id]}"><span>${names[ly.id]}</span>
+      <input type="range" min="0" max="100" value="${ly.opacity}" aria-label="${names[ly.id]} opacity">
+      <select aria-label="${names[ly.id]} blend mode">${[['normal','Normal'],['multiply','Multiply'],['screen','Screen'],['overlay','Overlay'],['soft','Soft light']].map(([v,n])=>`<option value="${v}" ${ly.blend===v?'selected':''}>${n}</option>`).join('')}</select>
+      <button type="button" class="mv" aria-label="Move ${names[ly.id]} up">↑</button><button type="button" class="mv" aria-label="Move ${names[ly.id]} down">↓</button>`;
+    const [cb,rng,sel]=[li.querySelector('input[type=checkbox]'),li.querySelector('input[type=range]'),li.querySelector('select')];
+    cb.onchange=()=>{ly.visible=cb.checked;schedule()};rng.oninput=()=>{ly.opacity=+rng.value;scheduleFast()};sel.onchange=()=>{ly.blend=sel.value;schedule()};
+    const [up,dn]=li.querySelectorAll('.mv');
+    up.onclick=()=>moveLayer(ly.id,1);dn.onclick=()=>moveLayer(ly.id,-1);
+    li.addEventListener('dragstart',e=>{li.classList.add('drag');e.dataTransfer.setData('text/plain',ly.id);e.dataTransfer.effectAllowed='move'});
+    li.addEventListener('dragend',()=>li.classList.remove('drag'));
+    li.addEventListener('dragover',e=>{e.preventDefault();li.classList.add('over')});
+    li.addEventListener('dragleave',()=>li.classList.remove('over'));
+    li.addEventListener('drop',e=>{e.preventDefault();li.classList.remove('over');const from=e.dataTransfer.getData('text/plain');if(from&&from!==ly.id)dropLayer(from,ly.id)});
+    ul.appendChild(li);
+  });
+}
+function moveLayer(id,dir){const i=state.layers.findIndex(l=>l.id===id),j=i+dir;if(j<0||j>=state.layers.length)return;
+  const a=state.layers;[a[i],a[j]]=[a[j],a[i]];renderLayers();schedule()}
+function dropLayer(from,to){const a=state.layers,i=a.findIndex(l=>l.id===from),item=a.splice(i,1)[0],j=a.findIndex(l=>l.id===to);a.splice(j+1,0,item);renderLayers();schedule()}
+
+// files
+function readFile(input,cb){input.addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>cb(r.result,f.name);r.readAsDataURL(f)})}
+GROUPS.forEach(g=>readFile($('file_'+g.id),(src,name)=>{state[g.id+'Img']=src;setImage(g.id,src);status.textContent=`Marker image loaded from ${name}.`;schedule()}));
+readFile($('logoFile'),(src,name)=>{state.logoImg=src;state.logo='custom';setImage('logo',src);syncInputs();status.textContent=`Emblem loaded from ${name}.`;schedule()});
+$('fontFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
+  try{const face=new FontFace('UserFont',await f.arrayBuffer());await face.load();document.fonts.add(face);state.font='custom';syncInputs();schedule();status.textContent=`Using ${f.name}.`}
+  catch{status.textContent='That font file could not be read. Try a .ttf, .otf or .woff file.'}});
 async function ensureFont(){
-  const fam=WEBFONT[state.font]; if(!fam) return;
-  try{
-    const ws=[...new Set(LINES.map(L=>state[L.id+'Weight']))];
-    await Promise.all(ws.map(w=>document.fonts.load(`${w} 40px "${fam}"`)));
+  const fam=WEBFONT[state.font];if(!fam){schedule();return}
+  try{const ws=[...new Set(LINES.map(L=>state[L.id+'Weight']))];await Promise.all(ws.map(w=>document.fonts.load(`${w} 40px "${fam}"`)));
     const ok=[...document.fonts].some(f=>f.family.replace(/["']/g,'')===fam&&f.status==='loaded');
-    document.getElementById('fontNote').textContent=ok
-      ?'Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).'
-      :`${fam} couldn't be downloaded here, so a similar serif is shown. Open the file in a regular browser while online, or upload the font file.`;
-  }catch(e){}
+    $('fontNote').textContent=ok?'Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).':`${fam} couldn't be downloaded here, so a similar serif is shown. Open the file in a regular browser while online, or upload the font file.`}catch(e){}
   schedule();
 }
 document.fonts.addEventListener&&document.fonts.addEventListener('loadingdone',schedule);
+function restoreImages(){GROUPS.forEach(g=>setImage(g.id,state[g.id+'Img']));setImage('logo',state.logoImg)}
 
-document.getElementById('fontFile').addEventListener('change',async e=>{
-  const f=e.target.files[0];if(!f)return;
-  try{const face=new FontFace('UserFont',await f.arrayBuffer());await face.load();document.fonts.add(face);
-    state.font='custom';syncInputs();schedule();status.textContent=`Using ${f.name}.`}
-  catch{status.textContent='That font file could not be read. Try a .ttf, .otf or .woff file.'}
-});
-document.getElementById('logoFile').addEventListener('change',e=>{
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();r.onload=()=>{state.logoImg=r.result;state.logo='custom';setLogoImage(r.result);updateLogoUI();schedule();status.textContent=`Emblem loaded from ${f.name}.`};
-  r.readAsDataURL(f);
+/* =====================================================================
+   Preview, zoom and guides
+   ===================================================================== */
+const pv=$('preview'),pctx=pv.getContext('2d'),gv=$('guides'),gctx=gv.getContext('2d');
+let raf=0,pScale=2;
+let fullTimer=0;
+function schedule(){cancelAnimationFrame(raf);clearTimeout(fullTimer);raf=requestAnimationFrame(()=>drawPreview(false))}
+// while dragging a slider, draw a quick 1× preview, then the sharp one once the slider rests
+function scheduleFast(){cancelAnimationFrame(raf);clearTimeout(fullTimer);raf=requestAnimationFrame(()=>drawPreview(true));fullTimer=setTimeout(schedule,260)}
+function layoutStage(){
+  const [bw,bh]=BASE(),vp=$('viewport'),cs=$('case'),scr=$('screen'),dpr=window.devicePixelRatio||1;
+  const availW=vp.clientWidth-60,availH=vp.clientHeight-60,fit=Math.max(120,Math.min(availW/(bw*1.1),availH/(bh*1.1))*bw);
+  const dispW=UI.zoom==='actual'?bw/dpr:fit*(+UI.zoom),dispH=dispW*bh/bw,pad=dispW*(state.shape==='rect'?0.06:0.034);
+  scr.style.width=dispW+'px';scr.style.height=dispH+'px';cs.style.padding=pad+'px';
+  pScale=UI.zoom==='actual'?1:clamp(Math.ceil(dispW*dpr/bw),1,4);
+  const W=bw*pScale,H=bh*pScale;
+  if(pv.width!==W||pv.height!==H){pv.width=gv.width=W;pv.height=gv.height=H}
+  pv.style.imageRendering=UI.zoom==='actual'?'pixelated':'auto';
+}
+function applyShape(){
+  const [bw,bh]=BASE(),cs=$('case');
+  cs.classList.toggle('rect',state.shape==='rect');
+  if(state.shape==='rect'){cs.style.setProperty('--cr',(state.cornerR/bw*100)+'%');cs.style.setProperty('--crv',(state.cornerR/bh*100)+'%')}
+  $('caption').textContent=state.shape==='rect'?'43.2 × 36.3 × 9.9 mm · Huawei Watch Fit 3 · 1.82″ · 408 × 480 px':'Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px';
+  document.querySelectorAll('[data-shape]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shape===state.shape)));
+  [...$('size').options].forEach(o=>{const k=+o.value;o.textContent=`${bw*k} × ${bh*k}`+(k===1?' (Theme Studio)':k===8?' (master)':'')});
+  layoutStage();
+}
+function drawGuides(){
+  const W=gv.width,H=gv.height;gctx.clearRect(0,0,W,H);if(!UI.gCenter&&!UI.gGrid&&!UI.gSafe)return;
+  setGeo(W,H,pScale);const R=GEO.R;gctx.lineWidth=Math.max(1,pScale*0.6);
+  if(UI.gCenter){gctx.strokeStyle='rgba(255,80,80,.85)';gctx.setLineDash([]);gctx.beginPath();gctx.moveTo(W/2,0);gctx.lineTo(W/2,H);gctx.moveTo(0,H/2);gctx.lineTo(W,H/2);gctx.stroke()}
+  if(UI.gGrid){gctx.strokeStyle='rgba(80,200,255,.8)';gctx.setLineDash([4*pScale,3*pScale]);for(let h=0;h<12;h++){const p=P(h*30,R);gctx.beginPath();gctx.moveTo(GEO.cx,GEO.cy);gctx.lineTo(p[0],p[1]);gctx.stroke()}}
+  if(UI.gSafe){gctx.strokeStyle='rgba(255,220,90,.9)';gctx.setLineDash([6*pScale,4*pScale]);gctx.beginPath();ringPath(gctx,R*0.9);gctx.stroke();
+    gctx.setLineDash([]);gctx.fillStyle='rgba(255,220,90,.95)';gctx.font=`${11*pScale}px system-ui`;gctx.textAlign='center';gctx.fillText('safe area',GEO.cx,P(0,R*0.9)[1]+14*pScale)}
+  gctx.setLineDash([]);
+}
+function drawPreview(fast){
+  layoutStage();
+  const [bw,bh]=BASE(),quick=fast&&pScale>1;
+  const img=quick?render(bw,bh,1,{light:UI.lightPrev,tex:UI.texPrev}):render(pv.width,pv.height,pScale,{light:UI.lightPrev,tex:UI.texPrev});
+  pctx.clearRect(0,0,pv.width,pv.height);pctx.imageSmoothingQuality='high';pctx.drawImage(img,0,0,pv.width,pv.height);
+  drawGuides();drawThumbs();
+}
+document.querySelectorAll('[data-zoom]').forEach(b=>b.addEventListener('click',()=>{UI.zoom=b.dataset.zoom;document.querySelectorAll('[data-zoom]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));schedule()}));
+document.querySelectorAll('[data-ui]').forEach(cb=>cb.addEventListener('change',()=>{UI[cb.dataset.ui]=cb.checked;schedule()}));
+window.addEventListener('resize',schedule);
+pv.addEventListener('click',e=>{
+  const r=pv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*2-1,y=(e.clientY-r.top)/r.height*2-1,d=Math.hypot(x,y);if(d<0.45)return;
+  const ang=(Math.atan2(x,-y)*180/Math.PI+360)%360,h=Math.round(ang/30)%12,g=h===0?'m12':h===3?'m3':h===6?'m6':h===9?'m9':'mo';
+  UI.group=g;syncInputs();const s=$('markersSec');s.open=true;s.scrollIntoView({behavior:'smooth',block:'start'});s.classList.remove('flash');void s.offsetWidth;s.classList.add('flash');
 });
 
-document.getElementById('m12File').addEventListener('change',e=>{
-  const f=e.target.files[0];if(!f)return;
-  const r=new FileReader();r.onload=()=>{state.m12Img=r.result;state.twelve='custom';setM12Image(r.result);updateTwelveUI();schedule();status.textContent=`Top marker image loaded from ${f.name}.`};
-  r.readAsDataURL(f);
-});
+/* =====================================================================
+   Export, save, load
+   ===================================================================== */
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
-document.getElementById('exportBtn').onclick=()=>{
-  const scale=parseInt(document.getElementById('size').value),[bw,bh]=BASE();
-  status.textContent=scale>=4?'Rendering… large sizes take a few seconds.':'Rendering…';
+$('exportBtn').onclick=()=>{
+  const scale=parseInt($('size').value),[bw,bh]=BASE();
+  status.textContent=scale>=4?'Rendering… large sizes take several seconds.':'Rendering…';
   setTimeout(()=>{renderFor(scale).toBlob(blob=>{
     const name=`${(state.brand||'dial').toLowerCase().replace(/[^a-z0-9]+/g,'-')}_${state.shape==='rect'?'fit3':'gt7pro'}_${bw*scale}x${bh*scale}.png`;
-    download(blob,name);const img=document.getElementById('result');img.src=URL.createObjectURL(blob);img.style.display='block';
-    document.getElementById('resultHint').hidden=false;status.textContent=`Exported ${name}.`},'image/png')},30);
+    download(blob,name);const img=$('result');img.src=URL.createObjectURL(blob);img.style.display='block';$('resultHint').hidden=false;status.textContent=`Exported ${name}.`},'image/png')},40);
 };
-document.getElementById('saveBtn').onclick=()=>{download(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'dial_settings.json');status.textContent='Settings saved as dial_settings.json.'};
-document.getElementById('loadBtn').onclick=()=>document.getElementById('loadFile').click();
-document.getElementById('loadFile').addEventListener('change',async e=>{
-  const f=e.target.files[0];if(!f)return;
-  try{state={...DEFAULTS,...JSON.parse(await f.text())};setLogoImage(state.logoImg);setM12Image(state.m12Img);syncInputs();ensureFont();schedule();status.textContent=`Loaded ${f.name}.`}
-  catch{status.textContent='That file is not a valid settings file.'}
-});
-document.getElementById('resetBtn').onclick=()=>{state={...DEFAULTS};setLogoImage('');setM12Image('');syncInputs();ensureFont();schedule();status.textContent='Reset to the original design.'};
+$('saveBtn').onclick=()=>{download(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'dial_settings.json');status.textContent='Settings saved as dial_settings.json.'};
+$('loadBtn').onclick=()=>$('loadFile').click();
+$('loadFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
+  try{const data=JSON.parse(await f.text());state={...JSON.parse(JSON.stringify(D)),...data};
+    if(!Array.isArray(state.layers)||state.layers.length!==LAYER_DEFS.length)state.layers=JSON.parse(JSON.stringify(D.layers));
+    restoreImages();syncInputs();ensureFont();schedule();status.textContent=`Loaded ${f.name}.`}
+  catch{status.textContent='That file is not a valid settings file.'}});
+$('resetBtn').onclick=()=>{state=JSON.parse(JSON.stringify(D));restoreImages();syncInputs();ensureFont();schedule();status.textContent='Reset to the original design.'};
 
-pv.addEventListener('click',e=>{
-  const r=pv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*2-1,y=(e.clientY-r.top)/r.height*2-1;
-  if(Math.abs(x)<0.2&&y<-0.45){const f=document.getElementById('twelveSet');f.scrollIntoView({behavior:'smooth',block:'start'});
-    f.classList.remove('flash');void f.offsetWidth;f.classList.add('flash')}
-});
-document.querySelectorAll('[data-shape]').forEach(b=>b.addEventListener('click',()=>{state.shape=b.dataset.shape;applyShape();schedule()}));
-document.getElementById('cornerR').addEventListener('input',applyShape);
-applyShape();
 syncInputs();drawPreview();ensureFont();
 </script>
 </body>
