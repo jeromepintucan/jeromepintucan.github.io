@@ -49,6 +49,10 @@
   #result{max-width:160px;margin-top:10px;display:none;border-radius:50%}
   .hint{font-size:12.5px;color:var(--muted);margin:4px 0 0}
   .file{font-size:13px}
+  .flash{animation:flash 1.2s ease-out}
+  @keyframes flash{0%{background:#E9DFC9}100%{background:transparent}}
+  @media (prefers-reduced-motion:reduce){.flash{animation:none}}
+  #preview{cursor:pointer}
   .sub{font:600 15px "EB Garamond",Georgia,serif;margin:14px 0 2px;color:var(--ink)}
   @media (max-width:900px){
     .wrap{grid-template-columns:1fr}
@@ -72,6 +76,28 @@
     <fieldset>
       <legend>Dial color</legend>
       <div class="presets" id="presets"></div>
+    </fieldset>
+
+    <fieldset id="twelveSet">
+      <legend>Top hour marker (12 o'clock)</legend>
+      <p class="hint" style="margin:0 0 8px">Tip: click the top marker on the watch preview to jump here.</p>
+      <div class="logos" id="twelveBox" role="group" aria-label="12 o'clock marker shape"></div>
+      <div class="row" id="m12FileRow"><label for="m12File">Your image</label><input class="file" type="file" id="m12File" accept=".png,.svg,.webp,image/png,image/svg+xml,image/webp"></div>
+      <div class="row" id="m12ModeRow"><label for="m12ImgMode">Image color</label>
+        <select id="m12ImgMode" data-key="m12ImgMode"><option value="original">Original colors</option><option value="metal">Metal (frame color)</option><option value="fill">Fill color</option></select></div>
+      <div class="row"><label for="m12Len">Length</label><div class="pair"><input type="range" id="m12Len" data-key="m12Len" min="0.10" max="0.40" step="0.005"><span class="val"></span></div></div>
+      <div class="row"><label for="m12Width">Width</label><div class="pair"><input type="range" id="m12Width" data-key="m12Width" min="0.010" max="0.070" step="0.001"><span class="val"></span></div></div>
+      <div class="row" id="gapRow"><label for="m12Gap">Spacing between</label><div class="pair"><input type="range" id="m12Gap" data-key="m12Gap" min="1" max="8" step="0.1"><span class="val"></span></div></div>
+      <div class="row"><label for="m12Taper">Taper</label><div class="pair"><input type="range" id="m12Taper" data-key="m12Taper" min="0" max="0.85" step="0.01"><span class="val"></span></div></div>
+      <div class="row"><label for="m12Frame">Frame thickness</label><div class="pair"><input type="range" id="m12Frame" data-key="m12Frame" min="0.003" max="0.030" step="0.001"><span class="val"></span></div></div>
+      <div class="row"><label for="m12Fill">Inside</label>
+        <select id="m12Fill" data-key="m12Fill"><option value="lume">Lume fill</option><option value="polished">Polished facet</option><option value="solid">Solid metal</option></select></div>
+      <div class="row"><label for="m12Colors">Colors</label>
+        <select id="m12Colors" data-key="m12Colors"><option value="match">Same as other markers</option><option value="custom">Custom</option></select></div>
+      <div class="row" id="m12ColorRow"><label>Custom colors</label><div class="pair">
+        <input type="color" data-key="m12FrameC" aria-label="12 o'clock frame color">
+        <input type="color" data-key="m12LumeC" aria-label="12 o'clock fill color">
+        <span class="hint">Frame, fill</span></div></div>
     </fieldset>
 
     <fieldset>
@@ -161,14 +187,13 @@
       <legend>Hour markers</legend>
       <div class="row"><label for="indexStyle">Shape</label>
         <select id="indexStyle" data-key="indexStyle"><option value="baton">Batons</option><option value="round">Round</option><option value="none">None</option></select></div>
-      <div class="row"><label for="twelve">At 12 o'clock</label>
-        <select id="twelve" data-key="twelve"><option value="twin">Twin batons</option><option value="single">Wide baton</option><option value="triangle">Triangle</option></select></div>
       <div class="row"><label>Colors</label><div class="pair">
         <input type="color" data-key="frame" aria-label="Marker frame color">
         <input type="color" data-key="lume" aria-label="Marker fill color">
         <span class="hint">Frame, fill</span></div></div>
       <div class="row"><label for="markerScale">Marker size</label><div class="pair"><input type="range" id="markerScale" data-key="markerScale" min="0.7" max="1.3" step="0.01"><span class="val"></span></div></div>
     </fieldset>
+
 
     <fieldset>
       <legend>Minute track</legend>
@@ -213,7 +238,7 @@ const DEFAULTS = {
   subWeight:'500', subColor:'#D9D9D9', subRatio:60, subTracking:200,
   lineSpacing:100, textOffset:0, lowerOffset:0,
   base:'#125C54', high:'#46AA96', brush:1, sweep:0.22, light:34, edge:0.35,
-  indexStyle:'baton', twelve:'twin', frame:'#C8CDD0', lume:'#F2EEDC', markerScale:1,
+  indexStyle:'baton', twelve:'twin', m12Len:0.285, m12Width:0.034, m12Gap:3.2, m12Taper:0.35, m12Frame:0.013, m12Fill:'lume', m12Img:'', m12ImgMode:'original', m12Colors:'match', m12FrameC:'#C8CDD0', m12LumeC:'#F2EEDC', frame:'#C8CDD0', lume:'#F2EEDC', markerScale:1,
   track:'on', trackColor:'#ECE6D2', fineColor:'#C8CDC3', transparent:'false'
 };
 const PRESETS = [
@@ -291,14 +316,83 @@ function markers(c,R){
     if(state.indexStyle==='baton') out.push(major?baton(ang,0.265,0.040,0.024):baton(ang,0.205,0.026,0.012));
     else if(state.indexStyle==='round') out.push(major?dot(ang,0.058,0.042):dot(ang,0.044,0.030));
   }
-  if(state.indexStyle!=='none'){
-    if(state.twelve==='twin'){
-      for(const off of[-3.2,3.2]) out.push({type:'poly',outer:quad(c,off,oR-R*0.285*k,oR,R*0.022*k,R*0.034*k),inner:quad(c,off,oR-R*0.285*k+R*0.025,oR-R*0.02,R*0.010*k,R*0.020*k)});
-    }else if(state.twelve==='single') out.push(baton(0,0.285,0.058,0.040));
-    else out.push({type:'poly',outer:[P(c,0,oR-R*0.25*k),...quad(c,0,oR,oR,R*0.075*k,R*0.075*k).slice(1,3)],
-      inner:[P(c,0,oR-R*0.25*k+R*0.05),...quad(c,0,oR-R*0.02,oR-R*0.02,R*0.05*k,R*0.05*k).slice(1,3)]});
-  }
   return out;
+}
+function offsetConvex(pts,d){
+  const n=pts.length,cx=pts.reduce((a,p)=>a+p[0],0)/n,cy=pts.reduce((a,p)=>a+p[1],0)/n,lines=[];
+  for(let i=0;i<n;i++){
+    const a=pts[i],b=pts[(i+1)%n];let dx=b[0]-a[0],dy=b[1]-a[1];const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;
+    let nx=-dy,ny=dx; if((cx-a[0])*nx+(cy-a[1])*ny<0){nx=-nx;ny=-ny}
+    lines.push({px:a[0]+nx*d,py:a[1]+ny*d,dx,dy});
+  }
+  return lines.map((L2,i)=>{const L1=lines[(i-1+n)%n],den=L1.dx*L2.dy-L1.dy*L2.dx;
+    if(Math.abs(den)<1e-9) return[L2.px,L2.py];
+    const t=((L2.px-L1.px)*L2.dy-(L2.py-L1.py)*L2.dx)/den; return[L1.px+L1.dx*t,L1.py+L1.dy*t]});
+}
+function twelveShapes(c,R,shape){
+  const k=state.markerScale,oR=R*0.885,L=R*state.m12Len*k,W=R*state.m12Width*k,tp=state.m12Taper,top=oR-L,out=[];
+  const bat=(ang,w)=>({type:'poly',outer:quad(c,ang,top,oR,w*(1-tp),w)});
+  const s=shape||state.twelve;
+  if(s==='twin') for(const o of[-1,1]) out.push(bat(o*state.m12Gap,W));
+  else if(s==='triple') for(const o of[-1,0,1]) out.push(bat(o*state.m12Gap*1.5,W*0.8));
+  else if(s==='single') out.push(bat(0,W*1.7));
+  else if(s==='triangle') out.push({type:'poly',outer:[P(c,0,top),...quad(c,0,oR,oR,W*2.2,W*2.2).slice(1,3)]});
+  else if(s==='arrow'){const sh=quad(c,0,oR-L*0.45,oR-L*0.45,W*2,W*2),bs=quad(c,0,oR,oR,W*1.1*(1-tp*0.6),W*1.1*(1-tp*0.6));
+    out.push({type:'poly',outer:[P(c,0,top),sh[1],bs[1],bs[2],sh[2]]})}
+  else if(s==='diamond'){const m=quad(c,0,oR-L*0.5,oR-L*0.5,W*1.8,W*1.8);out.push({type:'poly',outer:[P(c,0,top),m[1],P(c,0,oR),m[2]]})}
+  else if(s==='round'){const p=P(c,0,oR-L/2);out.push({type:'circle',x:p[0],y:p[1],r:Math.min(L/2,W*2.2)})}
+  else if(s==='square'){const h=Math.min(L/2,W*2),p=P(c,0,oR-L/2);out.push({type:'poly',outer:[[p[0]-h,p[1]-h],[p[0]+h,p[1]-h],[p[0]+h,p[1]+h],[p[0]-h,p[1]+h]]})}
+  else if(s==='crown'){const p=P(c,0,oR-L/2),h=L*0.78,w=Math.max(h*0.9,W*6.2);out.push({type:'crown',x:p[0],y:p[1],w,h})}
+  else if(s==='custom'){const p=P(c,0,oR-L/2);const im=m12Image&&m12Image.complete?m12Image:null;
+    const ar=im&&im.naturalWidth&&im.naturalHeight?im.naturalWidth/im.naturalHeight:1;const h=L*0.9,w=Math.max(h*ar*(state.m12Width/0.034),1);
+    out.push({type:'image',x:p[0],y:p[1],w,h})}
+  else if(s==='n12'||s==='nXII'){const p=P(c,0,oR-L/2);out.push({type:'text',x:p[0],y:p[1],txt:s==='n12'?'12':'XII',px:L*0.8})}
+  const d=R*state.m12Frame;
+  out.forEach(m=>{if(m.type==='poly')m.inner=offsetConvex(m.outer,d);if(m.type==='circle'){m.outer=m.r;m.inner=Math.max(0,m.r-d)}});
+  return out;
+}
+const CROWN_PATH=new Path2D('M14 70 L19 30 L35 49 L50 16 L65 49 L81 30 L86 70 Z M13 76 H87 V89 H13 Z M50 78.5 L54.5 82.5 L50 86.5 L45.5 82.5 Z M50 46 L54 52 L50 58 L46 52 Z');
+function crownXf(ctx,m){ctx.translate(m.x-m.w/2,m.y-m.h/2-m.h*0.025);ctx.scale(m.w/74,m.h/73);ctx.translate(-13,-16)}
+function paintMarkers(ctx,list,frame,fillColor,fill,R,S,shadow=true){
+  if(!list.length) return;
+  const g=ctx.createLinearGradient(0,0,0,S);
+  g.addColorStop(0,tint(frame,0.25));g.addColorStop(0.5,tint(frame,-0.32));g.addColorStop(1,tint(frame,0.18));
+  ctx.save();
+  if(shadow){ctx.shadowColor='rgba(0,12,10,0.55)';ctx.shadowBlur=R*0.028;ctx.shadowOffsetX=R*0.012;ctx.shadowOffsetY=R*0.018}
+  ctx.fillStyle=g;
+  list.forEach(m=>{
+    if(m.type==='text'){ctx.font=`${state.weight} ${m.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
+      if('letterSpacing' in ctx)ctx.letterSpacing='0px';
+      const cap=ctx.measureText('H').actualBoundingBoxAscent||m.px*0.68;ctx.fillText(m.txt,m.x,m.y+cap/2)}
+    else if(m.type==='crown'){ctx.save();crownXf(ctx,m);ctx.fill(CROWN_PATH,'evenodd');ctx.restore()}
+    else if(m.type==='image'){
+      const im=m12Image;
+      if(!im||!im.complete||!im.naturalWidth){ctx.save();ctx.shadowColor='transparent';ctx.strokeStyle='#9AA3A0';ctx.lineWidth=Math.max(1,m.h*0.04);ctx.setLineDash([m.h*0.08,m.h*0.06]);ctx.strokeRect(m.x-m.h/2,m.y-m.h/2,m.h,m.h);ctx.restore();return}
+      const mode=state.m12ImgMode,px=Math.abs(ctx.getTransform().a)||1;
+      if(mode==='original') ctx.drawImage(im,m.x-m.w/2,m.y-m.h/2,m.w,m.h);
+      else{const t=document.createElement('canvas');t.width=Math.max(1,Math.ceil(m.w*px));t.height=Math.max(1,Math.ceil(m.h*px));
+        const tc=t.getContext('2d');tc.drawImage(im,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';
+        if(mode==='metal'){const lg=tc.createLinearGradient(0,0,0,t.height);lg.addColorStop(0,tint(frame,0.45));lg.addColorStop(0.5,tint(frame,-0.28));lg.addColorStop(1,tint(frame,0.3));tc.fillStyle=lg}
+        else tc.fillStyle=fillColor;
+        tc.fillRect(0,0,t.width,t.height);ctx.drawImage(t,m.x-m.w/2,m.y-m.h/2,m.w,m.h)}
+    }
+    else{shapePath(ctx,m,'outer');ctx.fill()}
+  });
+  ctx.restore();
+  if(fill==='solid') return;
+  if(fill==='polished'){const g2=ctx.createLinearGradient(0,0,0,S);g2.addColorStop(0,tint(frame,0.6));g2.addColorStop(0.5,tint(frame,0.05));g2.addColorStop(1,tint(frame,0.5));ctx.fillStyle=g2}
+  else ctx.fillStyle=fillColor;
+  const inside=ctx.fillStyle;
+  list.forEach(m=>{
+    if(m.type==='text'||m.type==='image') return;
+    if(m.type==='crown'){
+      ctx.save();crownXf(ctx,m);ctx.clip(CROWN_PATH,'evenodd');
+      ctx.fillStyle=inside;ctx.fill(CROWN_PATH,'evenodd');
+      ctx.strokeStyle=g;ctx.lineJoin='miter';ctx.lineWidth=2*R*state.m12Frame/((m.w/74+m.h/73)/2);ctx.stroke(CROWN_PATH);
+      ctx.restore();return;
+    }
+    shapePath(ctx,m,'inner');ctx.fill();
+  });
 }
 function shapePath(ctx,m,w){if(m.type==='circle'){ctx.beginPath();ctx.arc(m.x,m.y,w==='outer'?m.outer:m.inner,0,Math.PI*2)}else poly(ctx,m[w])}
 
@@ -364,7 +458,8 @@ const LOGOS = {
     }else ctx.drawImage(logoImage,x,y,w,h);
   }},
 };
-let logoImage=null;
+let logoImage=null,m12Image=null;
+function setM12Image(src){if(!src){m12Image=null;return}m12Image=new Image();m12Image.onload=schedule;m12Image.src=src}
 function setLogoImage(src){
   if(!src){logoImage=null;return}
   logoImage=new Image();logoImage.onload=schedule;logoImage.src=src;
@@ -423,12 +518,9 @@ function render(S){
     ctx.strokeStyle=state.fineColor;ctx.lineWidth=R*0.004;ctx.beginPath();ctx.arc(c,c,R*0.958,0,Math.PI*2);ctx.stroke();
   }
 
-  const ms=markers(c,R);
-  const g=ctx.createLinearGradient(0,0,0,S);
-  g.addColorStop(0,tint(state.frame,0.25));g.addColorStop(0.5,tint(state.frame,-0.32));g.addColorStop(1,tint(state.frame,0.18));
-  ctx.save();ctx.shadowColor='rgba(0,12,10,0.55)';ctx.shadowBlur=R*0.028;ctx.shadowOffsetX=R*0.012;ctx.shadowOffsetY=R*0.018;
-  ctx.fillStyle=g;ms.forEach(m=>{shapePath(ctx,m,'outer');ctx.fill()});ctx.restore();
-  ctx.fillStyle=state.lume;ms.forEach(m=>{shapePath(ctx,m,'inner');ctx.fill()});
+  paintMarkers(ctx,markers(c,R),state.frame,state.lume,'lume',R,S);
+  const cust=state.m12Colors==='custom';
+  paintMarkers(ctx,twelveShapes(c,R),cust?state.m12FrameC:state.frame,cust?state.m12LumeC:state.lume,state.m12Fill,R,S);
 
   // top text block: emblem, name, secondary line
   const namePx=R*state.brandSize/100, subPx=namePx*state.subRatio/100;
@@ -456,7 +548,7 @@ function renderFor(size){
 const pv=document.getElementById('preview'),pctx=pv.getContext('2d');
 let raf=0;
 function schedule(){cancelAnimationFrame(raf);raf=requestAnimationFrame(drawPreview)}
-function drawPreview(){pctx.clearRect(0,0,pv.width,pv.height);pctx.drawImage(render(pv.width),0,0);drawThumbs()}
+function drawPreview(){pctx.clearRect(0,0,pv.width,pv.height);pctx.drawImage(render(pv.width),0,0);drawThumbs();drawTwelveThumbs();updateTwelveUI()}
 
 // ---------- emblem picker ----------
 const logoBox=document.getElementById('logos'),thumbs={};
@@ -483,9 +575,37 @@ function updateLogoUI(){
   document.getElementById('logoFileRow').hidden=state.logo!=='custom';
 }
 
+// ---------- 12 o'clock picker ----------
+const TWELVE=[['twin','Twin'],['crown','Crown'],['single','Wide'],['triple','Triple'],['triangle','Triangle'],['arrow','Arrow'],
+  ['diamond','Diamond'],['round','Round'],['square','Square'],['n12','12'],['nXII','XII'],['custom','Upload'],['none','None']];
+const twBox=document.getElementById('twelveBox'),twThumbs={};
+TWELVE.forEach(([k,label])=>{
+  const b=document.createElement('button');b.type='button';b.dataset.twelve=k;b.setAttribute('aria-pressed','false');
+  const cv=document.createElement('canvas');cv.width=cv.height=72;twThumbs[k]=cv;b.appendChild(cv);b.appendChild(document.createTextNode(label));
+  b.onclick=()=>{state.twelve=k;updateTwelveUI();schedule()};twBox.appendChild(b);
+});
+function drawTwelveThumbs(){
+  Object.entries(twThumbs).forEach(([k,cv])=>{
+    const ctx=cv.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,72,72);
+    if(k==='none'){ctx.strokeStyle='#9AA3A0';ctx.lineWidth=2;ctx.beginPath();ctx.arc(36,36,22,0,Math.PI*2);ctx.moveTo(20,52);ctx.lineTo(52,20);ctx.stroke();return}
+    const list=twelveShapes(500,500,k);let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+    list.forEach(m=>{const pts=(m.type==='crown'||m.type==='image')?[[m.x-m.w/2,m.y-m.h/2],[m.x+m.w/2,m.y+m.h/2]]:m.type==='poly'?m.outer:m.type==='circle'?[[m.x-m.r,m.y-m.r],[m.x+m.r,m.y+m.r]]:[[m.x-m.px*0.8,m.y-m.px*0.4],[m.x+m.px*0.8,m.y+m.px*0.4]];
+      pts.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])})});
+    const sc=58/Math.max(x1-x0,y1-y0);ctx.setTransform(sc,0,0,sc,36-sc*(x0+x1)/2,36-sc*(y0+y1)/2);
+    paintMarkers(ctx,list,'#5E6764','#ECE9DE',state.m12Fill==='solid'?'solid':'lume',500,1000,false);
+  });
+}
+function updateTwelveUI(){
+  twBox.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.twelve===state.twelve)));
+  document.getElementById('gapRow').hidden=!['twin','triple'].includes(state.twelve);
+  document.getElementById('m12FileRow').hidden=state.twelve!=='custom';
+  document.getElementById('m12ModeRow').hidden=state.twelve!=='custom';
+  document.getElementById('m12ColorRow').hidden=state.m12Colors!=='custom';
+}
+
 // ---------- bind controls ----------
 const inputs=[...document.querySelectorAll('[data-key]')];
-const fmt=el=>{const st=parseFloat(el.step||1);const n=Number(el.value);const d=st<0.1?2:st<1?1:0;return(el.id.toLowerCase().includes('tracking')&&n>0?'+':'')+n.toFixed(d)};
+const fmt=el=>{const st=parseFloat(el.step||1);const n=Number(el.value);const d=st<0.01?3:st<0.1?2:st<1?1:0;return(el.id.toLowerCase().includes('tracking')&&n>0?'+':'')+n.toFixed(d)};
 function syncInputs(){
   inputs.forEach(el=>{el.value=String(state[el.dataset.key]);const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el)});
   updateLogoUI();
@@ -537,6 +657,11 @@ document.getElementById('logoFile').addEventListener('change',e=>{
   r.readAsDataURL(f);
 });
 
+document.getElementById('m12File').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{state.m12Img=r.result;state.twelve='custom';setM12Image(r.result);updateTwelveUI();schedule();status.textContent=`Top marker image loaded from ${f.name}.`};
+  r.readAsDataURL(f);
+});
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
 document.getElementById('exportBtn').onclick=()=>{
   const size=parseInt(document.getElementById('size').value);
@@ -550,11 +675,16 @@ document.getElementById('saveBtn').onclick=()=>{download(new Blob([JSON.stringif
 document.getElementById('loadBtn').onclick=()=>document.getElementById('loadFile').click();
 document.getElementById('loadFile').addEventListener('change',async e=>{
   const f=e.target.files[0];if(!f)return;
-  try{state={...DEFAULTS,...JSON.parse(await f.text())};setLogoImage(state.logoImg);syncInputs();ensureFont();schedule();status.textContent=`Loaded ${f.name}.`}
+  try{state={...DEFAULTS,...JSON.parse(await f.text())};setLogoImage(state.logoImg);setM12Image(state.m12Img);syncInputs();ensureFont();schedule();status.textContent=`Loaded ${f.name}.`}
   catch{status.textContent='That file is not a valid settings file.'}
 });
-document.getElementById('resetBtn').onclick=()=>{state={...DEFAULTS};setLogoImage('');syncInputs();ensureFont();schedule();status.textContent='Reset to the original design.'};
+document.getElementById('resetBtn').onclick=()=>{state={...DEFAULTS};setLogoImage('');setM12Image('');syncInputs();ensureFont();schedule();status.textContent='Reset to the original design.'};
 
+pv.addEventListener('click',e=>{
+  const r=pv.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*2-1,y=(e.clientY-r.top)/r.height*2-1;
+  if(Math.abs(x)<0.2&&y<-0.45){const f=document.getElementById('twelveSet');f.scrollIntoView({behavior:'smooth',block:'start'});
+    f.classList.remove('flash');void f.offsetWidth;f.classList.add('flash')}
+});
 syncInputs();drawPreview();ensureFont();
 </script>
 </body>
