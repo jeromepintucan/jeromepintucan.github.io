@@ -53,6 +53,10 @@
   @keyframes flash{0%{background:#E9DFC9}100%{background:transparent}}
   @media (prefers-reduced-motion:reduce){.flash{animation:none}}
   #preview{cursor:pointer}
+  details.line{border:1px solid var(--line);border-radius:8px;background:#fff;margin:8px 0;padding:0 12px}
+  details.line[open]{padding-bottom:8px}
+  details.line summary{cursor:pointer;padding:10px 0;font:600 15px "EB Garamond",Georgia,serif;list-style-position:inside}
+  details.line summary span{font:400 12.5px system-ui,sans-serif;color:var(--muted);margin-left:6px}
   .sub{font:600 15px "EB Garamond",Georgia,serif;margin:14px 0 2px;color:var(--ink)}
   @media (max-width:900px){
     .wrap{grid-template-columns:1fr}
@@ -117,14 +121,6 @@
     </fieldset>
 
     <fieldset>
-      <legend>Text</legend>
-      <div class="row"><label for="brand">Name</label><input type="text" id="brand" data-key="brand"></div>
-      <div class="row"><label for="sub">Line under name</label><input type="text" id="sub" data-key="sub"></div>
-      <div class="row"><label for="bottom">Lower line</label><input type="text" id="bottom" data-key="bottom"></div>
-      <div class="row"><label for="bottom2">Second lower line</label><input type="text" id="bottom2" data-key="bottom2"></div>
-    </fieldset>
-
-    <fieldset>
       <legend>Typography</legend>
       <div class="row"><label>Type style</label><div class="pair" id="typePresets"></div></div>
       <div class="row"><label for="font">Font family</label>
@@ -143,32 +139,14 @@
         <select id="caps" data-key="caps"><option value="upper">ALL CAPS</option><option value="asis">As typed</option></select></div>
       <div class="row"><label for="kerning">Kerning</label>
         <select id="kerning" data-key="kerning"><option value="normal">Font kerning on</option><option value="none">Off</option></select></div>
-
-      <p class="sub">Name</p>
-      <div class="row"><label for="weight">Weight</label>
-        <select id="weight" data-key="weight"><option value="400">Regular 400</option><option value="500">Medium 500</option><option value="600">SemiBold 600</option><option value="700">Bold 700</option><option value="800">ExtraBold 800</option></select></div>
-      <div class="row"><label>Color</label><div class="pair">
-        <input type="color" data-key="textColor" aria-label="Name color">
-        <button class="chip" data-set="textColor" data-val="#FFFFFF">White</button>
-        <button class="chip" data-set="textColor" data-val="#D9D9D9">Silver</button></div></div>
-      <div class="row"><label for="brandSize">Size</label><div class="pair"><input type="range" id="brandSize" data-key="brandSize" min="3" max="14" step="0.1"><span class="val"></span></div></div>
-      <div class="row"><label for="tracking">Tracking</label><div class="pair"><input type="range" id="tracking" data-key="tracking" min="-50" max="500" step="5"><span class="val"></span></div></div>
-
-      <p class="sub">Secondary lines</p>
-      <div class="row"><label for="subWeight">Weight</label>
-        <select id="subWeight" data-key="subWeight"><option value="400">Regular 400</option><option value="500">Medium 500</option><option value="600">SemiBold 600</option><option value="700">Bold 700</option><option value="800">ExtraBold 800</option></select></div>
-      <div class="row"><label>Color</label><div class="pair">
-        <input type="color" data-key="subColor" aria-label="Secondary text color">
-        <button class="chip" data-set="subColor" data-val="#FFFFFF">White</button>
-        <button class="chip" data-set="subColor" data-val="#D9D9D9">Silver</button></div></div>
-      <div class="row"><label for="subRatio">Size vs name (%)</label><div class="pair"><input type="range" id="subRatio" data-key="subRatio" min="30" max="90" step="1"><span class="val"></span></div></div>
-      <div class="row"><label for="subTracking">Tracking</label><div class="pair"><input type="range" id="subTracking" data-key="subTracking" min="-50" max="500" step="5"><span class="val"></span></div></div>
-
-      <p class="sub">Layout</p>
       <div class="row"><label for="lineSpacing">Line spacing (%)</label><div class="pair"><input type="range" id="lineSpacing" data-key="lineSpacing" min="70" max="160" step="1"><span class="val"></span></div></div>
-      <div class="row"><label for="textOffset">Move top text</label><div class="pair"><input type="range" id="textOffset" data-key="textOffset" min="-14" max="14" step="0.5"><span class="val"></span></div></div>
-      <div class="row"><label for="lowerOffset">Move lower text</label><div class="pair"><input type="range" id="lowerOffset" data-key="lowerOffset" min="-14" max="14" step="0.5"><span class="val"></span></div></div>
       <p class="hint" id="fontNote">Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Text lines</legend>
+      <p class="hint" style="margin:0 0 6px">Each line has its own size, weight, spacing, width and color. Leave the text empty to hide a line.</p>
+      <div id="lineEditors"></div>
     </fieldset>
 
     <fieldset>
@@ -192,6 +170,24 @@
         <input type="color" data-key="lume" aria-label="Marker fill color">
         <span class="hint">Frame, fill</span></div></div>
       <div class="row"><label for="markerScale">Marker size</label><div class="pair"><input type="range" id="markerScale" data-key="markerScale" min="0.7" max="1.3" step="0.01"><span class="val"></span></div></div>
+      <div class="row"><label for="m369">At 3, 6 and 9</label>
+        <select id="m369" data-key="m369"><option value="single">Single marker</option><option value="double">Double baton</option></select></div>
+      <div class="row" id="m369GapRow"><label for="m369Gap">Double spacing</label><div class="pair"><input type="range" id="m369Gap" data-key="m369Gap" min="1" max="6" step="0.1"><span class="val"></span></div></div>
+      <div class="row"><label for="depth">Raised depth</label><div class="pair"><input type="range" id="depth" data-key="depth" min="0" max="2" step="0.05"><span class="val"></span></div></div>
+      <p class="hint">Depth adds a contact shadow, beveled metal edges and a recessed lume fill so markers look applied to the dial.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Center</legend>
+      <div class="row"><label for="centerCap">Center detail</label>
+        <select id="centerCap" data-key="centerCap"><option value="none">None</option><option value="pinion">Central pinion</option><option value="cap">Circular cap</option><option value="ring">Metallic ring</option></select></div>
+      <div class="row"><label for="centerSize">Size</label><div class="pair"><input type="range" id="centerSize" data-key="centerSize" min="0.5" max="2.5" step="0.05"><span class="val"></span></div></div>
+      <div class="row"><label>Color</label><div class="pair">
+        <input type="color" data-key="centerColor" aria-label="Center color">
+        <button class="chip" data-set="centerColor" data-val="#C8CDD0">Steel</button>
+        <button class="chip" data-set="centerColor" data-val="#D3B57E">Gold</button>
+        <button class="chip" data-set="centerColor" data-val="#3A3F42">Black</button></div></div>
+      <p class="hint">This sits on the background layer, under the hands you add in Theme Studio.</p>
     </fieldset>
 
 
@@ -234,24 +230,33 @@ const DEFAULTS = {
   logo:'none', monogram:'M', logoImg:'', logoFinish:'metal', logoColor:'#D9D9D9', logoSize:14, logoGap:3,
   brand:'MERIDIAN', sub:'AUTOMATIC', bottom:'200 M', bottom2:'',
   font:'ebg', caps:'upper', kerning:'normal',
-  weight:'600', textColor:'#FFFFFF', brandSize:8, tracking:200,
-  subWeight:'500', subColor:'#D9D9D9', subRatio:60, subTracking:200,
-  lineSpacing:100, textOffset:0, lowerOffset:0,
+  brandSize:8, brandWeight:'600', brandTrack:200, brandStretch:100, brandColor:'#FFFFFF', brandY:0,
+  subSize:4.8, subWeight:'500', subTrack:200, subStretch:100, subColor:'#D9D9D9', subY:0,
+  bottomSize:4.2, bottomWeight:'500', bottomTrack:200, bottomStretch:100, bottomColor:'#D9D9D9', bottomY:0,
+  bottom2Size:3.6, bottom2Weight:'500', bottom2Track:200, bottom2Stretch:100, bottom2Color:'#D9D9D9', bottom2Y:0,
+  swiss:'SWISS MADE', swissSize:2.6, swissWeight:'500', swissTrack:150, swissStretch:100, swissColor:'#D9D9D9',
+  swissMode:'split', swissR:0.86, swissGap:5,
+  lineSpacing:100,
+  m369:'single', m369Gap:2.6, depth:1, centerCap:'none', centerSize:1, centerColor:'#C8CDD0',
   base:'#125C54', high:'#46AA96', brush:1, sweep:0.22, light:34, edge:0.35,
   indexStyle:'baton', twelve:'twin', m12Len:0.285, m12Width:0.034, m12Gap:3.2, m12Taper:0.35, m12Frame:0.013, m12Fill:'lume', m12Img:'', m12ImgMode:'original', m12Colors:'match', m12FrameC:'#C8CDD0', m12LumeC:'#F2EEDC', frame:'#C8CDD0', lume:'#F2EEDC', markerScale:1,
   track:'on', trackColor:'#ECE6D2', fineColor:'#C8CDC3', transparent:'false'
 };
+const SMALL=['sub','bottom','bottom2','swiss'];
+const txt=(a,b)=>{const o={brandColor:a};SMALL.forEach(k=>o[k+'Color']=b);return o};
 const PRESETS = [
-  {name:'Teal sunburst', swatch:'#2E8C7B', v:{}},
-  {name:'Midnight blue', swatch:'#25385E', v:{base:'#101C34',high:'#46639C',trackColor:'#EDEFF3',fineColor:'#AEB8CC'}},
-  {name:'Graphite', swatch:'#4A4F52', v:{base:'#1C1F21',high:'#6E767B',trackColor:'#ECECE8',fineColor:'#9EA4A6'}},
-  {name:'Sand and gold', swatch:'#C9AE84', v:{base:'#8A6E4E',high:'#E8D2AE',textColor:'#2C2A26',subColor:'#4A433A',trackColor:'#2C2A26',fineColor:'#5A5148',frame:'#D3B57E',lume:'#FBF6E8',logoColor:'#D3B57E'}},
-  {name:'Ice white', swatch:'#E4E8EA', v:{base:'#AEB6BA',high:'#F7F9FA',textColor:'#1F2A30',subColor:'#3E4A50',trackColor:'#1F2A30',fineColor:'#55636A',frame:'#9AA2A7',lume:'#FFFFFF',brush:0.7,logoColor:'#9AA2A7'}},
+  {name:'Teal sunburst', swatch:'#2E8C7B', v:{...txt('#FFFFFF','#D9D9D9')}},
+  {name:'Midnight blue', swatch:'#25385E', v:{...txt('#FFFFFF','#D9D9D9'),base:'#101C34',high:'#46639C',trackColor:'#EDEFF3',fineColor:'#AEB8CC'}},
+  {name:'Graphite', swatch:'#4A4F52', v:{...txt('#FFFFFF','#D9D9D9'),base:'#1C1F21',high:'#6E767B',trackColor:'#ECECE8',fineColor:'#9EA4A6'}},
+  {name:'Sand and gold', swatch:'#C9AE84', v:{base:'#8A6E4E',high:'#E8D2AE',...txt('#2C2A26','#4A433A'),trackColor:'#2C2A26',fineColor:'#5A5148',frame:'#D3B57E',lume:'#FBF6E8',logoColor:'#D3B57E'}},
+  {name:'Ice white', swatch:'#E4E8EA', v:{base:'#AEB6BA',high:'#F7F9FA',...txt('#1F2A30','#3E4A50'),trackColor:'#1F2A30',fineColor:'#55636A',frame:'#9AA2A7',lume:'#FFFFFF',brush:0.7,logoColor:'#9AA2A7'}},
 ];
+const typeSet=(font,bw,sw,bt,st,bs,ss,ls)=>{const o={font,caps:'upper',kerning:'normal',lineSpacing:ls,brandWeight:bw,brandTrack:bt,brandSize:bs};
+  SMALL.forEach(k=>{o[k+'Weight']=sw;o[k+'Track']=k==='swiss'?Math.round(st*0.75):st});o.subSize=ss;o.bottomSize=ss*0.88;o.bottom2Size=ss*0.75;return o};
 const TYPE_PRESETS = [
-  {name:'Classic luxury', v:{font:'ebg',weight:'600',subWeight:'500',caps:'upper',tracking:200,subTracking:200,subRatio:60,lineSpacing:100,textColor:'#FFFFFF',subColor:'#D9D9D9',kerning:'normal',brandSize:8}},
-  {name:'Bold luxury', v:{font:'ebg',weight:'700',subWeight:'600',caps:'upper',tracking:220,subTracking:230,subRatio:58,lineSpacing:100,brandSize:8.4}},
-  {name:'Modern', v:{font:'sans',weight:'500',subWeight:'400',caps:'upper',tracking:320,subTracking:300,subRatio:55,lineSpacing:110,brandSize:6.6}},
+  {name:'Classic luxury', v:typeSet('ebg','600','500',200,200,8,4.8,100)},
+  {name:'Bold luxury', v:typeSet('ebg','700','600',220,230,8.4,4.9,100)},
+  {name:'Modern', v:typeSet('sans','500','400',320,300,6.6,3.6,110)},
 ];
 const FONTS = {
   ebg:'"EB Garamond","Adobe Garamond Pro",Garamond,"Cormorant Garamond",Sabon,Baskerville,Georgia,serif',
@@ -313,8 +318,14 @@ function markers(c,R){
   const dot=(ang,rr,ir)=>{const p=P(c,ang,R*0.80);return{type:'circle',x:p[0],y:p[1],outer:R*rr*k,inner:R*ir*k}};
   for(let hr=1;hr<12;hr++){
     const ang=hr*30,major=hr%3===0;
-    if(state.indexStyle==='baton') out.push(major?baton(ang,0.265,0.040,0.024):baton(ang,0.205,0.026,0.012));
-    else if(state.indexStyle==='round') out.push(major?dot(ang,0.058,0.042):dot(ang,0.044,0.030));
+    const dbl=major&&state.m369==='double';
+    if(state.indexStyle==='baton'){
+      if(dbl) for(const o of[-1,1]) out.push(baton(ang+o*state.m369Gap,0.265,0.024,0.011));
+      else out.push(major?baton(ang,0.265,0.040,0.024):baton(ang,0.205,0.026,0.012));
+    }else if(state.indexStyle==='round'){
+      if(dbl) for(const o of[-1,1]) out.push(dot(ang+o*state.m369Gap*1.4,0.042,0.029));
+      else out.push(major?dot(ang,0.058,0.042):dot(ang,0.044,0.030));
+    }
   }
   return out;
 }
@@ -357,11 +368,9 @@ function paintMarkers(ctx,list,frame,fillColor,fill,R,S,shadow=true){
   if(!list.length) return;
   const g=ctx.createLinearGradient(0,0,0,S);
   g.addColorStop(0,tint(frame,0.25));g.addColorStop(0.5,tint(frame,-0.32));g.addColorStop(1,tint(frame,0.18));
-  ctx.save();
-  if(shadow){ctx.shadowColor='rgba(0,12,10,0.55)';ctx.shadowBlur=R*0.028;ctx.shadowOffsetX=R*0.012;ctx.shadowOffsetY=R*0.018}
-  ctx.fillStyle=g;
-  list.forEach(m=>{
-    if(m.type==='text'){ctx.font=`${state.weight} ${m.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
+  const dp=shadow?state.depth:0;
+  const drawOuter=()=>list.forEach(m=>{
+    if(m.type==='text'){ctx.font=`${state.brandWeight} ${m.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
       if('letterSpacing' in ctx)ctx.letterSpacing='0px';
       const cap=ctx.measureText('H').actualBoundingBoxAscent||m.px*0.68;ctx.fillText(m.txt,m.x,m.y+cap/2)}
     else if(m.type==='crown'){ctx.save();crownXf(ctx,m);ctx.fill(CROWN_PATH,'evenodd');ctx.restore()}
@@ -378,7 +387,11 @@ function paintMarkers(ctx,list,frame,fillColor,fill,R,S,shadow=true){
     }
     else{shapePath(ctx,m,'outer');ctx.fill()}
   });
-  ctx.restore();
+  if(dp>0){
+    ctx.save();ctx.fillStyle=g;ctx.shadowColor=`rgba(0,10,8,${0.3+0.15*dp})`;ctx.shadowBlur=R*0.022*dp;ctx.shadowOffsetX=R*0.008*dp;ctx.shadowOffsetY=R*0.013*dp;drawOuter();ctx.restore();
+    ctx.save();ctx.fillStyle=g;ctx.shadowColor='rgba(0,6,5,0.8)';ctx.shadowBlur=R*0.0035;ctx.shadowOffsetX=R*0.0012*dp;ctx.shadowOffsetY=R*0.002*dp;drawOuter();ctx.restore();
+    list.forEach(m=>bevel(ctx,m,R,dp));
+  }else{ctx.save();ctx.fillStyle=g;drawOuter();ctx.restore()}
   if(fill==='solid') return;
   if(fill==='polished'){const g2=ctx.createLinearGradient(0,0,0,S);g2.addColorStop(0,tint(frame,0.6));g2.addColorStop(0.5,tint(frame,0.05));g2.addColorStop(1,tint(frame,0.5));ctx.fillStyle=g2}
   else ctx.fillStyle=fillColor;
@@ -392,7 +405,53 @@ function paintMarkers(ctx,list,frame,fillColor,fill,R,S,shadow=true){
       ctx.restore();return;
     }
     shapePath(ctx,m,'inner');ctx.fill();
+    if(dp>0){ctx.save();shapePath(ctx,m,'inner');ctx.clip();edgeLight(ctx,ptsOf(m,'inner'),R*0.006*dp,0.5,true);ctx.restore();ctx.fillStyle=inside}
   });
+}
+function ptsOf(m,which){
+  if(m.type==='circle'){const r=m[which],pts=[];for(let i=0;i<48;i++){const t=i/48*Math.PI*2;pts.push([m.x+r*Math.cos(t),m.y+r*Math.sin(t)])}return pts}
+  return m[which];
+}
+const LIGHT=[-0.42,-0.91];
+function edgeLight(ctx,pts,w,str,inv){
+  const n=pts.length,cx=pts.reduce((a,p)=>a+p[0],0)/n,cy=pts.reduce((a,p)=>a+p[1],0)/n;
+  ctx.lineWidth=w;ctx.lineCap='round';
+  for(let i=0;i<n;i++){
+    const a=pts[i],b=pts[(i+1)%n];let nx=-(b[1]-a[1]),ny=b[0]-a[0];const l=Math.hypot(nx,ny)||1;nx/=l;ny/=l;
+    if(((a[0]+b[0])/2-cx)*nx+((a[1]+b[1])/2-cy)*ny<0){nx=-nx;ny=-ny}
+    const k=(nx*LIGHT[0]+ny*LIGHT[1])*(inv?-1:1);
+    ctx.strokeStyle=k>0?`rgba(255,255,255,${(k*str).toFixed(3)})`:`rgba(0,0,0,${(-k*str*0.75).toFixed(3)})`;
+    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
+  }
+}
+function bevel(ctx,m,R,dp){
+  if(m.type==='poly'||m.type==='circle'){ctx.save();shapePath(ctx,m,'outer');ctx.clip();edgeLight(ctx,ptsOf(m,'outer'),R*0.008*Math.min(dp,1.5),0.75,false);ctx.restore()}
+  else if(m.type==='crown'){
+    ctx.save();crownXf(ctx,m);ctx.clip(CROWN_PATH,'evenodd');
+    const gr=ctx.createLinearGradient(13,16,87,89);gr.addColorStop(0,'rgba(255,255,255,.7)');gr.addColorStop(.45,'rgba(255,255,255,0)');gr.addColorStop(.6,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.5)');
+    ctx.strokeStyle=gr;ctx.lineWidth=R*0.008*Math.min(dp,1.5)/((m.w/74+m.h/73)/2);ctx.stroke(CROWN_PATH);ctx.restore();
+  }
+}
+function drawCenter(ctx,c,R){
+  const t=state.centerCap;if(t==='none')return;
+  const k=state.centerSize,col=state.centerColor,dp=Math.max(state.depth,0.4);
+  const metal=(r)=>{const g=ctx.createRadialGradient(c-r*0.35,c-r*0.4,r*0.05,c,c,r);g.addColorStop(0,tint(col,0.7));g.addColorStop(0.55,col);g.addColorStop(1,tint(col,-0.45));return g};
+  ctx.save();
+  ctx.shadowColor='rgba(0,8,6,0.6)';ctx.shadowBlur=R*0.015*dp;ctx.shadowOffsetX=R*0.005*dp;ctx.shadowOffsetY=R*0.008*dp;
+  if(t==='pinion'){
+    const r=R*0.022*k;ctx.fillStyle=metal(r);ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.fill();
+    ctx.shadowColor='transparent';const h=ctx.createRadialGradient(c,c,0,c,c,r*0.38);h.addColorStop(0,'#050606');h.addColorStop(1,'#2B3031');
+    ctx.fillStyle=h;ctx.beginPath();ctx.arc(c,c,r*0.38,0,Math.PI*2);ctx.fill();
+  }else if(t==='cap'){
+    const r=R*0.045*k;ctx.fillStyle=metal(r);ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.fill();
+    ctx.shadowColor='transparent';ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=R*0.002*k;ctx.beginPath();ctx.arc(c,c,r*0.72,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle=tint(col,0.55);ctx.beginPath();ctx.arc(c-r*0.3,c-r*0.35,r*0.12,0,Math.PI*2);ctx.globalAlpha=0.6;ctx.fill();
+  }else{
+    const r=R*0.07*k,g=ctx.createLinearGradient(c-r,c-r,c+r,c+r);
+    g.addColorStop(0,tint(col,0.6));g.addColorStop(0.5,tint(col,-0.4));g.addColorStop(1,tint(col,0.35));
+    ctx.strokeStyle=g;ctx.lineWidth=R*0.008*k;ctx.beginPath();ctx.arc(c,c,r,0,Math.PI*2);ctx.stroke();
+  }
+  ctx.restore();
 }
 function shapePath(ctx,m,w){if(m.type==='circle'){ctx.beginPath();ctx.arc(m.x,m.y,w==='outer'?m.outer:m.inner,0,Math.PI*2)}else poly(ctx,m[w])}
 
@@ -443,7 +502,7 @@ const LOGOS = {
     ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(50,50,36.5,0,Math.PI*2);ctx.stroke();
     let t=(state.monogram||'M'); if(state.caps==='upper') t=t.toUpperCase();
     const px=t.length>2?30:t.length>1?38:46;
-    ctx.font=`${state.weight} ${px}px ${FONTS[state.font]}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
+    ctx.font=`${state.brandWeight} ${px}px ${FONTS[state.font]}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';
     const m=ctx.measureText(t),cap=m.actualBoundingBoxAscent||px*0.66;
     ctx.fillText(t,50,50+cap/2);
   }},
@@ -473,7 +532,7 @@ function drawEmblem(ctx,cx,cy,size,R,{thumb=false}={}){
     const g=ctx.createLinearGradient(0,0,0,100);
     g.addColorStop(0,tint(state.logoColor,0.45));g.addColorStop(0.5,tint(state.logoColor,-0.28));g.addColorStop(1,tint(state.logoColor,0.3));
     paint=g;
-    if(!thumb){ctx.shadowColor='rgba(0,12,10,0.55)';ctx.shadowBlur=R*0.022;ctx.shadowOffsetX=R*0.009;ctx.shadowOffsetY=R*0.014}
+    if(!thumb&&state.depth>0){const dp=state.depth;ctx.shadowColor=`rgba(0,10,8,${0.35+0.15*dp})`;ctx.shadowBlur=R*0.018*dp;ctx.shadowOffsetX=R*0.007*dp;ctx.shadowOffsetY=R*0.011*dp}
   }
   ctx.fillStyle=paint; ctx.strokeStyle=paint;
   if(state.logo==='custom'&&state.logoFinish==='metal'){ctx.fillStyle=state.logoColor}
@@ -483,24 +542,39 @@ function drawEmblem(ctx,cx,cy,size,R,{thumb=false}={}){
 
 // ---------- typography ----------
 function prep(t){return state.caps==='upper'?t.toUpperCase():t}
-function textLine(ctx,txt,cy,px,color,tracking,weight){
-  if(!txt) return;
-  txt=prep(txt);
-  const fam=FONTS[state.font]||FONTS.serif, S=ctx.canvas.width, ls=px*tracking/1000;
-  ctx.font=`${weight} ${px}px ${fam}`; ctx.fillStyle=color; ctx.textBaseline='alphabetic'; ctx.textAlign='left';
+function lineOpts(id,R){return{px:R*state[id+'Size']/100,color:state[id+'Color'],track:state[id+'Track'],weight:state[id+'Weight'],stretch:state[id+'Stretch']/100}}
+function setFont(ctx,o){
+  ctx.font=`${o.weight} ${o.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.fillStyle=o.color;ctx.textBaseline='alphabetic';ctx.textAlign='left';
   if('fontKerning' in ctx) ctx.fontKerning=state.kerning;
-  const cap=ctx.measureText('H').actualBoundingBoxAscent||px*0.68;
-  const y=cy+cap/2;
-  if('letterSpacing' in ctx){
-    ctx.letterSpacing=ls+'px';
-    const w=ctx.measureText(txt).width;
-    ctx.fillText(txt,S/2-(w-ls)/2,y);
-    ctx.letterSpacing='0px';
-  }else{
-    const chars=[...txt],ws=chars.map(ch=>ctx.measureText(ch).width),tot=ws.reduce((a,b)=>a+b,0)+ls*(chars.length-1);
-    let x=S/2-tot/2; chars.forEach((ch,i)=>{ctx.fillText(ch,x,y);x+=ws[i]+ls});
-  }
+  if('letterSpacing' in ctx) ctx.letterSpacing='0px';
+  return ctx.measureText('H').actualBoundingBoxAscent||o.px*0.68;
+}
+function textLine(ctx,txt,cy,o){
+  if(!txt) return 0;
+  txt=prep(txt);
+  ctx.save();
+  const cap=setFont(ctx,o),ls=o.px*o.track/1000;
+  ctx.translate(ctx.canvas.width/2,cy+cap/2);ctx.scale(o.stretch,1);
+  if('letterSpacing' in ctx){ctx.letterSpacing=ls+'px';const w=ctx.measureText(txt).width;ctx.fillText(txt,-(w-ls)/2,0)}
+  else{const ch=[...txt],ws=ch.map(x=>ctx.measureText(x).width),tot=ws.reduce((a,b)=>a+b,0)+ls*(ch.length-1);let x=-tot/2;ch.forEach((t,i)=>{ctx.fillText(t,x,0);x+=ws[i]+ls})}
+  ctx.restore();
   return cap;
+}
+// text along the bottom arc, reading left to right, tops toward the center
+function arcText(ctx,c,R,txt,o){
+  ctx.save();
+  const cap=setFont(ctx,o),ls=o.px*o.track/1000,rad=R*state.swissR,toDeg=180/Math.PI;
+  const widthDeg=str=>{const ch=[...str];return(ch.reduce((a,x)=>a+ctx.measureText(x).width*o.stretch,0)+ls*Math.max(0,ch.length-1))/rad*toDeg};
+  const seg=(str,startDeg)=>{let a=startDeg;[...str].forEach(ch=>{const w=ctx.measureText(ch).width*o.stretch,wd=w/rad*toDeg,mid=a-wd/2,p=P(c,mid,rad);
+    ctx.save();ctx.translate(p[0],p[1]);ctx.rotate((mid-180)*Math.PI/180);ctx.scale(o.stretch,1);ctx.textAlign='center';ctx.fillText(ch,0,cap/2);ctx.restore();
+    a-=wd+ls/rad*toDeg})};
+  if(state.swissMode==='split'){
+    const t=txt.trim(),mid=t.length/2;let best=-1;
+    [...t].forEach((ch,i)=>{if(ch===' '&&(best<0||Math.abs(i-mid)<Math.abs(best-mid)))best=i});
+    if(best<0){seg(t,180+widthDeg(t)/2)}
+    else{const L=t.slice(0,best).trim(),Rt=t.slice(best+1).trim();seg(L,180+state.swissGap+widthDeg(L));seg(Rt,180-state.swissGap)}
+  }else seg(txt,180+widthDeg(txt)/2);
+  ctx.restore();
 }
 
 // ---------- full render ----------
@@ -522,19 +596,26 @@ function render(S){
   const cust=state.m12Colors==='custom';
   paintMarkers(ctx,twelveShapes(c,R),cust?state.m12FrameC:state.frame,cust?state.m12LumeC:state.lume,state.m12Fill,R,S);
 
-  // top text block: emblem, name, secondary line
-  const namePx=R*state.brandSize/100, subPx=namePx*state.subRatio/100;
-  const gapLines=(state.lineSpacing/100)*(namePx*0.75+subPx*0.75);
-  const nameY=c-R*0.36+R*state.textOffset/100;
-  const nameCap=textLine(ctx,state.brand,nameY,namePx,state.textColor,state.tracking,state.weight)||namePx*0.68;
-  textLine(ctx,state.sub,nameY+gapLines,subPx,state.subColor,state.subTracking,state.subWeight);
+  drawCenter(ctx,c,R);
+
+  // top text block: emblem, name, line under name
+  const sp=state.lineSpacing/100,oN=lineOpts('brand',R),oS=lineOpts('sub',R),oB=lineOpts('bottom',R),oB2=lineOpts('bottom2',R),oW=lineOpts('swiss',R);
+  const nameY=c-R*0.36+R*state.brandY/100;
+  const nameCap=textLine(ctx,state.brand,nameY,oN)||oN.px*0.68;
+  textLine(ctx,state.sub,nameY+sp*(oN.px+oS.px)*0.75+R*state.subY/100,oS);
   const ls=R*state.logoSize/100;
   drawEmblem(ctx,c,nameY-nameCap/2-R*state.logoGap/100-ls/2,ls,R);
 
   // lower text block
-  const lowY=c+R*0.34+R*state.lowerOffset/100;
-  textLine(ctx,state.bottom,lowY,subPx,state.subColor,state.subTracking,state.subWeight);
-  textLine(ctx,state.bottom2,lowY+(state.lineSpacing/100)*subPx*1.5,subPx*0.9,state.subColor,state.subTracking,state.subWeight);
+  const lowY=c+R*0.34+R*state.bottomY/100;
+  textLine(ctx,state.bottom,lowY,oB);
+  textLine(ctx,state.bottom2,lowY+sp*(oB.px+oB2.px)*0.75+R*state.bottom2Y/100,oB2);
+
+  // bottom text near 6 o'clock
+  if(state.swiss){
+    if(state.swissMode==='straight') textLine(ctx,state.swiss,c+R*state.swissR,oW);
+    else arcText(ctx,c,R,prep(state.swiss),oW);
+  }
   return cv;
 }
 function renderFor(size){
@@ -603,18 +684,42 @@ function updateTwelveUI(){
   document.getElementById('m12ColorRow').hidden=state.m12Colors!=='custom';
 }
 
+// ---------- text line editors ----------
+const LINES=[{id:'brand',label:'Name',open:true},{id:'sub',label:'Line under name'},{id:'bottom',label:'Lower line'},{id:'bottom2',label:'Second lower line'},{id:'swiss',label:'Bottom text',note:'near 6 o\'clock'}];
+const WEIGHTS=[['400','Regular 400'],['500','Medium 500'],['600','SemiBold 600'],['700','Bold 700'],['800','ExtraBold 800']];
+document.getElementById('lineEditors').innerHTML=LINES.map(L=>{
+  const id=L.id,r=(k,label,min,max,step)=>`<div class="row"><label for="${id}${k}">${label}</label><div class="pair"><input type="range" id="${id}${k}" data-key="${id}${k}" min="${min}" max="${max}" step="${step}"><span class="val"></span></div></div>`;
+  const pos=id==='swiss'
+    ?`<div class="row"><label for="swissMode">Placement</label><select id="swissMode" data-key="swissMode"><option value="split">Curved, split around 6 marker</option><option value="curve">Curved, centered</option><option value="straight">Straight</option></select></div>`
+      +r('R','Distance from center',0.5,0.95,0.005)+`<div id="swissGapRow">${r('Gap','Gap around marker',0,15,0.1)}</div>`
+    :r('Y','Move up or down',-20,20,0.5);
+  return `<details class="line"${L.open?' open':''}><summary>${L.label}${L.note?`<span>${L.note}</span>`:''}</summary>
+    <div class="row"><label for="${id}">Text</label><input type="text" id="${id}" data-key="${id}"></div>
+    ${r('Size','Font size',1.5,14,0.1)}
+    <div class="row"><label for="${id}Weight">Weight</label><select id="${id}Weight" data-key="${id}Weight">${WEIGHTS.map(w=>`<option value="${w[0]}">${w[1]}</option>`).join('')}</select></div>
+    ${r('Track','Tracking',-50,500,5)}
+    ${r('Stretch','Letter width (%)',60,150,1)}
+    <div class="row"><label>Color</label><div class="pair"><input type="color" data-key="${id}Color" aria-label="${L.label} color">
+      <button class="chip" type="button" data-set="${id}Color" data-val="#FFFFFF">White</button><button class="chip" type="button" data-set="${id}Color" data-val="#D9D9D9">Silver</button><button class="chip" type="button" data-set="${id}Color" data-val="#D3B57E">Gold</button></div></div>
+    ${pos}</details>`;
+}).join('');
+function updateVis(){
+  document.getElementById('swissGapRow').hidden=state.swissMode!=='split';
+  document.getElementById('m369GapRow').hidden=state.m369!=='double';
+}
+
 // ---------- bind controls ----------
 const inputs=[...document.querySelectorAll('[data-key]')];
-const fmt=el=>{const st=parseFloat(el.step||1);const n=Number(el.value);const d=st<0.01?3:st<0.1?2:st<1?1:0;return(el.id.toLowerCase().includes('tracking')&&n>0?'+':'')+n.toFixed(d)};
+const fmt=el=>{const st=parseFloat(el.step||1);const n=Number(el.value);const d=st<0.01?3:st<0.1?2:st<1?1:0;return(/Track$/.test(el.dataset.key||'')&&n>0?'+':'')+n.toFixed(d)};
 function syncInputs(){
   inputs.forEach(el=>{el.value=String(state[el.dataset.key]);const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el)});
-  updateLogoUI();
+  updateLogoUI();updateVis();
 }
 inputs.forEach(el=>el.addEventListener('input',()=>{
   const k=el.dataset.key;state[k]=el.type==='range'?parseFloat(el.value):el.value;
   const o=el.parentElement.querySelector('.val');if(o)o.textContent=fmt(el);
-  if(k==='font'||k==='weight'||k==='subWeight') ensureFont();
-  schedule();
+  if(k==='font'||/Weight$/.test(k)) ensureFont();
+  updateVis();schedule();
 }));
 document.querySelectorAll('[data-set]').forEach(b=>b.addEventListener('click',()=>{state[b.dataset.set]=b.dataset.val;syncInputs();schedule()}));
 
@@ -623,7 +728,6 @@ PRESETS.forEach(p=>{
   const b=document.createElement('button');b.className='swatch';b.style.background=p.swatch;b.title=p.name;b.innerHTML=`<span class="vh">${p.name}</span>`;
   b.onclick=()=>{const dialKeys=['base','high','trackColor','fineColor','frame','lume','brush'];
     const next={...state};dialKeys.forEach(k=>next[k]=DEFAULTS[k]);
-    if(p.v.textColor===undefined){next.textColor=state.textColor;next.subColor=state.subColor}
     state={...next,...p.v};syncInputs();schedule()};
   presetBox.appendChild(b);
 });
@@ -635,7 +739,8 @@ const status=document.getElementById('status');
 async function ensureFont(){
   const fam=WEBFONT[state.font]; if(!fam) return;
   try{
-    await Promise.all([document.fonts.load(`${state.weight} 40px "${fam}"`),document.fonts.load(`${state.subWeight} 40px "${fam}"`)]);
+    const ws=[...new Set(LINES.map(L=>state[L.id+'Weight']))];
+    await Promise.all(ws.map(w=>document.fonts.load(`${w} 40px "${fam}"`)));
     const ok=[...document.fonts].some(f=>f.family.replace(/["']/g,'')===fam&&f.status==='loaded');
     document.getElementById('fontNote').textContent=ok
       ?'Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).'
