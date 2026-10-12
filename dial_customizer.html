@@ -6,7 +6,7 @@
 <title>Dial customizer · Huawei watch faces</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Playfair+Display:wght@400;500;600;700;800&family=Cinzel:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Roboto+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bench:#DCDFDB;--panel:#F3F4F1;--ink:#1E2B29;--muted:#5D6A67;--line:#C9CEC9;--brass:#9C7A45}
   *{box-sizing:border-box}
@@ -19,6 +19,7 @@
   .toolbar .lbl{color:#9FAAA7}
   .tb{background:transparent;border:1px solid rgba(255,255,255,.22);color:#DDE3E1;padding:4px 9px;border-radius:6px;font:inherit;cursor:pointer}
   .tb[aria-pressed=true]{background:#DDE3E1;color:#1E2B29;border-color:#DDE3E1}
+  .tb:disabled{opacity:.38;cursor:default}
   .toolbar label{display:flex;gap:5px;align-items:center;cursor:pointer}
   .viewport{flex:1;overflow:auto;display:grid;place-items:center;padding:30px;min-height:0}
   .case{position:relative;border-radius:50%;background:conic-gradient(from 20deg,#8C9294,#E3E6E6,#7E8486,#D2D6D6,#8C9294);
@@ -109,6 +110,7 @@
         <label><input type="checkbox" data-ui="lightPrev" checked> Lighting</label>
         <label><input type="checkbox" data-ui="texPrev" checked> Texture</label>
       </div>
+      <div class="grp" role="group" aria-label="History"><button class="tb" id="undoBtn" type="button" title="Undo (Ctrl+Z)" disabled>Undo</button><button class="tb" id="redoBtn" type="button" title="Redo (Ctrl+Shift+Z)" disabled>Redo</button></div>
       <div class="grp"><span class="lbl">Guides</span>
         <label><input type="checkbox" data-ui="gCenter"> Center lines</label>
         <label><input type="checkbox" data-ui="gGrid"> Hour grid</label>
@@ -138,7 +140,7 @@
 const LINES=[{id:'brand',label:'Name',open:true},{id:'sub',label:'Line under name'},{id:'bottom',label:'Lower line'},
   {id:'bottom2',label:'Second lower line'},{id:'swiss',label:'Bottom text',note:'near 6 o\'clock'}];
 const GROUPS=[{id:'m12',label:'12'},{id:'m3',label:'3'},{id:'m6',label:'6'},{id:'m9',label:'9'},{id:'mo',label:'Other hours'}];
-const LAYER_DEFS=[['dial','Dial surface'],['rehaut','Rehaut'],['track','Minute track'],['markers','Hour markers'],['m12','12 o\'clock marker'],
+const LAYER_DEFS=[['dial','Dial surface'],['rehaut','Rehaut'],['track','Minute track'],['plots','Hour plots'],['markers','Hour markers'],['m12','12 o\'clock marker'],
   ['emblem','Emblem'],['textTop','Name and line under'],['textLower','Lower lines'],['textBottom','Bottom text'],['center','Center detail']];
 const BLENDS={normal:'source-over',multiply:'multiply',screen:'screen',overlay:'overlay',soft:'soft-light'};
 
@@ -156,18 +158,20 @@ const D={
   font:'ebg',caps:'upper',kerning:'normal',lineSpacing:100,
   centerCap:'none',centerSize:1,centerColor:'#C8CDD0',
   impNoise:0.8,impSurface:1,impRefl:1,impTexRand:1.5,impShadow:0.8,
-  swissMode:'split',swissR:86,swissGap:5
+  swissMode:'split',swissR:86,swissGap:5,swissSym:'none',swissSymSize:2.6,
+  bevelStyle:'faceted',lumeGrain:30,engraveSym:'none',tickClear6:0,trackLine:'on',
+  plots:'none',plotSize:2.8,plotLen:4,plotR:95,plotFrame:0.5,plotSharp:90,plotFill:'lume',plotSkip:'none',plotNoTick:'on'
 };
 const GD={
-  m12:{Shape:'double',Len:28.5,Width:5.7,Taper:35,Rot:0,Dist:88.5,Frame:1.3,Sharp:90,Fill:'lume',Gap:3.2,Img:''},
-  m3:{Mode:'single',Shape:'triangle',Len:26.5,Width:4,Taper:0,Rot:0,Dist:88.5,Frame:1.6,Sharp:90,Fill:'lume',Gap:2.6,Img:''},
-  mo:{Shape:'single',Len:20.5,Width:2.6,Taper:0,Rot:0,Dist:88.5,Frame:1.4,Sharp:90,Fill:'lume',Gap:2.6,Img:''}
+  m12:{Shape:'double',Len:28.5,Width:5.7,Taper:35,Rot:0,Dist:88.5,Frame:1.3,Sharp:90,Fill:'lume',Gap:3.2,Img:'',Layout:'radial',PGap:1.2,ImgW:100},
+  m3:{Mode:'single',Shape:'triangle',Len:26.5,Width:4,Taper:0,Rot:0,Dist:88.5,Frame:1.6,Sharp:90,Fill:'lume',Gap:2.6,Img:'',Layout:'radial',PGap:1.2,ImgW:100},
+  mo:{Shape:'single',Len:20.5,Width:2.6,Taper:0,Rot:0,Dist:88.5,Frame:1.4,Sharp:90,Fill:'lume',Gap:2.6,Img:'',Layout:'radial',PGap:1.2,ImgW:100}
 };
 GD.m6={...GD.m3};GD.m9={...GD.m3};
 for(const g in GD) for(const k in GD[g]) D[g+k]=GD[g][k];
 const LD={brand:{t:'MERIDIAN',Size:8,Weight:'600',Color:'#FFFFFF',Shadow:15},sub:{t:'AUTOMATIC',Size:4.8},bottom:{t:'200 M',Size:4.2},
   bottom2:{t:'',Size:3.6},swiss:{t:'SWISS MADE',Size:2.6,Track:150}};
-for(const L of LINES){const o={Size:4,Weight:'500',Track:200,Stretch:100,Color:'#D9D9D9',Render:'ink',Ink:100,Thick:0,Soft:0.3,Shadow:10,Curve:0,X:0,Y:0,...LD[L.id]};
+for(const L of LINES){const o={Size:4,Font:'inherit',Weight:'500',Track:200,Stretch:100,Color:'#D9D9D9',Render:'ink',Ink:100,Thick:0,Soft:0.3,Shadow:10,Curve:0,X:0,Y:0,...LD[L.id]};
   D[L.id]=o.t;delete o.t;for(const k in o) D[L.id+k]=o[k];}
 D.layers=LAYER_DEFS.map(([id])=>({id,visible:true,opacity:100,blend:'normal'}));
 
@@ -190,6 +194,7 @@ const PRESETS=[
   {name:'Midnight blue',swatch:'#25385E',v:{base:'#101C34',high:'#46639C',edgeColor:'#050A16',...txtC('#FFFFFF','#D9D9D9'),trackColor:'#EDEFF3',fineColor:'#AEB8CC',mMat:'whitegold'}},
   {name:'Graphite',swatch:'#4A4F52',v:{base:'#1C1F21',high:'#6E767B',edgeColor:'#08090A',...txtC('#FFFFFF','#D9D9D9'),trackColor:'#ECECE8',fineColor:'#9EA4A6',mMat:'polished'}},
   {name:'Sand and gold',swatch:'#C9AE84',v:{base:'#8A6E4E',high:'#E8D2AE',edgeColor:'#4A3722',...txtC('#2C2A26','#4A433A'),trackColor:'#2C2A26',fineColor:'#5A5148',mMat:'yellowgold',lume:'#FBF6E8',logoColor:'#D3B57E'}},
+  {name:'Emerald lacquer',swatch:'#0A7A44',v:{base:'#003B19',high:'#04A469',edgeColor:'#00321B',...txtC('#FFFFFF','#F3F4F0'),trackColor:'#EEF0EA',fineColor:'#CFD6D2',mMat:'polished',lume:'#F4F6F2',logoColor:'#E3E6E6'}},
   {name:'Ice white',swatch:'#E4E8EA',v:{base:'#AEB6BA',high:'#F7F9FA',edgeColor:'#7E888D',...txtC('#1F2A30','#3E4A50'),trackColor:'#1F2A30',fineColor:'#55636A',mMat:'brushed',lume:'#FFFFFF',logoColor:'#9AA2A7'}}
 ];
 const typeSet=(font,bw,sw,bt,st,bs,ss,ls)=>{const o={font,caps:'upper',kerning:'normal',lineSpacing:ls,brandWeight:bw,brandTrack:bt,brandSize:bs};
@@ -199,14 +204,21 @@ const TYPE_PRESETS=[
   {name:'Bold luxury',v:typeSet('ebg','700','600',220,230,8.4,4.9,100)},
   {name:'Modern',v:typeSet('sans','500','400',320,300,6.6,3.6,110)}
 ];
+const DESIGNS=[{name:"Emerald classic",note:"Glossy green lacquer, applied batons with double bars at 12, 3, 6 and 9, lume plots on the track, polished inner ring",v:{"shape":"round","seed":1234,"base":"#003B19","high":"#04A469","material":"lacquer","texDensity":55,"texFine":50,"texContrast":50,"texOpacity":8,"texRot":0,"metallic":0,"grain":0.3,"texCX":0,"texCY":0,"lightType":"directional","lightAngle":320,"lightWidth":60,"lightSoft":65,"lightInt":50,"hlX":-25,"hlY":-30,"asym":10,"specular":12,"gloss":35,"vigStr":30,"vigSize":15,"vigSoft":60,"edgeColor":"#00321B","innerGlow":0,"centerBright":0,"impNoise":0.4,"impSurface":0.3,"impRefl":0.5,"impTexRand":0.5,"impShadow":0.5,"rehaut":"on","rehautMat":"polished","rehautW":35,"rehautDepth":45,"rehautAngle":15,"rehautRefl":45,"rehautShadow":50,"engrave":"custom","engraveText":"MERIDIAN","engraveSpacing":40,"engraveSym":"none","track":"on","trackR":95.8,"trackLine":"off","trackEdge":5.2,"tickLen":5.4,"tickTh":1.1,"fineLen":0,"fineTh":0.36,"fiveLen":5.4,"tickOpacity":95,"tickSharp":85,"trackRot":0,"trackColor":"#EEF0EA","fineColor":"#CFD6D2","tickClear6":2,"plots":"square","plotSize":4.8,"plotLen":4,"plotR":94.4,"plotFrame":0.55,"plotSharp":92,"plotFill":"lume","plotSkip":"6","plotNoTick":"on","bevelStyle":"faceted","mMat":"polished","frame":"#C8CDD0","frameBright":62,"frameThick":50,"bevelSize":45,"bevelSoft":40,"raised":45,"contact":60,"reflect":30,"lume":"#F4F6F2","lumeWarm":35,"lumeRecess":55,"lumeGrain":35,"m12Shape":"double","m12Layout":"parallel","m12PGap":0.95,"m12Len":24.5,"m12Width":5.2,"m12Taper":0,"m12Rot":0,"m12Dist":86.0,"m12Frame":1.4,"m12Sharp":92,"m12Fill":"lume","m12Gap":3.2,"m12Img":"","m12ImgW":100,"m12Colors":"match","m3Mode":"double","m3Layout":"parallel","m3PGap":0.95,"m3Len":24.5,"m3Width":5.2,"m3Taper":0,"m3Rot":0,"m3Dist":86.0,"m3Frame":1.4,"m3Sharp":92,"m3Fill":"lume","m6Mode":"double","m6Layout":"parallel","m6PGap":0.95,"m6Len":24.0,"m6Width":5.2,"m6Taper":0,"m6Rot":0,"m6Dist":85.0,"m6Frame":1.4,"m6Sharp":92,"m6Fill":"lume","m9Mode":"double","m9Layout":"parallel","m9PGap":0.95,"m9Len":24.5,"m9Width":5.2,"m9Taper":0,"m9Rot":0,"m9Dist":86.0,"m9Frame":1.4,"m9Sharp":92,"m9Fill":"lume","moShape":"single","moLen":20.0,"moWidth":3.6,"moTaper":0,"moRot":0,"moDist":86.0,"moFrame":1.45,"moSharp":92,"moFill":"lume","logo":"none","font":"ebg","caps":"upper","kerning":"normal","lineSpacing":100,"centerCap":"none","transparent":"false","brand":"MERIDIAN","brandFont":"ebg","brandSize":7.8,"brandWeight":"600","brandTrack":120,"brandStretch":110,"brandColor":"#FFFFFF","brandRender":"ink","brandInk":100,"brandThick":0,"brandSoft":0.2,"brandShadow":6,"brandCurve":0,"brandX":0,"brandY":-12.0,"sub":"AUTOMATIC","subFont":"inter","subSize":5.4,"subWeight":"600","subTrack":60,"subStretch":100,"subColor":"#F5F5F2","subRender":"ink","subInk":100,"subThick":0,"subSoft":0.2,"subShadow":5,"subCurve":0,"subX":0,"subY":-2.5,"bottom":"CHRONOMETER","bottomFont":"barlow","bottomSize":5.6,"bottomWeight":"500","bottomTrack":30,"bottomStretch":100,"bottomColor":"#F2F2EF","bottomRender":"ink","bottomInk":100,"bottomThick":0,"bottomSoft":0.2,"bottomShadow":5,"bottomCurve":0,"bottomX":0,"bottomY":5.0,"bottom2":"OFFICIALLY CERTIFIED","bottom2Font":"barlow","bottom2Size":5.6,"bottom2Weight":"500","bottom2Track":30,"bottom2Stretch":100,"bottom2Color":"#F2F2EF","bottom2Render":"ink","bottom2Ink":100,"bottom2Thick":0,"bottom2Soft":0.2,"bottom2Shadow":5,"bottom2Curve":0,"bottom2X":0,"bottom2Y":-2.0,"swiss":"SWISS MADE","swissFont":"inter","swissSize":3.8,"swissWeight":"600","swissTrack":100,"swissStretch":100,"swissColor":"#EDEDEA","swissRender":"ink","swissInk":100,"swissThick":0,"swissSoft":0.2,"swissShadow":4,"swissCurve":0,"swissX":0,"swissY":0,"swissMode":"split","swissR":91.5,"swissGap":1.0,"swissSym":"none","swissSymSize":2.6}},{name:"Midnight blue classic",note:"Same layout on a deep blue lacquer dial",v:{"shape":"round","seed":1234,"base":"#020C26","high":"#2E62C2","material":"lacquer","texDensity":55,"texFine":50,"texContrast":50,"texOpacity":8,"texRot":0,"metallic":0,"grain":0.3,"texCX":0,"texCY":0,"lightType":"directional","lightAngle":320,"lightWidth":60,"lightSoft":65,"lightInt":50,"hlX":-25,"hlY":-30,"asym":10,"specular":12,"gloss":35,"vigStr":30,"vigSize":15,"vigSoft":60,"edgeColor":"#010616","innerGlow":0,"centerBright":0,"impNoise":0.4,"impSurface":0.3,"impRefl":0.5,"impTexRand":0.5,"impShadow":0.5,"rehaut":"on","rehautMat":"polished","rehautW":35,"rehautDepth":45,"rehautAngle":15,"rehautRefl":45,"rehautShadow":50,"engrave":"custom","engraveText":"MERIDIAN","engraveSpacing":40,"engraveSym":"none","track":"on","trackR":95.8,"trackLine":"off","trackEdge":5.2,"tickLen":5.4,"tickTh":1.1,"fineLen":0,"fineTh":0.36,"fiveLen":5.4,"tickOpacity":95,"tickSharp":85,"trackRot":0,"trackColor":"#EEF1F6","fineColor":"#B9C4D8","tickClear6":2,"plots":"square","plotSize":4.8,"plotLen":4,"plotR":94.4,"plotFrame":0.55,"plotSharp":92,"plotFill":"lume","plotSkip":"6","plotNoTick":"on","bevelStyle":"faceted","mMat":"polished","frame":"#C8CDD0","frameBright":62,"frameThick":50,"bevelSize":45,"bevelSoft":40,"raised":45,"contact":60,"reflect":30,"lume":"#F4F6F2","lumeWarm":35,"lumeRecess":55,"lumeGrain":35,"m12Shape":"double","m12Layout":"parallel","m12PGap":0.95,"m12Len":24.5,"m12Width":5.2,"m12Taper":0,"m12Rot":0,"m12Dist":86.0,"m12Frame":1.4,"m12Sharp":92,"m12Fill":"lume","m12Gap":3.2,"m12Img":"","m12ImgW":100,"m12Colors":"match","m3Mode":"double","m3Layout":"parallel","m3PGap":0.95,"m3Len":24.5,"m3Width":5.2,"m3Taper":0,"m3Rot":0,"m3Dist":86.0,"m3Frame":1.4,"m3Sharp":92,"m3Fill":"lume","m6Mode":"double","m6Layout":"parallel","m6PGap":0.95,"m6Len":24.0,"m6Width":5.2,"m6Taper":0,"m6Rot":0,"m6Dist":85.0,"m6Frame":1.4,"m6Sharp":92,"m6Fill":"lume","m9Mode":"double","m9Layout":"parallel","m9PGap":0.95,"m9Len":24.5,"m9Width":5.2,"m9Taper":0,"m9Rot":0,"m9Dist":86.0,"m9Frame":1.4,"m9Sharp":92,"m9Fill":"lume","moShape":"single","moLen":20.0,"moWidth":3.6,"moTaper":0,"moRot":0,"moDist":86.0,"moFrame":1.45,"moSharp":92,"moFill":"lume","logo":"none","font":"ebg","caps":"upper","kerning":"normal","lineSpacing":100,"centerCap":"none","transparent":"false","brand":"MERIDIAN","brandFont":"ebg","brandSize":7.8,"brandWeight":"600","brandTrack":120,"brandStretch":110,"brandColor":"#FFFFFF","brandRender":"ink","brandInk":100,"brandThick":0,"brandSoft":0.2,"brandShadow":6,"brandCurve":0,"brandX":0,"brandY":-12.0,"sub":"AUTOMATIC","subFont":"inter","subSize":5.4,"subWeight":"600","subTrack":60,"subStretch":100,"subColor":"#F5F5F2","subRender":"ink","subInk":100,"subThick":0,"subSoft":0.2,"subShadow":5,"subCurve":0,"subX":0,"subY":-2.5,"bottom":"CHRONOMETER","bottomFont":"barlow","bottomSize":5.6,"bottomWeight":"500","bottomTrack":30,"bottomStretch":100,"bottomColor":"#F2F2EF","bottomRender":"ink","bottomInk":100,"bottomThick":0,"bottomSoft":0.2,"bottomShadow":5,"bottomCurve":0,"bottomX":0,"bottomY":5.0,"bottom2":"OFFICIALLY CERTIFIED","bottom2Font":"barlow","bottom2Size":5.6,"bottom2Weight":"500","bottom2Track":30,"bottom2Stretch":100,"bottom2Color":"#F2F2EF","bottom2Render":"ink","bottom2Ink":100,"bottom2Thick":0,"bottom2Soft":0.2,"bottom2Shadow":5,"bottom2Curve":0,"bottom2X":0,"bottom2Y":-2.0,"swiss":"SWISS MADE","swissFont":"inter","swissSize":3.8,"swissWeight":"600","swissTrack":100,"swissStretch":100,"swissColor":"#EDEDEA","swissRender":"ink","swissInk":100,"swissThick":0,"swissSoft":0.2,"swissShadow":4,"swissCurve":0,"swissX":0,"swissY":0,"swissMode":"split","swissR":91.5,"swissGap":1.0,"swissSym":"none","swissSymSize":2.6}},{name:"Black lacquer classic",note:"Same layout on a black lacquer dial",v:{"shape":"round","seed":1234,"base":"#020304","high":"#3A4044","material":"lacquer","texDensity":55,"texFine":50,"texContrast":50,"texOpacity":8,"texRot":0,"metallic":0,"grain":0.3,"texCX":0,"texCY":0,"lightType":"directional","lightAngle":320,"lightWidth":60,"lightSoft":65,"lightInt":55,"hlX":-25,"hlY":-30,"asym":10,"specular":12,"gloss":35,"vigStr":30,"vigSize":15,"vigSoft":60,"edgeColor":"#000000","innerGlow":0,"centerBright":0,"impNoise":0.4,"impSurface":0.3,"impRefl":0.5,"impTexRand":0.5,"impShadow":0.5,"rehaut":"on","rehautMat":"polished","rehautW":35,"rehautDepth":45,"rehautAngle":15,"rehautRefl":45,"rehautShadow":50,"engrave":"custom","engraveText":"MERIDIAN","engraveSpacing":40,"engraveSym":"none","track":"on","trackR":95.8,"trackLine":"off","trackEdge":5.2,"tickLen":5.4,"tickTh":1.1,"fineLen":0,"fineTh":0.36,"fiveLen":5.4,"tickOpacity":95,"tickSharp":85,"trackRot":0,"trackColor":"#ECEDEB","fineColor":"#A9AFB2","tickClear6":2,"plots":"square","plotSize":4.8,"plotLen":4,"plotR":94.4,"plotFrame":0.55,"plotSharp":92,"plotFill":"lume","plotSkip":"6","plotNoTick":"on","bevelStyle":"faceted","mMat":"polished","frame":"#C8CDD0","frameBright":62,"frameThick":50,"bevelSize":45,"bevelSoft":40,"raised":45,"contact":60,"reflect":30,"lume":"#F4F6F2","lumeWarm":35,"lumeRecess":55,"lumeGrain":35,"m12Shape":"double","m12Layout":"parallel","m12PGap":0.95,"m12Len":24.5,"m12Width":5.2,"m12Taper":0,"m12Rot":0,"m12Dist":86.0,"m12Frame":1.4,"m12Sharp":92,"m12Fill":"lume","m12Gap":3.2,"m12Img":"","m12ImgW":100,"m12Colors":"match","m3Mode":"double","m3Layout":"parallel","m3PGap":0.95,"m3Len":24.5,"m3Width":5.2,"m3Taper":0,"m3Rot":0,"m3Dist":86.0,"m3Frame":1.4,"m3Sharp":92,"m3Fill":"lume","m6Mode":"double","m6Layout":"parallel","m6PGap":0.95,"m6Len":24.0,"m6Width":5.2,"m6Taper":0,"m6Rot":0,"m6Dist":85.0,"m6Frame":1.4,"m6Sharp":92,"m6Fill":"lume","m9Mode":"double","m9Layout":"parallel","m9PGap":0.95,"m9Len":24.5,"m9Width":5.2,"m9Taper":0,"m9Rot":0,"m9Dist":86.0,"m9Frame":1.4,"m9Sharp":92,"m9Fill":"lume","moShape":"single","moLen":20.0,"moWidth":3.6,"moTaper":0,"moRot":0,"moDist":86.0,"moFrame":1.45,"moSharp":92,"moFill":"lume","logo":"none","font":"ebg","caps":"upper","kerning":"normal","lineSpacing":100,"centerCap":"none","transparent":"false","brand":"MERIDIAN","brandFont":"ebg","brandSize":7.8,"brandWeight":"600","brandTrack":120,"brandStretch":110,"brandColor":"#FFFFFF","brandRender":"ink","brandInk":100,"brandThick":0,"brandSoft":0.2,"brandShadow":6,"brandCurve":0,"brandX":0,"brandY":-12.0,"sub":"AUTOMATIC","subFont":"inter","subSize":5.4,"subWeight":"600","subTrack":60,"subStretch":100,"subColor":"#F5F5F2","subRender":"ink","subInk":100,"subThick":0,"subSoft":0.2,"subShadow":5,"subCurve":0,"subX":0,"subY":-2.5,"bottom":"CHRONOMETER","bottomFont":"barlow","bottomSize":5.6,"bottomWeight":"500","bottomTrack":30,"bottomStretch":100,"bottomColor":"#F2F2EF","bottomRender":"ink","bottomInk":100,"bottomThick":0,"bottomSoft":0.2,"bottomShadow":5,"bottomCurve":0,"bottomX":0,"bottomY":5.0,"bottom2":"OFFICIALLY CERTIFIED","bottom2Font":"barlow","bottom2Size":5.6,"bottom2Weight":"500","bottom2Track":30,"bottom2Stretch":100,"bottom2Color":"#F2F2EF","bottom2Render":"ink","bottom2Ink":100,"bottom2Thick":0,"bottom2Soft":0.2,"bottom2Shadow":5,"bottom2Curve":0,"bottom2X":0,"bottom2Y":-2.0,"swiss":"SWISS MADE","swissFont":"inter","swissSize":3.8,"swissWeight":"600","swissTrack":100,"swissStretch":100,"swissColor":"#EDEDEA","swissRender":"ink","swissInk":100,"swissThick":0,"swissSoft":0.2,"swissShadow":4,"swissCurve":0,"swissX":0,"swissY":0,"swissMode":"split","swissR":91.5,"swissGap":1.0,"swissSym":"none","swissSymSize":2.6}},{name:"Silver sunburst classic",note:"Same layout on a silver sunburst dial with dark print",v:{"shape":"round","seed":1234,"base":"#7E878C","high":"#EEF2F3","material":"sunburst","texDensity":60,"texFine":55,"texContrast":45,"texOpacity":55,"texRot":0,"metallic":45,"grain":0.3,"texCX":0,"texCY":0,"lightType":"softbox","lightAngle":320,"lightWidth":60,"lightSoft":70,"lightInt":45,"hlX":-25,"hlY":-30,"asym":10,"specular":20,"gloss":35,"vigStr":25,"vigSize":15,"vigSoft":60,"edgeColor":"#5E676C","innerGlow":0,"centerBright":0,"impNoise":0.4,"impSurface":0.3,"impRefl":0.5,"impTexRand":0.5,"impShadow":0.5,"rehaut":"on","rehautMat":"polished","rehautW":35,"rehautDepth":45,"rehautAngle":15,"rehautRefl":45,"rehautShadow":50,"engrave":"custom","engraveText":"MERIDIAN","engraveSpacing":40,"engraveSym":"none","track":"on","trackR":95.8,"trackLine":"off","trackEdge":5.2,"tickLen":5.4,"tickTh":1.1,"fineLen":0,"fineTh":0.36,"fiveLen":5.4,"tickOpacity":90,"tickSharp":85,"trackRot":0,"trackColor":"#2A3338","fineColor":"#4A5459","tickClear6":2,"plots":"square","plotSize":4.8,"plotLen":4,"plotR":94.4,"plotFrame":0.55,"plotSharp":92,"plotFill":"lume","plotSkip":"6","plotNoTick":"on","bevelStyle":"faceted","mMat":"polished","frame":"#C8CDD0","frameBright":55,"frameThick":50,"bevelSize":45,"bevelSoft":40,"raised":45,"contact":60,"reflect":30,"lume":"#F4F6F2","lumeWarm":35,"lumeRecess":55,"lumeGrain":35,"m12Shape":"double","m12Layout":"parallel","m12PGap":0.95,"m12Len":24.5,"m12Width":5.2,"m12Taper":0,"m12Rot":0,"m12Dist":86.0,"m12Frame":1.4,"m12Sharp":92,"m12Fill":"lume","m12Gap":3.2,"m12Img":"","m12ImgW":100,"m12Colors":"match","m3Mode":"double","m3Layout":"parallel","m3PGap":0.95,"m3Len":24.5,"m3Width":5.2,"m3Taper":0,"m3Rot":0,"m3Dist":86.0,"m3Frame":1.4,"m3Sharp":92,"m3Fill":"lume","m6Mode":"double","m6Layout":"parallel","m6PGap":0.95,"m6Len":24.0,"m6Width":5.2,"m6Taper":0,"m6Rot":0,"m6Dist":85.0,"m6Frame":1.4,"m6Sharp":92,"m6Fill":"lume","m9Mode":"double","m9Layout":"parallel","m9PGap":0.95,"m9Len":24.5,"m9Width":5.2,"m9Taper":0,"m9Rot":0,"m9Dist":86.0,"m9Frame":1.4,"m9Sharp":92,"m9Fill":"lume","moShape":"single","moLen":20.0,"moWidth":3.6,"moTaper":0,"moRot":0,"moDist":86.0,"moFrame":1.45,"moSharp":92,"moFill":"lume","logo":"none","font":"ebg","caps":"upper","kerning":"normal","lineSpacing":100,"centerCap":"none","transparent":"false","brand":"MERIDIAN","brandFont":"ebg","brandSize":7.8,"brandWeight":"600","brandTrack":120,"brandStretch":110,"brandColor":"#1E272C","brandRender":"ink","brandInk":100,"brandThick":0,"brandSoft":0.2,"brandShadow":0,"brandCurve":0,"brandX":0,"brandY":-12.0,"sub":"AUTOMATIC","subFont":"inter","subSize":5.4,"subWeight":"600","subTrack":60,"subStretch":100,"subColor":"#2A3338","subRender":"ink","subInk":100,"subThick":0,"subSoft":0.2,"subShadow":0,"subCurve":0,"subX":0,"subY":-2.5,"bottom":"CHRONOMETER","bottomFont":"barlow","bottomSize":5.6,"bottomWeight":"500","bottomTrack":30,"bottomStretch":100,"bottomColor":"#2A3338","bottomRender":"ink","bottomInk":100,"bottomThick":0,"bottomSoft":0.2,"bottomShadow":0,"bottomCurve":0,"bottomX":0,"bottomY":5.0,"bottom2":"OFFICIALLY CERTIFIED","bottom2Font":"barlow","bottom2Size":5.6,"bottom2Weight":"500","bottom2Track":30,"bottom2Stretch":100,"bottom2Color":"#2A3338","bottom2Render":"ink","bottom2Ink":100,"bottom2Thick":0,"bottom2Soft":0.2,"bottom2Shadow":0,"bottom2Curve":0,"bottom2X":0,"bottom2Y":-2.0,"swiss":"SWISS MADE","swissFont":"inter","swissSize":3.8,"swissWeight":"600","swissTrack":100,"swissStretch":100,"swissColor":"#2A3338","swissRender":"ink","swissInk":100,"swissThick":0,"swissSoft":0.2,"swissShadow":0,"swissCurve":0,"swissX":0,"swissY":0,"swissMode":"split","swissR":91.5,"swissGap":1.0,"swissSym":"none","swissSymSize":2.6}}];
 const FONTS={
   ebg:'"EB Garamond","Adobe Garamond Pro",Garamond,"Cormorant Garamond",Sabon,Baskerville,Georgia,serif',
   cormorant:'"Cormorant Garamond","EB Garamond",Garamond,Georgia,serif',
   baskerville:'"Libre Baskerville",Baskerville,"Baskerville Old Face",Georgia,serif',
   serif:'Georgia,"Times New Roman",serif',didone:'Didot,"Bodoni 72","Bodoni MT",Georgia,serif',
-  sans:'"Helvetica Neue",Helvetica,Arial,sans-serif',geo:'Futura,"Century Gothic",Avenir,"Trebuchet MS",sans-serif',custom:'"UserFont",Georgia,serif'
+  sans:'"Helvetica Neue",Helvetica,Arial,sans-serif',geo:'Futura,"Century Gothic",Avenir,"Trebuchet MS",sans-serif',custom:'"UserFont",Georgia,serif',
+  playfair:'"Playfair Display",Didot,"Bodoni 72",Georgia,serif',cinzel:'"Cinzel","Trajan Pro",Georgia,serif',
+  inter:'"Inter","Helvetica Neue",Arial,sans-serif',montserrat:'"Montserrat","Century Gothic",Futura,sans-serif',
+  barlow:'"Barlow Semi Condensed","DIN Alternate","DIN Condensed","Arial Narrow",sans-serif',rcond:'"Roboto Condensed","Arial Narrow","Helvetica Neue",sans-serif'
 };
-const WEBFONT={ebg:'EB Garamond',cormorant:'Cormorant Garamond',baskerville:'Libre Baskerville'};
+const WEBFONT={ebg:'EB Garamond',cormorant:'Cormorant Garamond',baskerville:'Libre Baskerville',playfair:'Playfair Display',cinzel:'Cinzel',inter:'Inter',montserrat:'Montserrat',barlow:'Barlow Semi Condensed',rcond:'Roboto Condensed'};
+const FONT_OPTS=[['ebg','EB Garamond'],['cormorant','Cormorant Garamond'],['baskerville','Libre Baskerville'],['playfair','Playfair Display (didone)'],['cinzel','Cinzel (Roman capitals)'],['serif','Georgia'],['didone','Didot / Bodoni'],
+  ['inter','Inter (grotesque sans)'],['montserrat','Montserrat (geometric sans)'],['barlow','Barlow Semi Condensed (DIN-like)'],['rcond','Roboto Condensed'],['sans','Helvetica'],['geo','Futura'],['custom','Uploaded font']];
+const SYMBOLS=[['none','None'],['dot','Dot'],['crown','Crown'],['star','Star'],['diamond','Diamond'],['shield','Shield'],['compass','Compass'],['anchor','Anchor'],['monogram','Monogram'],['custom','Uploaded emblem']];
 const METALS={
   polished:{c:'#D3D7DA',stops:[[0,.55],[.3,-.35],[.48,.6],[.62,-.4],[1,.25]],brushed:0},
   brushed:{c:'#B9BEC1',stops:[[0,.32],[.5,-.15],[1,.22]],brushed:1},
@@ -407,7 +419,7 @@ function drawRehaut(ctx,env){
     const step=360/reps,cap=ctx.measureText('H').actualBoundingBoxAscent||px*0.68;
     const dark=tint(base,-0.55),light='rgba(255,255,255,.55)';
     for(let r=0;r<reps;r++){
-      let a=r*step-(unitW-gapEm*px)/2/mid*180/Math.PI;
+      let a=(r+(state.engraveSym!=='none'?0.5:0))*step-(unitW-gapEm*px)/2/mid*180/Math.PI;
       chars.forEach((c,i)=>{const p=P(a+ws[i]/2/mid*180/Math.PI,mid),p1=P(a,mid),p2=P(a+ws[i]/mid*180/Math.PI,mid),rot=Math.atan2(p2[1]-p1[1],p2[0]-p1[0]);
         ctx.save();ctx.translate(p[0],p[1]);ctx.rotate(rot);ctx.textAlign='center';
         ctx.fillStyle=light;ctx.fillText(c,-LV[0]*px*0.04,cap/2-LV[1]*px*0.04);ctx.fillStyle=dark;ctx.fillText(c,0,cap/2);ctx.restore();
@@ -415,6 +427,9 @@ function drawRehaut(ctx,env){
     }
     ctx.restore();
   }
+  if(state.engraveSym&&state.engraveSym!=='none'){const mid=inner+rw*0.5,size=rw*0.8,p=P(0,mid),dk=tint(base,-0.55);
+    const dr=(col,dx,dy)=>{ctx.save();ctx.translate(p[0]-size/2+dx,p[1]-size/2+dy);ctx.scale(size/100,size/100);ctx.fillStyle=col;ctx.strokeStyle=col;ctx._tint=true;drawSymbol(ctx,state.engraveSym);ctx._tint=false;ctx.restore()};
+    dr('rgba(255,255,255,.5)',-LV[0]*rw*0.03,-LV[1]*rw*0.03);dr(dk,0,0)}
 }
 function drawTrack(ctx){
   if(state.track!=='on') return;
@@ -424,9 +439,11 @@ function drawTrack(ctx){
   if(soft>0.05){ctx.shadowBlur=soft;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0}
   const tick=(a,len,th,col)=>{if(len<=0||th<=0)return;ctx.fillStyle=col;if(soft>0.05)ctx.shadowColor=col;const q=quad(a+rot,outer-R*len/100,outer,R*th/200,R*th/200);
     ctx.beginPath();q.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()};
-  for(let i=0;i<240;i++){if(i%4===0)continue;tick(i*1.5,state.fineLen,state.fineTh,state.fineColor)}
-  for(let i=0;i<60;i++){if(i%5===0)tick(i*6,state.fiveLen,state.tickTh*1.4,state.trackColor);else tick(i*6,state.tickLen,state.tickTh,state.trackColor)}
-  if(state.trackR>0){ctx.strokeStyle=state.fineColor;if(soft>0.05)ctx.shadowColor=state.fineColor;ctx.lineWidth=Math.max(0.5,R*state.fineTh/100*1.1);
+  const c6=state.tickClear6|0,ph=plotHours(),noT=state.plots!=='none'&&state.plotNoTick==='on';
+  for(let i=0;i<240;i++){if(i%4===0)continue;if(c6>0&&Math.abs(i/4-30)<c6-0.5)continue;tick(i*1.5,state.fineLen,state.fineTh,state.fineColor)}
+  for(let i=0;i<60;i++){if(c6>0&&Math.abs(i-30)<c6)continue;
+    if(i%5===0){if(noT&&ph.has(i===0?12:i/5))continue;tick(i*6,state.fiveLen,state.tickTh*1.4,state.trackColor)}else tick(i*6,state.tickLen,state.tickTh,state.trackColor)}
+  if(state.trackR>0&&state.trackLine!=='off'){ctx.strokeStyle=state.fineColor;if(soft>0.05)ctx.shadowColor=state.fineColor;ctx.lineWidth=Math.max(0.5,R*state.fineTh/100*1.1);
     ctx.beginPath();ringPath(ctx,R*state.trackR/100);ctx.stroke()}
   ctx.restore();
 }
@@ -445,10 +462,13 @@ function buildMarker(g,ang,hour){
   const fr=R*gp(g,'Frame')/100*k,sharp=gp(g,'Sharp')/100,gap=gp(g,'Gap'),rot=gp(g,'Rot'),shape=effShape(g),out=[];
   const poly=pts=>out.push({type:'poly',outer:pts});
   const bat=(a,w)=>poly(quad(a,top,oR,w*(1-tp),w));
+  // parallel bars keep a constant edge-to-edge gap (in % of the screen radius), like applied double batons
+  const par=gp(g,'Layout')==='parallel',pg=R*(gp(g,'PGap')??1.2)/100,tn=(ang-90)*Math.PI/180,pnx=-Math.sin(tn),pny=Math.cos(tn);
+  const pbat=(w,off)=>poly(quad(ang,top,oR,w*(1-tp),w).map(p=>[p[0]+pnx*off,p[1]+pny*off]));
   switch(shape){
     case 'single':bat(ang,W);break;
-    case 'double':for(const o of[-1,1])bat(ang+o*gap,W*0.6);break;
-    case 'triple':for(const o of[-1,0,1])bat(ang+o*gap*1.5,W*0.47);break;
+    case 'double':if(par){const w=W*0.6;for(const o of[-1,1])pbat(w,o*(w+pg/2))}else for(const o of[-1,1])bat(ang+o*gap,W*0.6);break;
+    case 'triple':if(par){const w=W*0.47;for(const o of[-1,0,1])pbat(w,o*(2*w+pg))}else for(const o of[-1,0,1])bat(ang+o*gap*1.5,W*0.47);break;
     case 'triangle':poly([P(ang,top),...quad(ang,oR,oR,W*1.3,W*1.3).slice(1,3)]);break;
     case 'arrow':{const sh=quad(ang,oR-L*0.45,oR-L*0.45,W*1.2,W*1.2),bs=quad(ang,oR,oR,W*0.65*(1-tp*0.6),W*0.65*(1-tp*0.6));poly([P(ang,top),sh[1],bs[1],bs[2],sh[2]]);break}
     case 'diamond':{const m=quad(ang,oR-L*0.5,oR-L*0.5,W*1.05,W*1.05);poly([P(ang,top),m[1],P(ang,oR),m[2]]);break}
@@ -456,7 +476,7 @@ function buildMarker(g,ang,hour){
     case 'square':{const h=Math.min(L/2,W*1.2);poly(quad(ang,oR-L/2-h,oR-L/2+h,h,h));break}
     case 'numeral':case 'roman':{const p=P(ang,oR-L/2);out.push({type:'text',x:p[0],y:p[1],txt:shape==='roman'?ROMAN[hour]:String(hour),px:L*(shape==='roman'&&hour%12!==0&&ROMAN[hour].length>2?0.62:0.8)});break}
     case 'crown':{const p=P(ang,oR-L/2),h=L*0.78;out.push({type:'crown',x:p[0],y:p[1],w:Math.max(h*0.9,W*3.6),h});break}
-    case 'image':{const p=P(ang,oR-L/2),im=images[g],ar=im&&im.naturalWidth?im.naturalWidth/im.naturalHeight:1,h=L*0.9;out.push({type:'image',x:p[0],y:p[1],w:Math.max(h*ar*(W/(R*0.034)),1),h,img:g});break}
+    case 'image':{const p=P(ang,oR-L/2),im=images[g],ar=im&&im.naturalWidth?im.naturalWidth/im.naturalHeight:1,h=L*0.9;out.push({type:'image',x:p[0],y:p[1],w:Math.max(h*ar*(gp(g,'ImgW')??100)/100,1),h,img:g});break}
   }
   const c=P(ang,oR-L/2);
   out.forEach(m=>{
@@ -464,9 +484,9 @@ function buildMarker(g,ang,hour){
     if(m.type==='poly'){
       m.outer=rotatePts(m.outer,c[0],c[1],rot);
       let me=1e9;m.outer.forEach((p,i)=>{const q=m.outer[(i+1)%m.outer.length];me=Math.min(me,Math.hypot(q[0]-p[0],q[1]-p[1]))});
-      m.cr=(1-sharp)*me*0.5;m.inner=offsetConvex(m.outer,fr);m.icr=Math.max(0,m.cr-fr);
+      m.cr=(1-sharp)*me*0.5;m.fr=fr;m.inner=offsetConvex(m.outer,fr);m.icr=Math.max(0,m.cr-fr);
       m.oPath=roundPoly(m.outer,m.cr);m.iPath=roundPoly(m.inner,m.icr);
-    }else if(m.type==='circle'){m.ri=Math.max(0,m.r-fr);m.oPath=new Path2D();m.oPath.arc(m.x,m.y,m.r,0,Math.PI*2);m.iPath=new Path2D();m.iPath.arc(m.x,m.y,m.ri,0,Math.PI*2)}
+    }else if(m.type==='circle'){m.fr=fr;m.ri=Math.max(0,m.r-fr);m.oPath=new Path2D();m.oPath.arc(m.x,m.y,m.r,0,Math.PI*2);m.iPath=new Path2D();m.iPath.arc(m.x,m.y,m.ri,0,Math.PI*2)}
     else if(m.type==='crown'){const t=new DOMMatrix().translate(m.x,m.y).rotate(rot).translate(-m.w/2,-m.h/2-m.h*0.025).scale(m.w/74,m.h/73).translate(-13,-16);
       m.oPath=new Path2D();m.oPath.addPath(CROWN_PATH,t);m.fill='evenodd'}
   });
@@ -477,6 +497,24 @@ function allMarkers(){
   for(let hr=1;hr<=12;hr++){const ang=(hr*30)%360,g=hr===12?'m12':hr===3?'m3':hr===6?'m6':hr===9?'m9':'mo';
     const list=buildMarker(g,ang,hr);(g==='m12'?res.m12:res.markers).push(...list)}
   return res;
+}
+function plotHours(){const s=new Set();if(state.plots==='none')return s;const k=state.plotSkip;
+  for(let h=1;h<=12;h++){if((k==='6'||k==='12and6')&&h===6)continue;if((k==='12'||k==='12and6')&&h===12)continue;if(k==='369'&&h%3===0)continue;s.add(h)}return s}
+function buildPlots(){
+  const shape=state.plots;if(shape==='none')return[];
+  const R=GEO.R,k=state.frameThick/50,s=R*state.plotSize/200,oR=R*state.plotR/100,L=R*state.plotLen/100,fr=R*state.plotFrame/100*k,out=[];
+  plotHours().forEach(hr=>{
+    const ang=(hr*30)%360;let m;
+    if(shape==='round'){const p=P(ang,oR-s);m={type:'circle',x:p[0],y:p[1],r:s}}
+    else if(shape==='square')m={type:'poly',outer:quad(ang,oR-2*s,oR,s,s)};
+    else if(shape==='bar')m={type:'poly',outer:quad(ang,oR-L,oR,s*0.55,s*0.55)};
+    else m={type:'poly',outer:[P(ang,oR-L),...quad(ang,oR,oR,s,s).slice(1,3)]};
+    m.g='plot';m.rot=0;m.rnd=hashI(hr,7,state.seed+13);m.fr=fr;
+    if(m.type==='poly'){let me=1e9;m.outer.forEach((p,i)=>{const q=m.outer[(i+1)%m.outer.length];me=Math.min(me,Math.hypot(q[0]-p[0],q[1]-p[1]))});
+      m.cr=(1-state.plotSharp/100)*me*0.5;m.inner=offsetConvex(m.outer,fr);m.icr=Math.max(0,m.cr-fr);m.oPath=roundPoly(m.outer,m.cr);m.iPath=roundPoly(m.inner,m.icr)}
+    else{m.ri=Math.max(0,m.r-fr);m.oPath=new Path2D();m.oPath.arc(m.x,m.y,m.r,0,Math.PI*2);m.iPath=new Path2D();m.iPath.arc(m.x,m.y,m.ri,0,Math.PI*2)}
+    out.push(m)});
+  return out;
 }
 function ptsOf(m,which){
   if(m.type==='circle'){const r=which==='outer'?m.r:m.ri,pts=[];for(let i=0;i<48;i++){const t=i/48*Math.PI*2;pts.push([m.x+r*Math.cos(t),m.y+r*Math.sin(t)])}return pts}
@@ -489,6 +527,32 @@ function edgeLight(ctx,pts,w,str,inv){
     const k=(nx*LV[0]+ny*LV[1])*(inv?-1:1);
     ctx.strokeStyle=k>0?`rgba(255,255,255,${(k*str).toFixed(3)})`:`rgba(0,0,0,${(-k*str*0.75).toFixed(3)})`;
     ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+}
+// Faceted chamfers: every bevel facet reflects the light (bright) or the dark dial (dark) depending on which way it faces
+function facetColor(base,k,dial){return k>=0?mix(base,'#FFFFFF',clamp(0.1+0.84*Math.pow(k,1.25),0,0.94)):mix(base,dial,clamp(0.28+0.66*Math.pow(-k,0.85),0,0.92))}
+function facetRing(ctx,o,i,base,dial,inward){
+  const n=o.length,cx=o.reduce((a,p)=>a+p[0],0)/n,cy=o.reduce((a,p)=>a+p[1],0)/n;
+  for(let j=0;j<n;j++){const a=o[j],b=o[(j+1)%n],c=i[(j+1)%n],d=i[j];let nx=-(b[1]-a[1]),ny=b[0]-a[0];const l=Math.hypot(nx,ny)||1;nx/=l;ny/=l;
+    if(((a[0]+b[0])/2-cx)*nx+((a[1]+b[1])/2-cy)*ny<0){nx=-nx;ny=-ny}
+    const k=(nx*LV[0]+ny*LV[1])*(inward?-1:1);ctx.fillStyle=facetColor(base,k,dial);ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=Math.max(0.4,GEO.R*0.0008);
+    ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.lineTo(c[0],c[1]);ctx.lineTo(d[0],d[1]);ctx.closePath();ctx.fill();ctx.stroke()}
+}
+function bevelBase(mt){return tint(mt.c,clamp((state.frameBright-50)/100,-0.9,0.9))}
+function facetBevel(ctx,m,mt,R,bs){
+  const o=ptsOf(m,'outer'),fr=m.fr||bs*2,w=Math.min(bs,fr*0.55);if(w<=0.15)return;
+  facetRing(ctx,o,offsetConvex(o,w),bevelBase(mt),mix(state.base,'#000000',0.45),false);
+}
+function innerChamfer(ctx,m,mt,R,bs){
+  const fr=m.fr;if(!fr)return;const iw=Math.min(bs*0.6,fr*0.4);if(iw<=0.15)return;
+  const win=ptsOf(m,'inner');facetRing(ctx,offsetConvex(win,-iw),win,bevelBase(mt),mix(state.base,'#000000',0.45),true);
+}
+const GRAIN={cv:null,seed:null};
+function lumeTexture(ctx,m,R){
+  if(GRAIN.seed!==state.seed){const s=96,cv=document.createElement('canvas');cv.width=cv.height=s;const c=cv.getContext('2d'),im=c.createImageData(s,s),r=rng((state.seed|0)+77);
+    for(let i=0;i<s*s;i++){const v=r();im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=v>0.5?255:0;im.data[i*4+3]=Math.round(Math.abs(v-0.5)*2*255)}
+    c.putImageData(im,0,0);GRAIN.cv=cv;GRAIN.seed=state.seed}
+  const pat=ctx.createPattern(GRAIN.cv,'repeat');if(pat.setTransform)pat.setTransform(new DOMMatrix().scale(Math.max(0.5,R/233*0.9)));
+  ctx.save();ctx.clip(m.iPath);ctx.globalAlpha=state.lumeGrain/100*0.16;ctx.fillStyle=pat;ctx.fill(m.iPath);ctx.restore();
 }
 function metalFor(g){
   if(g==='m12'&&state.m12Colors==='custom') return{c:state.m12FrameC,stops:METALS.polished.stops,brushed:0};
@@ -513,8 +577,16 @@ function fillShape(ctx,m,style){
     else{const t=document.createElement('canvas'),sc=Math.abs(ctx.getTransform().a)||1;t.width=Math.max(1,Math.ceil(m.w*sc));t.height=Math.max(1,Math.ceil(m.h*sc));
       const tc=t.getContext('2d');tc.drawImage(im,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';
       tc.fillStyle=style==='#000'?'#000':state.imgMode==='fill'?lumeFor(m.g):style;
-      if(state.imgMode==='metal'&&style!=='#000'&&typeof style!=='string'){const mt=metalFor(m.g),lg=tc.createLinearGradient(0,0,0,t.height);lg.addColorStop(0,tint(mt.c,.45));lg.addColorStop(.5,tint(mt.c,-.3));lg.addColorStop(1,tint(mt.c,.3));tc.fillStyle=lg}
-      tc.fillRect(0,0,t.width,t.height);ctx.drawImage(t,-m.w/2,-m.h/2,m.w,m.h)}
+      if((state.imgMode==='metal'||state.imgMode==='applied')&&style!=='#000'&&typeof style!=='string'){const mt=metalFor(m.g),lg=tc.createLinearGradient(0,0,0,t.height);lg.addColorStop(0,tint(mt.c,.45));lg.addColorStop(.5,tint(mt.c,-.3));lg.addColorStop(1,tint(mt.c,.3));tc.fillStyle=lg}
+      tc.fillRect(0,0,t.width,t.height);ctx.drawImage(t,-m.w/2,-m.h/2,m.w,m.h);
+      if(state.imgMode==='applied'&&style!=='#000'&&typeof style!=='string'){
+        // emboss: bright rim on edges that face the light, dark rim on edges facing away (computed from the image's own alpha)
+        const rr=-(m.rot||0)*Math.PI/180,lx=LV[0]*Math.cos(rr)-LV[1]*Math.sin(rr),ly=LV[0]*Math.sin(rr)+LV[1]*Math.cos(rr),d=Math.max(1,GEO.R*0.0045*sc*(0.4+state.bevelSize/60));
+        const rim=(col,dx,dy,al)=>{const e=document.createElement('canvas');e.width=t.width;e.height=t.height;const ec=e.getContext('2d');ec.drawImage(im,0,0,e.width,e.height);
+          ec.globalCompositeOperation='destination-out';ec.drawImage(im,dx,dy,e.width,e.height);ec.globalCompositeOperation='source-in';ec.fillStyle=col;ec.fillRect(0,0,e.width,e.height);
+          ctx.globalAlpha=al;ctx.drawImage(e,-m.w/2,-m.h/2,m.w,m.h);ctx.globalAlpha=1};
+        rim('#FFFFFF',-lx*d,-ly*d,0.8);rim(mix(state.base,'#000000',0.55),lx*d,ly*d,0.7);
+      }}
     ctx.restore();return}
   ctx.fill(m.oPath,m.fill||'nonzero');
 }
@@ -552,16 +624,19 @@ function paintMarkers(ctx,list,opts={}){
       if(m.type==='crown'){const b=ctx.createLinearGradient(m.x+LV[0]*m.w/2,m.y+LV[1]*m.h/2,m.x-LV[0]*m.w/2,m.y-LV[1]*m.h/2);
         b.addColorStop(0,'rgba(255,255,255,.7)');b.addColorStop(.45,'rgba(255,255,255,0)');b.addColorStop(.6,'rgba(0,0,0,0)');b.addColorStop(1,'rgba(0,0,0,.5)');
         ctx.strokeStyle=b;ctx.lineWidth=bs*2;ctx.stroke(m.oPath)}
+      else if(state.bevelStyle==='faceted'&&(m.type==='poly'||m.type==='circle')) facetBevel(ctx,m,mt,R,bs);
       else for(let i=0;i<n;i++) edgeLight(ctx,ptsOf(m,'outer'),bs*2*(i+1)/n,0.8/n*(n===1?1:1.6),false);
     }
     ctx.restore();
     // inside
     const fill=gp(m.g,'Fill');
     if(fill==='solid'||!m.iPath) return;
+    if(state.bevelStyle==='faceted'&&state.bevelSize>0&&(m.type==='poly'||m.type==='circle')) innerChamfer(ctx,m,mt,R,bs);
     if(fill==='polished'){const g2=ctx.createLinearGradient(GEO.cx+LV[0]*R,GEO.cy+LV[1]*R,GEO.cx-LV[0]*R,GEO.cy-LV[1]*R);
       g2.addColorStop(0,tint(mt.c,.7));g2.addColorStop(.5,tint(mt.c,.1));g2.addColorStop(1,tint(mt.c,.55));ctx.fillStyle=g2}
     else ctx.fillStyle=lumeFor(m.g);
     ctx.fill(m.iPath);
+    if(fill==='lume'&&state.lumeGrain>0) lumeTexture(ctx,m,R);
     const rc=state.lumeRecess/100;
     if(rc>0){ctx.save();ctx.clip(m.iPath);edgeLight(ctx,ptsOf(m,'inner'),R*0.007*rc,0.6*rc+0.1,true);ctx.restore()}
   });
@@ -601,6 +676,13 @@ const LOGOS={
     if(state.logoFinish==='flat'||ctx._tint){tc.globalCompositeOperation='source-in';tc.fillStyle=ctx.fillStyle;tc.fillRect(0,0,t.width,t.height)}
     ctx.drawImage(t,50-w/2,50-h/2,w,h)}}
 };
+function drawSymbol(ctx,key){if(key==='dot'){ctx.beginPath();ctx.arc(50,50,15,0,Math.PI*2);ctx.fill();return}const L=LOGOS[key];if(L&&key!=='none')L.draw(ctx)}
+function drawSwissSym(ctx){
+  const t=state.swissSym;if(!t||t==='none'||state.swissMode!=='split')return;
+  const R=GEO.R,size=R*state.swissSymSize/100,p=P(180+state.swissX*0.5,R*state.swissR/100);
+  ctx.save();ctx.globalAlpha=state.swissInk/100;ctx.translate(p[0]-size/2,p[1]-size/2);ctx.scale(size/100,size/100);
+  ctx.fillStyle=state.swissColor;ctx.strokeStyle=state.swissColor;ctx._tint=true;drawSymbol(ctx,t);ctx._tint=false;ctx.restore();
+}
 function drawEmblem(ctx,cx,cy,size,R,{thumb=false}={}){
   const L=LOGOS[state.logo];if(!L||state.logo==='none')return;
   const draw=(paint,dx=0,dy=0)=>{ctx.save();ctx.translate(cx-size/2+dx,cy-size/2+dy);ctx.scale(size/100,size/100);ctx.fillStyle=paint;ctx.strokeStyle=paint;L.draw(ctx);ctx.restore()};
@@ -619,10 +701,10 @@ function drawEmblem(ctx,cx,cy,size,R,{thumb=false}={}){
 /* =====================================================================
    Text
    ===================================================================== */
-function lineStyle(id){const R=GEO.R;return{id,px:R*state[id+'Size']/100,color:state[id+'Color'],track:state[id+'Track'],weight:state[id+'Weight'],stretch:state[id+'Stretch']/100,
+function lineStyle(id){const R=GEO.R;return{id,font:state[id+'Font'],px:R*state[id+'Size']/100,color:state[id+'Color'],track:state[id+'Track'],weight:state[id+'Weight'],stretch:state[id+'Stretch']/100,
   render:state[id+'Render'],ink:state[id+'Ink']/100,thick:state[id+'Thick']/100,soft:state[id+'Soft'],shadow:state[id+'Shadow']/100,curve:state[id+'Curve']}}
 function setFont(ctx,o){
-  ctx.font=`${o.weight} ${o.px}px ${FONTS[state.font]||FONTS.serif}`;ctx.textBaseline='alphabetic';ctx.textAlign='left';
+  const fk=o.font&&o.font!=='inherit'?o.font:state.font;ctx.font=`${o.weight} ${o.px}px ${FONTS[fk]||FONTS.serif}`;ctx.textBaseline='alphabetic';ctx.textAlign='left';
   if('fontKerning' in ctx)ctx.fontKerning=state.kerning;if('letterSpacing' in ctx)ctx.letterSpacing='0px';
   return ctx.measureText('H').actualBoundingBoxAscent||o.px*0.68;
 }
@@ -697,7 +779,7 @@ function render(W,H,scale,flags={light:true,tex:true}){
   const out=document.createElement('canvas');out.width=W;out.height=H;const octx=out.getContext('2d');
   const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;const t=tmp.getContext('2d');
   const env={W,H,scale};const R=GEO.R,{cx,cy,hh}=GEO;
-  const mk=allMarkers();
+  const mk=allMarkers(),plots=buildPlots();
   // text layout
   const sp=state.lineSpacing/100,oN=lineStyle('brand'),oS=lineStyle('sub'),oB=lineStyle('bottom'),oB2=lineStyle('bottom2'),oW=lineStyle('swiss');
   const nameY=cy-hh*0.36+R*state.brandY/100;
@@ -714,12 +796,13 @@ function render(W,H,scale,flags={light:true,tex:true}){
     dial:c=>c.drawImage(makeDial(W,H,scale,flags),0,0),
     rehaut:c=>drawRehaut(c,env),
     track:c=>drawTrack(c),
+    plots:c=>paintMarkers(c,plots),
     markers:c=>paintMarkers(c,mk.markers),
     m12:c=>paintMarkers(c,mk.m12),
     emblem:c=>drawEmblem(c,cx+R*state.brandX/100,nameY-nameCap/2-R*state.logoGap/100-ls/2,ls,R),
     textTop:c=>{lay.brand&&paintText(c,lay.brand);lay.sub&&paintText(c,lay.sub)},
     textLower:c=>{lay.bottom&&paintText(c,lay.bottom);lay.bottom2&&paintText(c,lay.bottom2)},
-    textBottom:c=>{lay.swiss&&paintText(c,lay.swiss)},
+    textBottom:c=>{if(lay.swiss){paintText(c,lay.swiss);drawSwissSym(c)}},
     center:c=>drawCenter(c)
   };
   state.layers.forEach(ly=>{
@@ -765,14 +848,17 @@ function groupControls(g){
   const sh=()=>effShape(g);
   let h='';
   if(g==='m12') h+=`<div${showAttr(on())}><div class="picker" id="twPicker"></div></div>`;
-  else if(g==='mo') h+=sl(g+'Shape','Shape',[['single','Baton'],['round','Round'],['triangle','Triangle'],['diamond','Diamond'],['square','Square'],['numeral','Arabic numerals'],['roman','Roman numerals'],['image','Uploaded image'],['none','None']],on());
+  else if(g==='mo') h+=sl(g+'Shape','Shape',[['single','Baton'],['double','Double baton'],['triple','Triple baton'],['round','Round'],['triangle','Triangle'],['diamond','Diamond'],['square','Square'],['numeral','Arabic numerals'],['roman','Roman numerals'],['image','Uploaded image'],['none','None']],on());
   else{h+=sl(g+'Mode','Marker',[['single','Single'],['double','Double'],['custom','Custom']],on());
     h+=sl(g+'Shape','Custom shape',SHAPES.filter(s=>!['single','double'].includes(s[0])),on(()=>gp(g,'Mode')==='custom'))}
   h+=file('file_'+g,'Your image','.png,.svg,.webp,image/png,image/svg+xml,image/webp',on(()=>sh()==='image'));
-  h+=sl('imgMode','Image color',[['original','Original colors'],['metal','Metal'],['fill','Lume color']],on(()=>sh()==='image')).replace(/c_imgMode/g,'c_imgMode_'+g);
+  h+=sl('imgMode','Image color',[['original','Original colors'],['metal','Metal (flat)'],['applied','Applied metal (bevelled)'],['fill','Lume color']],on(()=>sh()==='image')).replace(/c_imgMode/g,'c_imgMode_'+g);
   h+=rg(g+'Len','Marker length',4,40,0.5,on(),'%');
-  h+=rg(g+'Width','Marker width',0.5,9,0.1,on(),'%');
-  h+=rg(g+'Gap','Spacing between',1,8,0.1,on(()=>['double','triple'].includes(sh())),'°');
+  h+=rg(g+'Width','Marker width',0.5,9,0.1,on(()=>sh()!=='image'),'%');
+  h+=rg(g+'ImgW','Image width',30,300,1,on(()=>sh()==='image'),'%');
+  h+=sl(g+'Layout','Bar layout',[['radial','Fanned (follow the radius)'],['parallel','Parallel (constant gap)']],on(()=>['double','triple'].includes(sh())));
+  h+=rg(g+'Gap','Spacing between',1,8,0.1,on(()=>['double','triple'].includes(sh())&&gp(g,'Layout')!=='parallel'),'°');
+  h+=rg(g+'PGap','Gap between bars',0,6,0.05,on(()=>['double','triple'].includes(sh())&&gp(g,'Layout')==='parallel'),'%');
   h+=rg(g+'Taper','Marker taper',0,90,1,on());
   h+=rg(g+'Rot','Rotation offset',-45,45,0.5,on(),'°');
   h+=rg(g+'Dist','Distance from center',50,99,0.5,on(),'%');
@@ -787,6 +873,7 @@ function lineBlock(L){
   const id=L.id;
   let h=`<details class="line"${L.open?' open':''}><summary>${L.label}${L.note?`<span>${L.note}</span>`:''}</summary>`;
   h+=tx(id,'Text');
+  h+=sl(id+'Font','Font',[['inherit','Same as Typography'],...FONT_OPTS]);
   h+=rg(id+'Size','Font size',1.5,14,0.1);
   h+=sl(id+'Weight','Weight',WEIGHTS);
   h+=rg(id+'Track','Tracking',-50,500,5);
@@ -801,6 +888,8 @@ function lineBlock(L){
     h+=sl('swissMode','Placement',[['split','Curved, split around 6'],['curve','Curved, centered'],['straight','Straight']]);
     h+=rg('swissR','Distance from center',50,96,0.5,null,'%');
     h+=rg('swissGap','Gap around marker',0,15,0.1,()=>state.swissMode==='split','°');
+    h+=sl('swissSym','Symbol between words',SYMBOLS,()=>state.swissMode==='split');
+    h+=rg('swissSymSize','Symbol size',1,6,0.05,()=>state.swissMode==='split'&&state.swissSym!=='none','%');
     h+=rg('swissCurve','Baseline curve',-10,10,0.5,()=>state.swissMode==='straight');
     h+=rg('swissX','X position (shift)',-40,40,0.5);
   }else{
@@ -813,9 +902,10 @@ function lineBlock(L){
 function buildPanel(){
   let h='';
   h+=sec('Watch',`<div class="seg" role="group" aria-label="Watch shape">
-      <button type="button" data-shape="round" aria-pressed="true"><b>Round</b><span>GT 7 Pro · 466 × 466</span></button>
+      <button type="button" data-shape="round" aria-pressed="true"><b>Round</b><span>GT 46 mm / GT 7 Pro · 466 × 466</span></button>
       <button type="button" data-shape="rect" aria-pressed="false"><b>43.2 × 36.3 × 9.9 mm</b><span>Watch Fit 3 · 408 × 480</span></button></div>`
-    +rg('cornerR','Screen corners',20,160,1,()=>state.shape==='rect','px'),true);
+    +rg('cornerR','Screen corners',20,160,1,()=>state.shape==='rect','px')
+    +`<p class="sub">Design presets</p><div class="pair" id="designPresets"></div>`,true);
   h+=sec('Dial color',`<div class="presets" id="presets"></div>`+cl('base','Shadow color')+cl('high','Highlight color'),true);
   h+=sec('Dial material and texture',
      sl('material','Material preset',[['flat','Flat'],['sunburst','Sunburst metal'],['radial','Radial brushed metal'],['satin','Satin'],['lacquer','Lacquer'],['matte','Matte'],['enamel','Enamel']])
@@ -836,6 +926,7 @@ function buildPanel(){
     +rg('rehautW','Rehaut width',0,100,1,()=>state.rehaut==='on')+rg('rehautDepth','Rehaut depth',0,100,1,()=>state.rehaut==='on')
     +rg('rehautAngle','Rehaut angle',0,30,0.5,()=>state.rehaut==='on','°')+rg('rehautRefl','Reflection',0,100,1,()=>state.rehaut==='on')
     +rg('rehautShadow','Inner shadow',0,100,1,()=>state.rehaut==='on')
+    +sl('engraveSym','Engraved symbol at 12',SYMBOLS,()=>state.rehaut==='on')
     +sl('engrave','Engraving',[['none','None'],['custom','Custom text']],()=>state.rehaut==='on')
     +tx('engraveText','Engraving text',()=>state.rehaut==='on'&&state.engrave==='custom')
     +rg('engraveSpacing','Engraving spacing',0,100,1,()=>state.rehaut==='on'&&state.engrave==='custom')
@@ -845,13 +936,24 @@ function buildPanel(){
     +rg('tickLen','Tick length',0,12,0.1,null,'%')+rg('tickTh','Tick thickness',0.1,3,0.05,null,'%')
     +rg('fineLen','Fine-tick length',0,8,0.1,null,'%')+rg('fineTh','Fine-tick thickness',0,2,0.02,null,'%')
     +rg('fiveLen','Five-minute tick length',0,15,0.1,null,'%')+rg('tickOpacity','Tick opacity',0,100,1)+rg('tickSharp','Tick sharpness',0,100,1)
-    +rg('trackRot','Track rotation offset',-6,6,0.1,null,'°')+cl('trackColor','Minute tick color')+cl('fineColor','Fine tick color'));
+    +rg('trackRot','Track rotation offset',-6,6,0.1,null,'°')+cl('trackColor','Minute tick color')+cl('fineColor','Fine tick color')
+    +sl('trackLine','Track ring line',ON)+rg('tickClear6','Clear ticks around 6',0,5,1)
+    +hint('Clear ticks around 6 makes room for curved bottom text: 1 hides the 30-minute tick, 2 hides 29 to 31, and so on.'));
+  h+=sec('Hour plots',sl('plots','Plot shape',[['none','None'],['square','Square'],['round','Round'],['bar','Bar'],['triangle','Triangle']])
+    +rg('plotSize','Plot size',0.8,7,0.05,()=>state.plots!=='none','%')+rg('plotLen','Plot length',1,10,0.1,()=>['bar','triangle'].includes(state.plots),'%')
+    +rg('plotR','Outer edge from center',80,99.5,0.1,()=>state.plots!=='none','%')+rg('plotFrame','Frame thickness',0,2,0.05,()=>state.plots!=='none','%')
+    +rg('plotSharp','Corner sharpness',0,100,1,()=>state.plots!=='none')
+    +sl('plotFill','Inside',[['lume','Lume fill'],['polished','Polished facet'],['solid','Solid metal']],()=>state.plots!=='none')
+    +sl('plotSkip','Leave out at',[['none','Nowhere'],['6','6 o\'clock'],['12','12 o\'clock'],['12and6','12 and 6'],['369','12, 3, 6 and 9']],()=>state.plots!=='none')
+    +sl('plotNoTick','Hide the tick under each plot',ON,()=>state.plots!=='none')
+    +hint('Applied lume plots on the minute track, one per hour. They use the marker material, bevels and shadows.'));
   h+=sec('Applied marker material',
-     sl('mMat','Marker frame material',[['polished','Polished steel'],['brushed','Brushed steel'],['whitegold','White gold'],['yellowgold','Yellow gold'],['black','Black metal'],['custom','Custom color']])
+     sl('bevelStyle','Bevel style',[['faceted','Faceted chamfers (realistic)'],['soft','Soft edges (classic)']])
+    +sl('mMat','Marker frame material',[['polished','Polished steel'],['brushed','Brushed steel'],['whitegold','White gold'],['yellowgold','Yellow gold'],['black','Black metal'],['custom','Custom color']])
     +cl('frame','Custom frame color',[],()=>state.mMat==='custom')
     +rg('frameBright','Frame brightness',0,100,1)+rg('frameThick','Frame thickness',0,100,1)+rg('bevelSize','Bevel size',0,100,1)+rg('bevelSoft','Bevel softness',0,100,1)
     +rg('raised','Raised height',0,100,1)+rg('contact','Contact shadow',0,100,1)+rg('reflect','Reflection intensity',0,100,1)
-    +cl('lume','Lume color',[['Ivory','#F2EEDC'],['White','#F7F8F6'],['Vintage','#E6D3A3']])+rg('lumeWarm','Lume warmth',0,100,1)+rg('lumeRecess','Lume recess',0,100,1)
+    +cl('lume','Lume color',[['Ivory','#F2EEDC'],['White','#F7F8F6'],['Vintage','#E6D3A3']])+rg('lumeWarm','Lume warmth',0,100,1)+rg('lumeRecess','Lume recess',0,100,1)+rg('lumeGrain','Lume texture',0,100,1)
     +hint('Lume warmth runs from cool white (0) to warm ivory (100); 50 keeps the chosen lume color.'),false);
   h+=sec('Hour markers',`<p class="hint" style="margin:0 0 6px">Pick a position to adjust it on its own. Tip: click a marker on the preview to jump here.</p>
       <div class="tabs" role="tablist">${GROUPS.map(g=>`<button type="button" data-group="${g.id}" aria-pressed="${g.id===UI.group}">${g.label}</button>`).join('')}</div>`
@@ -861,7 +963,7 @@ function buildPanel(){
     +sl('logoFinish','Finish',[['metal','Applied metal'],['flat','Printed']])+cl('logoColor','Color',[['White','#FFFFFF'],['Silver','#D9D9D9'],['Gold','#D3B57E']])
     +rg('logoSize','Size',5,22,0.1,null,'%')+rg('logoGap','Gap above name',-2,10,0.1,null,'%'));
   h+=sec('Typography',`<div class="row"><label>Type style</label><div class="pair" id="typePresets"></div></div>`
-    +sl('font','Font family',[['ebg','EB Garamond'],['cormorant','Cormorant Garamond'],['baskerville','Baskerville'],['serif','Georgia'],['didone','Didot / Bodoni'],['sans','Helvetica'],['geo','Futura'],['custom','Uploaded font']])
+    +sl('font','Font family',FONT_OPTS)+hint('Each text line can also use its own font (Text lines, Font).')
     +file('fontFile','Upload a font','.ttf,.otf,.woff,.woff2')+sl('caps','Case',[['upper','ALL CAPS'],['asis','As typed']])
     +sl('kerning','Kerning',[['normal','Font kerning on'],['none','Off']])+rg('lineSpacing','Line spacing',70,160,1,null,'%')
     +`<p class="hint" id="fontNote">Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).</p>`);
@@ -876,6 +978,7 @@ function buildPanel(){
   h+=sec('Export',`<div class="row"><label for="size">Size</label><select id="size"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select></div>`
     +sl('transparent','Outside screen',[['false','Black'],['true','Transparent']])
     +`<div class="btns"><button id="exportBtn">Export PNG</button><button class="ghost" id="saveBtn">Save settings</button><button class="ghost" id="loadBtn">Load settings</button><button class="ghost" id="resetBtn">Reset</button><input type="file" id="loadFile" accept=".json" hidden></div>
+      <p class="hint">AMOLED: keep Outside screen on Black so those pixels stay switched off and blend into the bezel.</p>
       <div class="status" id="status" role="status"></div><img id="result" alt="Exported dial"><p class="hint" id="resultHint" hidden>If the download didn't start, right-click or long-press the image to save it.</p>`,true);
   document.getElementById('sections').innerHTML=h;
 }
@@ -910,7 +1013,7 @@ inputs.forEach(el=>el.addEventListener('input',()=>{
   const k=el.dataset.key;let v=el.type==='range'||el.type==='number'?parseFloat(el.value):el.value;if(el.type==='number'&&isNaN(v))return;
   state[k]=v;syncNum(el);
   if(k==='material'){Object.assign(state,MATERIAL_PRESETS[v]||{});syncInputs()}
-  if(k==='font'||/Weight$/.test(k))ensureFont();
+  if(k==='font'||/Weight$|Font$/.test(k))ensureFont();
   if(k==='cornerR'||k==='shape')applyShape();
   updateVis();el.type==='range'?scheduleFast():schedule();
 }));
@@ -985,10 +1088,13 @@ $('fontFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!
   try{const face=new FontFace('UserFont',await f.arrayBuffer());await face.load();document.fonts.add(face);state.font='custom';syncInputs();schedule();status.textContent=`Using ${f.name}.`}
   catch{status.textContent='That font file could not be read. Try a .ttf, .otf or .woff file.'}});
 async function ensureFont(){
-  const fam=WEBFONT[state.font];if(!fam){schedule();return}
-  try{const ws=[...new Set(LINES.map(L=>state[L.id+'Weight']))];await Promise.all(ws.map(w=>document.fonts.load(`${w} 40px "${fam}"`)));
-    const ok=[...document.fonts].some(f=>f.family.replace(/["']/g,'')===fam&&f.status==='loaded');
-    $('fontNote').textContent=ok?'Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).':`${fam} couldn't be downloaded here, so a similar serif is shown. Open the file in a regular browser while online, or upload the font file.`}catch(e){}
+  const pairs=new Set();
+  LINES.forEach(L=>{const f=state[L.id+'Font']&&state[L.id+'Font']!=='inherit'?state[L.id+'Font']:state.font;if(WEBFONT[f])pairs.add(state[L.id+'Weight']+'|'+WEBFONT[f])});
+  if(WEBFONT[state.font]){pairs.add(state.brandWeight+'|'+WEBFONT[state.font]);pairs.add('500|'+WEBFONT[state.font])}
+  if(!pairs.size){schedule();return}
+  try{await Promise.all([...pairs].map(p=>{const [w,fam]=p.split('|');return document.fonts.load(`${w} 40px "${fam}"`)}));
+    const fams=[...new Set([...pairs].map(p=>p.split('|')[1]))],missing=fams.filter(fam=>![...document.fonts].some(f=>f.family.replace(/["']/g,'')===fam&&f.status==='loaded'));
+    $('fontNote').textContent=!missing.length?'Tracking is in thousandths of an em, the same unit as design apps (+200 = wide luxury spacing).':`${missing.join(', ')} couldn't be downloaded here, so a similar font is shown. Open the file in a regular browser while online, or upload the font file.`}catch(e){}
   schedule();
 }
 document.fonts.addEventListener&&document.fonts.addEventListener('loadingdone',schedule);
@@ -1000,9 +1106,18 @@ function restoreImages(){GROUPS.forEach(g=>setImage(g.id,state[g.id+'Img']));set
 const pv=$('preview'),pctx=pv.getContext('2d'),gv=$('guides'),gctx=gv.getContext('2d');
 let raf=0,pScale=2;
 let fullTimer=0;
-function schedule(){cancelAnimationFrame(raf);clearTimeout(fullTimer);raf=requestAnimationFrame(()=>drawPreview(false))}
+function schedule(){cancelAnimationFrame(raf);clearTimeout(fullTimer);raf=requestAnimationFrame(()=>drawPreview(false));commitHist()}
 // while dragging a slider, draw a quick 1× preview, then the sharp one once the slider rests
 function scheduleFast(){cancelAnimationFrame(raf);clearTimeout(fullTimer);raf=requestAnimationFrame(()=>drawPreview(true));fullTimer=setTimeout(schedule,260)}
+var HIST=null;const SAVE_KEY='dialCustomizer.state.v2';
+function persist(s){try{localStorage.setItem(SAVE_KEY,s)}catch(e){}}
+function updUndo(){if(!HIST)return;$('undoBtn').disabled=!HIST.past.length;$('redoBtn').disabled=!HIST.future.length}
+function flushHist(){if(!HIST)return;clearTimeout(HIST.timer);const s=JSON.stringify(state);if(s!==HIST.last){if(HIST.last!==null){HIST.past.push(HIST.last);if(HIST.past.length>80)HIST.past.shift();HIST.future.length=0}HIST.last=s;persist(s)}updUndo()}
+function commitHist(){if(!HIST)return;clearTimeout(HIST.timer);HIST.timer=setTimeout(flushHist,400)}
+function fixLayers(){if(!Array.isArray(state.layers)||state.layers.length!==LAYER_DEFS.length||!LAYER_DEFS.every(([id])=>state.layers.some(l=>l.id===id)))state.layers=JSON.parse(JSON.stringify(D.layers))}
+function applySnapshot(s){state={...JSON.parse(JSON.stringify(D)),...JSON.parse(s)};fixLayers();HIST.last=JSON.stringify(state);restoreImages();syncInputs();ensureFont();schedule();persist(HIST.last);updUndo()}
+function undo(){flushHist();if(!HIST||!HIST.past.length)return;HIST.future.push(HIST.last);applySnapshot(HIST.past.pop());status.textContent='Undone.'}
+function redo(){flushHist();if(!HIST||!HIST.future.length)return;HIST.past.push(HIST.last);applySnapshot(HIST.future.pop());status.textContent='Redone.'}
 function layoutStage(){
   const [bw,bh]=BASE(),vp=$('viewport'),cs=$('case'),scr=$('screen'),dpr=window.devicePixelRatio||1;
   const availW=vp.clientWidth-60,availH=vp.clientHeight-60,fit=Math.max(120,Math.min(availW/(bw*1.1),availH/(bh*1.1))*bw);
@@ -1017,7 +1132,7 @@ function applyShape(){
   const [bw,bh]=BASE(),cs=$('case');
   cs.classList.toggle('rect',state.shape==='rect');
   if(state.shape==='rect'){cs.style.setProperty('--cr',(state.cornerR/bw*100)+'%');cs.style.setProperty('--crv',(state.cornerR/bh*100)+'%')}
-  $('caption').textContent=state.shape==='rect'?'43.2 × 36.3 × 9.9 mm · Huawei Watch Fit 3 · 1.82″ · 408 × 480 px':'Huawei Watch GT 7 Pro · 1.47″ · 466 × 466 px';
+  $('caption').textContent=state.shape==='rect'?'43.2 × 36.3 × 9.9 mm · Huawei Watch Fit 3 · 1.82″ · 408 × 480 px':'Huawei Watch GT 46 mm / GT 7 Pro · 466 × 466 px';
   document.querySelectorAll('[data-shape]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.shape===state.shape)));
   [...$('size').options].forEach(o=>{const k=+o.value;o.textContent=`${bw*k} × ${bh*k}`+(k===1?' (Theme Studio)':k===8?' (master)':'')});
   layoutStage();
@@ -1062,12 +1177,21 @@ $('saveBtn').onclick=()=>{download(new Blob([JSON.stringify(state,null,2)],{type
 $('loadBtn').onclick=()=>$('loadFile').click();
 $('loadFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
   try{const data=JSON.parse(await f.text());state={...JSON.parse(JSON.stringify(D)),...data};
-    if(!Array.isArray(state.layers)||state.layers.length!==LAYER_DEFS.length)state.layers=JSON.parse(JSON.stringify(D.layers));
+    fixLayers();
     restoreImages();syncInputs();ensureFont();schedule();status.textContent=`Loaded ${f.name}.`}
   catch{status.textContent='That file is not a valid settings file.'}});
 $('resetBtn').onclick=()=>{state=JSON.parse(JSON.stringify(D));restoreImages();syncInputs();ensureFont();schedule();status.textContent='Reset to the original design.'};
 
-syncInputs();drawPreview();ensureFont();
+DESIGNS.forEach(p=>{const b=document.createElement('button');b.className='chip';b.type='button';b.textContent=p.name;b.title=p.note||'';
+  b.onclick=()=>{state={...JSON.parse(JSON.stringify(D)),...JSON.parse(JSON.stringify(p.v))};fixLayers();restoreImages();syncInputs();ensureFont();schedule();status.textContent=`Applied the ${p.name} design. Change the text under Text lines.`};
+  $('designPresets').appendChild(b)});
+$('undoBtn').onclick=()=>undo();$('redoBtn').onclick=()=>redo();
+document.addEventListener('keydown',e=>{const t=e.target,typing=t&&(t.tagName==='TEXTAREA'||(t.tagName==='INPUT'&&(t.type==='text'||t.type==='number')));
+  if(typing||!(e.ctrlKey||e.metaKey))return;const k=e.key.toLowerCase();if(k==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if(k==='y'){e.preventDefault();redo()}});
+// restore the last session (autosaved in this browser)
+try{const saved=localStorage.getItem(SAVE_KEY);if(saved){state={...JSON.parse(JSON.stringify(D)),...JSON.parse(saved)};fixLayers();restoreImages();status.textContent='Restored your last session. Reset brings back the original design.'}}catch(e){state=JSON.parse(JSON.stringify(D))}
+HIST={past:[],future:[],last:JSON.stringify(state),timer:0};
+syncInputs();drawPreview();ensureFont();updUndo();
 </script>
 </body>
 </html>
